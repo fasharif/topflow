@@ -1,0 +1,159 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../generated/prisma"
+  moduleFormat        = "cjs"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  CUSTOMER
+  CONTRACTOR
+  ADMIN
+  WAREHOUSE
+}
+
+enum StockStatus {
+  IN_STOCK
+  ON_ORDER
+}
+
+enum OrderStatus {
+  ENQUIRY_SUBMITTED
+  QUOTATION_ISSUED
+  CONFIRMED
+  DISPATCHED
+  DELIVERED
+  CANCELLED
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  fullName     String
+  companyName  String?
+  phoneNumber  String
+  role         Role      @default(CUSTOMER)
+  birthDate    DateTime?
+  gender       String?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  carts     Cart[]
+  orders    Order[]
+  auditLogs AuditLog[]
+
+  @@map("users")
+}
+
+model Category {
+  id           Int      @id @default(autoincrement())
+  name         String   @unique
+  slug         String   @unique
+  description  String?
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  products Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id             String      @id @default(uuid())
+  sku            String      @unique
+  name           String
+  categoryId     Int?
+  category       Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  description    String?
+  specifications Json?
+  unitPrice      Decimal     @default(0.00) @db.Decimal(10, 2)
+  stockStatus    StockStatus @default(IN_STOCK)
+  stockQuantity  Int         @default(0)
+  imageUrl       String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  @@map("products")
+}
+
+model Cart {
+  id           String   @id @default(uuid())
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionToken String?  @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  items CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String  @id @default(uuid())
+  cartId    String
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int
+
+  @@unique([cartId, productId])
+  @@map("cart_items")
+}
+
+model Order {
+  id               String      @id @default(uuid())
+  orderNumber      String      @unique
+  userId           String?
+  user             User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  status           OrderStatus @default(ENQUIRY_SUBMITTED)
+  totalAmount      Decimal     @db.Decimal(12, 2)
+  currency         String      @default("AED")
+  shippingAddress  String
+  projectReference String?
+  quotationPdfUrl  String?
+  notes            String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  items OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String   @id @default(uuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName String
+  sku         String
+  unitPrice   Decimal  @db.Decimal(10, 2)
+  quantity    Int
+  totalPrice  Decimal  @db.Decimal(10, 2)
+
+  @@map("order_items")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String
+  entityId   String?
+  details    Json?
+  createdAt  DateTime @default(now())
+
+  @@map("audit_logs")
+}
