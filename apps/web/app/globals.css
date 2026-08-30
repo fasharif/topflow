@@ -12,6 +12,13 @@
   --font-mono: var(--font-geist-mono);
 }
 
+@theme {
+  --color-topflow-navy: #0A192F;
+  --color-topflow-teal: #0284C7;
+  --color-topflow-canvas: #F8FAFC;
+  --color-topflow-amber: #D97706;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
