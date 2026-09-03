@@ -40,14 +40,8 @@ yarn-error.log*
 # Prisma generated client
 packages/database/generated/
 
-# Prisma AI-agent skill docs (vendored by prisma init, not project code)
-.claude/skills/
-.agents/skills/
-.windsurf/skills/
-skills-lock.json
-
-# Prisma AI-agent skill docs (vendored by prisma init, not project code)
-.claude/skills/
-.agents/skills/
-.windsurf/skills/
-skills-lock.json
+# AI-agent tooling scaffolded by various CLIs (Prisma init, create-expo-app, etc.), not project code
+**/.claude/
+**/.agents/
+**/.windsurf/
+**/skills-lock.json
