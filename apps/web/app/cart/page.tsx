@@ -1,10 +1,69 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCart } from "@/lib/cart-context";
+import { useAuth } from "@/lib/auth-context";
 
 export default function CartPage() {
-  const { items, updateQuantity, removeItem, totalAmount } = useCart();
+  const router = useRouter();
+  const { items, updateQuantity, removeItem, totalAmount, clearCart } = useCart();
+  const { user, token, isLoaded } = useAuth();
+  const [shippingAddress, setShippingAddress] = useState("");
+  const [projectReference, setProjectReference] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const handleSubmit = async () => {
+    if (!shippingAddress.trim()) {
+      setError("Shipping address is required");
+      return;
+    }
+    setError(null);
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/orders`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+          shippingAddress,
+          projectReference: projectReference || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || "Failed to submit enquiry");
+      }
+      const order = await res.json();
+      setSuccess(order.orderNumber);
+      clearCart();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (success) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-topflow-canvas px-6">
+        <div className="max-w-md text-center">
+          <h1 className="mb-2 text-2xl font-bold text-topflow-navy">Enquiry submitted</h1>
+          <p className="mb-6 text-slate-600">
+            Reference <span className="font-mono font-semibold">{success}</span>. Our team will follow
+            up with a formal quotation.
+          </p>
+          <Link href="/" className="font-medium text-topflow-teal">Back to catalog</Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-topflow-canvas">
@@ -55,13 +114,45 @@ export default function CartPage() {
               <span className="text-2xl font-bold text-topflow-navy">AED {totalAmount.toFixed(2)}</span>
             </div>
 
-            <button
-              disabled
-              title="Needs a login flow first — next checkpoint"
-              className="mt-6 w-full cursor-not-allowed rounded-md bg-slate-300 px-4 py-3 font-medium text-slate-500"
-            >
-              Submit Enquiry (requires login — coming next)
-            </button>
+            {isLoaded && !user ? (
+              <div className="mt-6 rounded-md border border-topflow-amber/30 bg-topflow-amber/10 p-4 text-center">
+                <p className="mb-2 text-sm text-slate-700">Sign in to submit this as a formal enquiry.</p>
+                <Link href="/login" className="font-medium text-topflow-teal">Sign in</Link>
+              </div>
+            ) : (
+              <div className="mt-6 space-y-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Shipping / Site Address</label>
+                  <textarea
+                    required
+                    value={shippingAddress}
+                    onChange={(e) => setShippingAddress(e.target.value)}
+                    className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                    rows={2}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                    Project Reference <span className="text-slate-400">(optional)</span>
+                  </label>
+                  <input
+                    value={projectReference}
+                    onChange={(e) => setProjectReference(e.target.value)}
+                    className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                  />
+                </div>
+
+                {error && <p className="text-sm text-red-500">{error}</p>}
+
+                <button
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                  className="w-full rounded-md bg-topflow-teal px-4 py-3 font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+                >
+                  {submitting ? "Submitting…" : "Submit Enquiry"}
+                </button>
+              </div>
+            )}
           </>
         )}
       </main>
