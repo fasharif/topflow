@@ -1,98 +1,133 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  FlatList,
+  ActivityIndicator,
+  StyleSheet,
+  SafeAreaView,
+  Pressable,
+} from "react-native";
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
+interface Product {
+  id: string;
+  sku: string;
+  name: string;
+  unitPrice: string;
+  stockStatus: "IN_STOCK" | "ON_ORDER";
+  category: { id: number; name: string; slug: string } | null;
 }
 
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+export default function CatalogScreen() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+  useEffect(() => {
+    const url = `${process.env.EXPO_PUBLIC_API_URL}/products`;
+    fetch(url)
+      .then((res) => {
+        if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+        return res.json();
+      })
+      .then(setProducts)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.centered}>
+        <ActivityIndicator size="large" color="#0284C7" />
       </SafeAreaView>
-    </ThemedView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.centered}>
+        <Text style={styles.errorText}>Failed to load catalog</Text>
+        <Text style={styles.errorDetail}>{error}</Text>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>TOP FLOW</Text>
+        <Text style={styles.headerSubtitle}>Irrigation & Flow-Control Supplies · UAE</Text>
+      </View>
+
+      <FlatList
+        data={products}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.list}
+        ListEmptyComponent={<Text style={styles.emptyText}>No products yet.</Text>}
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            <View style={styles.cardTopRow}>
+              <Text style={styles.sku}>{item.sku}</Text>
+              <View
+                style={[
+                  styles.badge,
+                  item.stockStatus === "IN_STOCK" ? styles.badgeInStock : styles.badgeOnOrder,
+                ]}
+              >
+                <Text
+                  style={
+                    item.stockStatus === "IN_STOCK" ? styles.badgeTextInStock : styles.badgeTextOnOrder
+                  }
+                >
+                  {item.stockStatus === "IN_STOCK" ? "In Stock" : "On Order"}
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.name}>{item.name}</Text>
+            {item.category && <Text style={styles.category}>{item.category.name}</Text>}
+
+            <View style={styles.cardBottomRow}>
+              <Text style={styles.price}>AED {Number(item.unitPrice).toFixed(2)}</Text>
+              <Pressable style={styles.addButton}>
+                <Text style={styles.addButtonText}>Add to Enquiry</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
+  container: { flex: 1, backgroundColor: "#F8FAFC" },
+  centered: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F8FAFC" },
+  header: { backgroundColor: "#0A192F", paddingHorizontal: 20, paddingVertical: 18 },
+  headerTitle: { color: "#FFFFFF", fontSize: 20, fontWeight: "bold" },
+  headerSubtitle: { color: "#CBD5E1", fontSize: 12, marginTop: 2 },
+  list: { padding: 16, gap: 12 },
+  emptyText: { textAlign: "center", color: "#64748B", marginTop: 40 },
+  errorText: { fontSize: 16, fontWeight: "600", color: "#DC2626" },
+  errorDetail: { fontSize: 12, color: "#64748B", marginTop: 4, paddingHorizontal: 24, textAlign: "center" },
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: 16,
   },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
+  cardTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
+  sku: { fontFamily: "monospace", fontSize: 11, color: "#94A3B8" },
+  badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
+  badgeInStock: { backgroundColor: "#D1FAE5" },
+  badgeOnOrder: { backgroundColor: "rgba(217,119,6,0.1)" },
+  badgeTextInStock: { color: "#047857", fontSize: 11, fontWeight: "500" },
+  badgeTextOnOrder: { color: "#D97706", fontSize: 11, fontWeight: "500" },
+  name: { fontSize: 15, fontWeight: "600", color: "#0A192F", marginBottom: 2 },
+  category: { fontSize: 12, color: "#64748B", marginBottom: 12 },
+  cardBottomRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  price: { fontSize: 17, fontWeight: "bold", color: "#0A192F" },
+  addButton: { backgroundColor: "#0284C7", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6 },
+  addButtonText: { color: "#FFFFFF", fontSize: 13, fontWeight: "500" },
 });
