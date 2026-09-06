@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useCart } from "@/lib/cart-context";
 import {
   View,
   Text,
@@ -22,6 +23,7 @@ export default function CatalogScreen() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { addItem } = useCart();
 
   useEffect(() => {
     const url = `${process.env.EXPO_PUBLIC_API_URL}/products`;
@@ -89,9 +91,19 @@ export default function CatalogScreen() {
 
             <View style={styles.cardBottomRow}>
               <Text style={styles.price}>AED {Number(item.unitPrice).toFixed(2)}</Text>
-              <Pressable style={styles.addButton}>
-                <Text style={styles.addButtonText}>Add to Enquiry</Text>
-              </Pressable>
+             <Pressable
+             style={styles.addButton}
+             onPress={() =>
+              addItem({
+                productId: item.id,
+                sku: item.sku,
+                name: item.name,
+                unitPrice: Number(item.unitPrice),
+              })
+              }
+>
+  <Text style={styles.addButtonText}>Add to Enquiry</Text>
+</Pressable>
             </View>
           </View>
         )}
