@@ -70,7 +70,7 @@ export class OrdersController {
   ) {
     const order = await this.ordersService.findOne(user.id, user.role, id);
     const pdfBuffer = await this.quotationService.generatePdf(
-      order as QuotationOrder,
+      order as unknown as QuotationOrder,
     );
 
     res.set({
