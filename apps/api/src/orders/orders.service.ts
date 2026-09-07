@@ -1,4 +1,8 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { OrderStatus } from 'database/dist/generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -45,7 +49,9 @@ export class OrdersService {
     });
 
     const totalAmount =
-      Math.round(orderItemsData.reduce((sum, i) => sum + i.totalPrice, 0) * 100) / 100;
+      Math.round(
+        orderItemsData.reduce((sum, i) => sum + i.totalPrice, 0) * 100,
+      ) / 100;
 
     return this.prisma.order.create({
       data: {
@@ -71,23 +77,23 @@ export class OrdersService {
   }
 
   findAllAdmin() {
-  return this.prisma.order.findMany({
-    include: { items: true, user: true },
-    orderBy: { createdAt: 'desc' },
-  });
-}
-
-async updateStatus(id: string, status: OrderStatus) {
-  const order = await this.prisma.order.findUnique({ where: { id } });
-  if (!order) {
-    throw new NotFoundException(`Order ${id} not found`);
+    return this.prisma.order.findMany({
+      include: { items: true, user: true },
+      orderBy: { createdAt: 'desc' },
+    });
   }
-  return this.prisma.order.update({
-    where: { id },
-    data: { status },
-    include: { items: true, user: true },
-  });
-}
+
+  async updateStatus(id: string, status: OrderStatus) {
+    const order = await this.prisma.order.findUnique({ where: { id } });
+    if (!order) {
+      throw new NotFoundException(`Order ${id} not found`);
+    }
+    return this.prisma.order.update({
+      where: { id },
+      data: { status },
+      include: { items: true, user: true },
+    });
+  }
 
   async findOne(userId: string, role: string, id: string) {
     const order = await this.prisma.order.findUnique({

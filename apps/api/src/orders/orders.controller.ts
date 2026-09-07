@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Patch, Post, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -8,6 +17,7 @@ import { OrdersService } from './orders.service';
 import { QuotationService } from './quotation.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
+import { QuotationOrder } from './quotation.service';
 
 interface AuthenticatedUser {
   id: string;
@@ -59,7 +69,9 @@ export class OrdersController {
     @Res() res: Response,
   ) {
     const order = await this.ordersService.findOne(user.id, user.role, id);
-    const pdfBuffer = await this.quotationService.generatePdf(order as any);
+    const pdfBuffer = await this.quotationService.generatePdf(
+      order as QuotationOrder,
+    );
 
     res.set({
       'Content-Type': 'application/pdf',

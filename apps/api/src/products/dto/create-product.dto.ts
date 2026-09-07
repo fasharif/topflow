@@ -1,5 +1,12 @@
 import {
-  IsEnum, IsInt, IsNotEmpty, IsNumber, IsObject, IsOptional, IsString, Min,
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsObject,
+  IsOptional,
+  IsString,
+  Min,
 } from 'class-validator';
 import { StockStatus } from 'database/dist/generated/prisma/client';
 

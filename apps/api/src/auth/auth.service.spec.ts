@@ -27,7 +27,12 @@ describe('AuthService', () => {
   it('rejects registration when the email is already in use', async () => {
     prisma.user.findUnique.mockResolvedValue({ id: 'existing' });
     await expect(
-      service.register({ email: 'a@a.com', password: 'password123', fullName: 'A', phoneNumber: '1' } as any),
+      service.register({
+        email: 'a@a.com',
+        password: 'password123',
+        fullName: 'A',
+        phoneNumber: '1',
+      } as any),
     ).rejects.toThrow(ConflictException);
   });
 
@@ -37,7 +42,12 @@ describe('AuthService', () => {
       Promise.resolve({ id: 'u1', ...data, role: 'CUSTOMER' }),
     );
 
-    await service.register({ email: 'a@a.com', password: 'password123', fullName: 'A', phoneNumber: '1' } as any);
+    await service.register({
+      email: 'a@a.com',
+      password: 'password123',
+      fullName: 'A',
+      phoneNumber: '1',
+    });
 
     const stored = prisma.user.create.mock.calls[0][0].data;
     expect(stored.passwordHash).not.toBe('password123');
@@ -46,17 +56,22 @@ describe('AuthService', () => {
 
   it('rejects login with an incorrect password', async () => {
     const realHash = await bcrypt.hash('correctpassword', 10);
-    prisma.user.findUnique.mockResolvedValue({ id: 'u1', email: 'a@a.com', passwordHash: realHash, role: 'CUSTOMER' });
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'u1',
+      email: 'a@a.com',
+      passwordHash: realHash,
+      role: 'CUSTOMER',
+    });
 
-    await expect(service.login({ email: 'a@a.com', password: 'wrongpassword' } as any)).rejects.toThrow(
-      UnauthorizedException,
-    );
+    await expect(
+      service.login({ email: 'a@a.com', password: 'wrongpassword' } as any),
+    ).rejects.toThrow(UnauthorizedException);
   });
 
   it('rejects login for a user that does not exist', async () => {
     prisma.user.findUnique.mockResolvedValue(null);
-    await expect(service.login({ email: 'nobody@a.com', password: 'anything' } as any)).rejects.toThrow(
-      UnauthorizedException,
-    );
+    await expect(
+      service.login({ email: 'nobody@a.com', password: 'anything' } as any),
+    ).rejects.toThrow(UnauthorizedException);
   });
 });

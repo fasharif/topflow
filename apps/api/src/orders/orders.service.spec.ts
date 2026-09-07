@@ -28,17 +28,25 @@ describe('OrdersService', () => {
       Promise.resolve({ id: 'order1', ...data }),
     );
 
-    const dto = { items: [{ productId: 'p1', quantity: 3 }], shippingAddress: 'Site A' };
-    const result = await service.create('user1', dto as any);
+    const dto = {
+      items: [{ productId: 'p1', quantity: 3 }],
+      shippingAddress: 'Site A',
+    };
+    const result = await service.create('user1', dto);
 
     expect(result.totalAmount).toBe(136.5); // 45.5 * 3
   });
 
   it('throws NotFoundException when a product does not exist', async () => {
     prisma.product.findMany.mockResolvedValue([]);
-    const dto = { items: [{ productId: 'missing', quantity: 1 }], shippingAddress: 'Site A' };
+    const dto = {
+      items: [{ productId: 'missing', quantity: 1 }],
+      shippingAddress: 'Site A',
+    };
 
-    await expect(service.create('user1', dto as any)).rejects.toThrow(NotFoundException);
+    await expect(service.create('user1', dto as any)).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('generates an order number in the TF-YYYYMMDD-XXXXXXXX format', async () => {
@@ -49,8 +57,11 @@ describe('OrdersService', () => {
       Promise.resolve({ id: 'order1', ...data }),
     );
 
-    const dto = { items: [{ productId: 'p1', quantity: 1 }], shippingAddress: 'Site A' };
-    const result = await service.create('user1', dto as any);
+    const dto = {
+      items: [{ productId: 'p1', quantity: 1 }],
+      shippingAddress: 'Site A',
+    };
+    const result = await service.create('user1', dto);
 
     expect(result.orderNumber).toMatch(/^TF-\d{8}-[A-F0-9]{8}$/);
   });

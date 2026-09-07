@@ -6,7 +6,7 @@ const TEAL = '#0284C7';
 const MUTED = '#64748B';
 const BORDER = '#E2E8F0';
 
-interface QuotationItem {
+export interface QuotationItem {
   sku: string;
   productName: string;
   quantity: number;
@@ -14,21 +14,23 @@ interface QuotationItem {
   totalPrice: number | string;
 }
 
-interface QuotationOrder {
+export interface QuotationUser {
+  fullName: string;
+  email: string;
+  companyName: string | null;
+  phoneNumber: string;
+}
+
+export interface QuotationOrder {
   orderNumber: string;
-  createdAt: Date;
+  createdAt: Date | string;
   projectReference: string | null;
   shippingAddress: string;
   totalAmount: number | string;
   currency: string;
   notes: string | null;
   items: QuotationItem[];
-  user: {
-    fullName: string;
-    email: string;
-    companyName: string | null;
-    phoneNumber: string;
-  } | null;
+  user: QuotationUser | null;
 }
 
 function money(value: number | string): string {
@@ -42,9 +44,9 @@ export class QuotationService {
       const doc = new PDFDocument({ size: 'A4', margin: 50 });
       const chunks: Buffer[] = [];
 
-      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('data', (chunk: Buffer) => chunks.push(chunk));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
-      doc.on('error', reject);
+      doc.on('error', (err: Error) => reject(err));
 
       this.drawHeader(doc, order);
       this.drawPartyDetails(doc, order);
@@ -56,15 +58,23 @@ export class QuotationService {
     });
   }
 
-  private drawHeader(doc: PDFKit.PDFDocument, order: QuotationOrder) {
+  private drawHeader(doc: PDFKit.PDFDocument, order: QuotationOrder): void {
     doc.rect(0, 0, doc.page.width, 100).fill(NAVY);
 
-    doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(24).text('TOP FLOW', 50, 32);
+    doc
+      .fillColor('#FFFFFF')
+      .font('Helvetica-Bold')
+      .fontSize(24)
+      .text('TOP FLOW', 50, 32);
     doc
       .font('Helvetica')
       .fontSize(9)
       .fillColor('#CBD5E1')
-      .text('Irrigation & Flow-Control Supplies  ·  United Arab Emirates', 50, 62);
+      .text(
+        'Irrigation & Flow-Control Supplies  ·  United Arab Emirates',
+        50,
+        62,
+      );
 
     doc
       .font('Helvetica-Bold')
@@ -75,7 +85,10 @@ export class QuotationService {
       .font('Helvetica')
       .fontSize(10)
       .fillColor('#FFFFFF')
-      .text(order.orderNumber, 0, 55, { align: 'right', width: doc.page.width - 50 });
+      .text(order.orderNumber, 0, 55, {
+        align: 'right',
+        width: doc.page.width - 50,
+      });
     doc
       .fontSize(9)
       .fillColor('#CBD5E1')
@@ -94,10 +107,17 @@ export class QuotationService {
     doc.y = 130;
   }
 
-  private drawPartyDetails(doc: PDFKit.PDFDocument, order: QuotationOrder) {
+  private drawPartyDetails(
+    doc: PDFKit.PDFDocument,
+    order: QuotationOrder,
+  ): void {
     const startY = doc.y;
 
-    doc.font('Helvetica-Bold').fontSize(9).fillColor(MUTED).text('QUOTED TO', 50, startY);
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(9)
+      .fillColor(MUTED)
+      .text('QUOTED TO', 50, startY);
     doc.font('Helvetica').fontSize(10).fillColor('#000000');
     doc.text(order.user?.fullName ?? 'N/A', 50, startY + 14);
     if (order.user?.companyName) {
@@ -106,16 +126,22 @@ export class QuotationService {
     doc.text(order.user?.email ?? '', 50, doc.y);
     doc.text(order.user?.phoneNumber ?? '', 50, doc.y);
 
-    doc.font('Helvetica-Bold').fontSize(9).fillColor(MUTED).text('PROJECT / DELIVERY', 320, startY);
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(9)
+      .fillColor(MUTED)
+      .text('PROJECT / DELIVERY', 320, startY);
     doc.font('Helvetica').fontSize(10).fillColor('#000000');
-    doc.text(order.projectReference ?? 'Not specified', 320, startY + 14, { width: 225 });
+    doc.text(order.projectReference ?? 'Not specified', 320, startY + 14, {
+      width: 225,
+    });
     doc.text(order.shippingAddress, 320, doc.y, { width: 225 });
 
     doc.y = Math.max(doc.y, startY + 90);
     doc.moveDown(1);
   }
 
-  private drawItemsTable(doc: PDFKit.PDFDocument, order: QuotationOrder) {
+  private drawItemsTable(doc: PDFKit.PDFDocument, order: QuotationOrder): void {
     const tableTop = doc.y;
     const col = { sku: 50, desc: 146, qty: 350, unit: 400, total: 470 };
 
@@ -124,7 +150,10 @@ export class QuotationService {
     doc.text('SKU', col.sku + 6, tableTop + 6);
     doc.text('DESCRIPTION', col.desc, tableTop + 6);
     doc.text('QTY', col.qty, tableTop + 6, { width: 40, align: 'right' });
-    doc.text('UNIT PRICE', col.unit, tableTop + 6, { width: 65, align: 'right' });
+    doc.text('UNIT PRICE', col.unit, tableTop + 6, {
+      width: 65,
+      align: 'right',
+    });
     doc.text('TOTAL', col.total, tableTop + 6, { width: 65, align: 'right' });
 
     let y = tableTop + 22;
@@ -142,9 +171,18 @@ export class QuotationService {
       doc.fillColor('#000000');
       doc.text(item.sku, col.sku + 6, y + 7, { width: 85 });
       doc.text(item.productName, col.desc, y + 7, { width: 195 });
-      doc.text(String(item.quantity), col.qty, y + 7, { width: 40, align: 'right' });
-      doc.text(money(item.unitPrice), col.unit, y + 7, { width: 65, align: 'right' });
-      doc.text(money(item.totalPrice), col.total, y + 7, { width: 65, align: 'right' });
+      doc.text(String(item.quantity), col.qty, y + 7, {
+        width: 40,
+        align: 'right',
+      });
+      doc.text(money(item.unitPrice), col.unit, y + 7, {
+        width: 65,
+        align: 'right',
+      });
+      doc.text(money(item.totalPrice), col.total, y + 7, {
+        width: 65,
+        align: 'right',
+      });
       y += rowHeight;
     });
 
@@ -152,21 +190,32 @@ export class QuotationService {
     doc.y = y + 10;
   }
 
-  private drawTotals(doc: PDFKit.PDFDocument, order: QuotationOrder) {
+  private drawTotals(doc: PDFKit.PDFDocument, order: QuotationOrder): void {
     const y = doc.y + 10;
     doc.font('Helvetica-Bold').fontSize(11).fillColor(NAVY);
     doc.text('TOTAL', 350, y, { width: 120, align: 'right' });
-    doc.text(`${order.currency} ${money(order.totalAmount)}`, 350, y, { width: 185, align: 'right' });
+    doc.text(`${order.currency} ${money(order.totalAmount)}`, 350, y, {
+      width: 185,
+      align: 'right',
+    });
     doc.fillColor('#000000');
     doc.y = y + 30;
 
     if (order.notes) {
-      doc.font('Helvetica-Bold').fontSize(9).fillColor(MUTED).text('NOTES', 50, doc.y);
-      doc.font('Helvetica').fontSize(9).fillColor('#000000').text(order.notes, 50, doc.y + 12, { width: 495 });
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(9)
+        .fillColor(MUTED)
+        .text('NOTES', 50, doc.y);
+      doc
+        .font('Helvetica')
+        .fontSize(9)
+        .fillColor('#000000')
+        .text(order.notes, 50, doc.y + 12, { width: 495 });
     }
   }
 
-  private drawFooter(doc: PDFKit.PDFDocument) {
+  private drawFooter(doc: PDFKit.PDFDocument): void {
     doc
       .font('Helvetica')
       .fontSize(8)

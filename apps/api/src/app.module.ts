@@ -8,7 +8,13 @@ import { ProductsModule } from './products/products.module';
 import { OrdersModule } from './orders/orders.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, CategoriesModule, ProductsModule, OrdersModule],
+  imports: [
+    PrismaModule,
+    AuthModule,
+    CategoriesModule,
+    ProductsModule,
+    OrdersModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
