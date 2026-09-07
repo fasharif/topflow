@@ -1,10 +1,13 @@
-import { Controller, Get, Param, Post, Res, UseGuards, Body } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { OrdersService } from './orders.service';
 import { QuotationService } from './quotation.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
 interface AuthenticatedUser {
   id: string;
@@ -25,6 +28,13 @@ export class OrdersController {
     return this.ordersService.create(user.id, dto);
   }
 
+  @Get('admin/all')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'WAREHOUSE')
+  findAllAdmin() {
+    return this.ordersService.findAllAdmin();
+  }
+
   @Get()
   findAll(@CurrentUser() user: AuthenticatedUser) {
     return this.ordersService.findAllForUser(user.id);
@@ -33,6 +43,13 @@ export class OrdersController {
   @Get(':id')
   findOne(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.ordersService.findOne(user.id, user.role, id);
+  }
+
+  @Patch(':id/status')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'WAREHOUSE')
+  updateStatus(@Param('id') id: string, @Body() dto: UpdateOrderStatusDto) {
+    return this.ordersService.updateStatus(id, dto.status);
   }
 
   @Get(':id/quotation.pdf')

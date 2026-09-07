@@ -70,6 +70,25 @@ export class OrdersService {
     });
   }
 
+  findAllAdmin() {
+  return this.prisma.order.findMany({
+    include: { items: true, user: true },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
+async updateStatus(id: string, status: OrderStatus) {
+  const order = await this.prisma.order.findUnique({ where: { id } });
+  if (!order) {
+    throw new NotFoundException(`Order ${id} not found`);
+  }
+  return this.prisma.order.update({
+    where: { id },
+    data: { status },
+    include: { items: true, user: true },
+  });
+}
+
   async findOne(userId: string, role: string, id: string) {
     const order = await this.prisma.order.findUnique({
       where: { id },
