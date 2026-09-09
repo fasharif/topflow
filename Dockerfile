@@ -22,5 +22,5 @@ RUN npm run build -w apps/api
 
 EXPOSE 3000
 
-# Execute database migrations and start NestJS API
-CMD ["sh", "-c", "npx prisma migrate deploy --schema=packages/database/prisma/schema.prisma && node apps/api/dist/main.js"]
+# Execute database migrations using Prisma 7 config and start NestJS API
+CMD ["sh", "-c", "npx prisma migrate deploy --config packages/database/prisma.config.ts && node apps/api/dist/src/main.js"]

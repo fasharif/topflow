@@ -1,4 +1,19 @@
 services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - DATABASE_URL=postgresql://topflow:topflow_dev_password@postgres:5432/topflow_db?schema=public
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=super-secret-dev-key
+    depends_on:
+      - postgres
+      - redis
+
   postgres:
     image: postgres:16
     restart: unless-stopped
