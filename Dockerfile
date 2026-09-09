@@ -16,11 +16,11 @@ RUN npm install
 COPY . .
 
 # Generate Prisma Client and build workspace packages
-RUN cd packages/database && npx prisma generate
+RUN npx prisma generate --schema=packages/database/prisma/schema.prisma
 RUN npm run build -w packages/database
 RUN npm run build -w apps/api
 
 EXPOSE 3000
 
 # Execute database migrations and start NestJS API
-CMD ["sh", "-c", "cd packages/database && npx prisma migrate deploy && cd /app && node apps/api/dist/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=packages/database/prisma/schema.prisma && node apps/api/dist/main.js"]
