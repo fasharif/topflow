@@ -1,20 +1,32 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { JwtStrategy } from './strategies/jwt.strategy';
+import { JwtAuthGuard, OrganizationGuard, PermissionsGuard } from './guards';
+import { PasswordService } from './password.service';
+import { SessionCookieService } from './session-cookie.service';
+import { TokenService } from './token.service';
 
 @Module({
-  imports: [
-    PassportModule,
-    JwtModule.register({
-      secret: process.env.JWT_SECRET || 'topflow_dev_secret_key',
-      signOptions: { expiresIn: '7d' },
-    }),
-  ],
+  imports: [JwtModule.register({})],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService, JwtStrategy, JwtModule],
+  providers: [
+    AuthService,
+    TokenService,
+    PasswordService,
+    SessionCookieService,
+    JwtAuthGuard,
+    PermissionsGuard,
+    OrganizationGuard,
+  ],
+  exports: [
+    AuthService,
+    TokenService,
+    PasswordService,
+    SessionCookieService,
+    JwtAuthGuard,
+    PermissionsGuard,
+    OrganizationGuard,
+  ],
 })
 export class AuthModule {}

@@ -1,33 +1,23 @@
-import dotenv from 'dotenv';
-import path from 'path';
-
-// Load .env from root and packages/database
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
-dotenv.config({ path: path.resolve(process.cwd(), 'packages/database/.env') });
-
-import { ValidationPipe } from '@nestjs/common';
+import 'dotenv/config';
+import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
+import { configureApp } from './bootstrap';
+import { APP_CONFIG } from './config/config.module';
+import type { AppConfig } from './config/env';
 
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+async function bootstrap(): Promise<void> {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const config = app.get<AppConfig>(APP_CONFIG);
+  configureApp(app, config);
 
-  app.enableCors({
-    origin: true,
-    credentials: true,
-  });
-
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
+  await app.listen(config.port, '0.0.0.0');
+  Logger.log(
+    `Top Flow API v${config.app.version} listening on :${config.port} (${config.env})` +
+      (config.http.swaggerEnabled ? ' — docs at /docs' : ''),
+    'Bootstrap',
   );
-
-  const port = process.env.PORT ?? 3000;
-  await app.listen(port, '0.0.0.0');
-  console.log(`Application is running on port ${port}`);
 }
 
 void bootstrap();
