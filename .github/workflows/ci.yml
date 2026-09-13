@@ -2,47 +2,102 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, "feature/**"]
   pull_request:
     branches: [main, develop]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 24
+  TURBO_TELEMETRY_DISABLED: 1
+
 jobs:
-  test:
+  quality:
+    name: Lint · typecheck · unit tests · build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit --no-fund
 
-      - name: Generate Prisma client
-        run: npx prisma generate
-        working-directory: packages/database
+      - name: Build shared packages (contracts + Prisma client)
+        run: npx turbo run build --filter=@topflow/shared --filter=@topflow/database
+
+      - name: Shared contracts — unit tests
+        run: npm test -w @topflow/shared
+
+      - name: API — lint, typecheck, unit tests, build
+        run: |
+          npm run lint -w @topflow/api
+          npm run check-types -w @topflow/api
+          npm test -w @topflow/api
+          npm run build -w @topflow/api
+
+      - name: Web — lint and production build
+        run: |
+          npm run lint -w web
+          npm run build -w web
         env:
-          DATABASE_URL: "postgresql://user:pass@localhost:5432/db"
+          API_INTERNAL_URL: http://localhost:3000
 
-      - name: Build database package
-        run: npm run build
-        working-directory: packages/database
+      - name: Mobile — typecheck
+        run: npx tsc --noEmit -p apps/mobile
 
-      - name: Lint API
-        run: npm run lint --if-present
-        working-directory: apps/api
-
-      - name: Run API unit tests
-        run: npm test
-        working-directory: apps/api
-
-      - name: Build API
-        run: npm run build
-        working-directory: apps/api
-
-      - name: Build web app
-        run: npm run build
-        working-directory: apps/web
+  e2e:
+    name: API end-to-end tests (PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
         env:
-          NEXT_PUBLIC_API_URL: http://localhost:3000
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: topflow_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/topflow_test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build shared packages
+        run: npx turbo run build --filter=@topflow/shared --filter=@topflow/database
+
+      - name: Apply migrations and seed
+        run: |
+          npm run db:deploy
+          npm run db:seed
+
+      - name: Run end-to-end suite
+        run: npm run test:e2e -w @topflow/api
+
+  docker:
+    name: API container image
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build --tag topflow-api:ci .
