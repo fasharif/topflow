@@ -1,25 +1,44 @@
 {
-  "name": "database",
+  "name": "@topflow/database",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "private": true,
+  "description": "Prisma 7 schema, migrations, seed data and generated client for the Top Flow platform",
+  "license": "UNLICENSED",
   "type": "commonjs",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "prisma"
+  ],
+  "scripts": {
+    "generate": "prisma generate",
+    "build": "prisma generate && tsc -p tsconfig.json",
+    "check-types": "prisma generate && tsc -p tsconfig.json --noEmit",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:reset": "prisma migrate reset --force",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio"
+  },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
-    "pg": "^8.23.0"
+    "dotenv": "^16.0.3",
+    "pg": "^8.23.0",
+    "prisma": "^7.9.1"
   },
   "devDependencies": {
+    "@topflow/shared": "*",
     "@types/node": "^22.20.2",
     "@types/pg": "^8.23.1",
-    "dotenv": "^16.0.3",
-    "prisma": "^7.9.1"
+    "bcryptjs": "^3.0.3",
+    "tsx": "^4.23.13"
   }
 }
