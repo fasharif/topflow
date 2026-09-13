@@ -1,65 +1,38 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * Top Flow brand palette. The app renders a light UI (see `userInterfaceStyle` in app.json).
+ * Text colours are chosen for WCAG AA contrast on `surface` and `canvas`.
  */
-
-import '@/global.css';
-
-import { Platform } from 'react-native';
-
-export const Colors = {
-  light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
-  },
-  dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
-  },
+export const Brand = {
+  navy: '#0A192F',
+  navyMuted: '#1E3A5F',
+  /** Brand blue — accents, icons, selection outlines (non-text UI, ≥ 3:1). */
+  blue: '#0284C7',
+  /** Darker brand blue for text and filled buttons with white labels (≥ 4.5:1). */
+  blueInk: '#0369A1',
+  blueTint: '#E0F2FE',
+  canvas: '#F6F9FC',
+  surface: '#FFFFFF',
+  border: '#E2E8F0',
+  borderStrong: '#CBD5E1',
+  text: '#0F172A',
+  textMuted: '#475569',
+  /** Tertiary text — use on `surface` only. */
+  textSubtle: '#64748B',
+  placeholder: '#94A3B8',
+  success: '#047857',
+  successTint: '#D1FAE5',
+  warning: '#B45309',
+  warningTint: '#FEF3C7',
+  danger: '#B91C1C',
+  dangerTint: '#FEE2E2',
 } as const;
 
-export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
-
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: 'var(--font-display)',
-    serif: 'var(--font-serif)',
-    rounded: 'var(--font-rounded)',
-    mono: 'var(--font-mono)',
-  },
-});
-
-export const Spacing = {
-  half: 2,
-  one: 4,
-  two: 8,
-  three: 16,
-  four: 24,
-  five: 32,
-  six: 64,
+export const Radius = {
+  sm: 8,
+  md: 12,
+  lg: 16,
+  pill: 999,
 } as const;
 
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
-export const MaxContentWidth = 800;
+/** Minimum touch target size (Apple HIG 44 pt; Material recommends 48 dp). */
+export const TouchTarget = 44;
