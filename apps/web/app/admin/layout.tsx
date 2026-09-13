@@ -1,42 +1,29 @@
-"use client";
+import type { Metadata } from 'next';
+import type { ReactNode } from 'react';
+import { AdminNav } from '@/components/admin/admin-nav';
+import { RequireAuth } from '@/components/require-auth';
+import { SiteHeader } from '@/components/site-header';
 
-import { ReactNode, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { useAuth } from "@/lib/auth-context";
+export const metadata: Metadata = {
+  title: 'Back office',
+  robots: { index: false, follow: false },
+};
 
+/** Staff back office shell: storefront header, permission-aware sidebar, then the page. */
 export default function AdminLayout({ children }: { children: ReactNode }) {
-  const { user, isLoaded } = useAuth();
-  const router = useRouter();
-  const allowed = user && (user.role === "ADMIN" || user.role === "WAREHOUSE");
-
-  useEffect(() => {
-    if (isLoaded && !allowed) router.replace("/");
-  }, [isLoaded, allowed, router]);
-
-  if (!isLoaded || !allowed) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-topflow-canvas">
-        <p className="text-slate-500">Checking access…</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-topflow-canvas">
-      <header className="bg-topflow-navy px-6 py-4">
-        <div className="mx-auto flex max-w-6xl items-center justify-between">
-          <Link href="/admin" className="text-lg font-bold text-white">TOP FLOW ADMIN</Link>
-          <nav className="flex gap-4 text-sm">
-            <Link href="/admin" className="text-slate-300 hover:text-white">Dashboard</Link>
-            <Link href="/admin/products" className="text-slate-300 hover:text-white">Products</Link>
-            <Link href="/admin/categories" className="text-slate-300 hover:text-white">Categories</Link>
-            <Link href="/admin/orders" className="text-slate-300 hover:text-white">Orders</Link>
-            <Link href="/" className="text-slate-300 hover:text-white">← Storefront</Link>
-          </nav>
-        </div>
-      </header>
-      <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
-    </div>
+    <>
+      <SiteHeader />
+      <div className="mx-auto min-h-[70vh] max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
+        <RequireAuth staff>
+          <div className="lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-8">
+            <aside className="lg:sticky lg:top-24 lg:self-start">
+              <AdminNav />
+            </aside>
+            <main className="min-w-0">{children}</main>
+          </div>
+        </RequireAuth>
+      </div>
+    </>
   );
 }

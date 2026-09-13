@@ -1,74 +1,167 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { useAuth } from "@/lib/auth-context";
+import { Permission, type CategoryDto } from '@topflow/shared';
+import { useState } from 'react';
+import { RequirePermission, useCan } from '@/components/admin-catalog/access';
+import { CategoryForm } from '@/components/admin-catalog/category-form';
+import { ConfirmButton } from '@/components/admin-catalog/confirm-dialog';
+import { categoryTree } from '@/components/admin-catalog/helpers';
+import { LoadError } from '@/components/admin-catalog/list-controls';
+import { Alert, Button, EmptyState, LinkButton, LoadingBlock, PageHeader, Spinner, Table, Td, Th, cx } from '@/components/ui';
+import { api } from '@/lib/api';
+import { pluralize } from '@/lib/format';
+import { useApiQuery } from '@/lib/use-api';
 
-export default function AdminCategoriesPage() {
-  const { token } = useAuth();
-  const [categories, setCategories] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ name: "", slug: "", description: "" });
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+function CategoriesManager() {
+  const { data, error, loading, reload } = useApiQuery<CategoryDto[]>('/catalog/categories');
+  const canDelete = useCan(Permission.CATALOG_DELETE);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [createdCount, setCreatedCount] = useState(0);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  const load = () => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/categories`).then((r) => r.json()).then(setCategories).finally(() => setLoading(false));
-  };
-  useEffect(() => { load(); }, []);
+  if (!data) {
+    if (error) return <LoadError title="We couldn't load categories" error={error} onRetry={reload} />;
+    return <LoadingBlock label="Loading categories…" />;
+  }
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSaving(true);
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/categories`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(form),
-      });
-      if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.message || "Failed to create category"); }
-      setForm({ name: "", slug: "", description: "" });
-      load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally { setSaving(false); }
-  };
+  const editing = editingId === null ? undefined : data.find((category) => category.id === editingId);
+  const parentNames = new Map(data.map((category) => [category.id, category.name]));
+  const subcategoryCount = (id: number) => data.filter((category) => category.parentId === id).length;
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Delete this category?")) return;
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/categories/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-    load();
+  const onSaved = (category: CategoryDto, created: boolean) => {
+    setNotice(created ? `Category “${category.name}” was created.` : `Changes to “${category.name}” were saved.`);
+    setEditingId(null);
+    if (created) setCreatedCount((count) => count + 1);
+    reload();
   };
 
-  if (loading) return <p className="text-slate-500">Loading…</p>;
+  const remove = async (category: CategoryDto) => {
+    await api<void>(`/admin/categories/${category.id}`, { method: 'DELETE' });
+    if (editingId === category.id) setEditingId(null);
+    setNotice(`Category “${category.name}” was deleted. Its products are now uncategorised.`);
+    reload();
+  };
 
   return (
-    <div>
-      <h1 className="mb-6 text-2xl font-bold text-topflow-navy">Categories</h1>
-      <div className="mb-8 overflow-hidden rounded-lg border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500"><tr><th className="p-3">Name</th><th className="p-3">Slug</th><th className="p-3"></th></tr></thead>
-          <tbody className="divide-y divide-slate-100">
-            {categories.map((c) => (
-              <tr key={c.id}>
-                <td className="p-3 font-medium text-topflow-navy">{c.name}</td>
-                <td className="p-3 font-mono text-xs text-slate-400">{c.slug}</td>
-                <td className="p-3 text-right"><button onClick={() => handleDelete(c.id)} className="text-red-500">Delete</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="min-w-0 space-y-4">
+        {notice && <Alert tone="success">{notice}</Alert>}
+        {error && <LoadError title="We couldn't refresh categories" error={error} onRetry={reload} />}
+
+        {data.length === 0 ? (
+          <EmptyState title="No categories yet" description="Create the first category with the form. Products can then be assigned to it." />
+        ) : (
+          <>
+            <div className="flex items-center gap-2 text-sm text-slate-500" aria-live="polite">
+              {pluralize(data.length, 'category', 'categories')}
+              {loading && <Spinner className="size-4 text-brand-600" />}
+            </div>
+            <Table>
+              <thead>
+                <tr>
+                  <Th>Name</Th>
+                  <Th>Slug</Th>
+                  <Th>Parent</Th>
+                  <Th className="text-right">Order</Th>
+                  <Th className="text-right">Products</Th>
+                  <Th className="text-right">
+                    <span className="sr-only">Actions</span>
+                  </Th>
+                </tr>
+              </thead>
+              <tbody>
+                {categoryTree(data).map(({ category, depth }) => {
+                  const subcategories = subcategoryCount(category.id);
+                  const products = category.productCount ?? 0;
+                  return (
+                    <tr key={category.id} className={cx('transition', editingId === category.id ? 'bg-brand-50/70' : 'hover:bg-slate-50/70')}>
+                      <Td className="min-w-52">
+                        <div style={{ paddingLeft: `${depth * 1.25}rem` }}>
+                          <span className="inline-flex items-center gap-2 font-medium text-ink-900">
+                            {depth > 0 && (
+                              <span aria-hidden="true" className="text-slate-300">
+                                └
+                              </span>
+                            )}
+                            {category.name}
+                          </span>
+                          {category.description && <p className="mt-0.5 line-clamp-1 max-w-sm text-xs text-slate-500">{category.description}</p>}
+                        </div>
+                      </Td>
+                      <Td className="font-mono text-xs whitespace-nowrap text-slate-600">{category.slug}</Td>
+                      <Td className="whitespace-nowrap text-slate-600">
+                        {category.parentId === null ? <span className="text-slate-400">Top level</span> : (parentNames.get(category.parentId) ?? '—')}
+                      </Td>
+                      <Td className="text-right tabular-nums">{category.displayOrder}</Td>
+                      <Td className="text-right tabular-nums">{category.productCount ?? '—'}</Td>
+                      <Td className="text-right whitespace-nowrap">
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="sm" aria-pressed={editingId === category.id} onClick={() => setEditingId(category.id)}>
+                            Edit<span className="sr-only"> {category.name}</span>
+                          </Button>
+                          {canDelete && (
+                            <ConfirmButton
+                              variant="ghost"
+                              className="text-red-600! hover:bg-red-50! hover:text-red-700!"
+                              title={`Delete “${category.name}”?`}
+                              description={
+                                <>
+                                  <p>
+                                    Products in this category stay in the catalog but become uncategorised
+                                    {products > 0 ? ` (it has ${pluralize(products, 'published product')})` : ''}.
+                                  </p>
+                                  {subcategories > 0 && <p>Its {pluralize(subcategories, 'sub-category', 'sub-categories')} will move to the top level.</p>}
+                                  <p>This can&apos;t be undone.</p>
+                                </>
+                              }
+                              confirmLabel="Delete category"
+                              onConfirm={() => remove(category)}
+                            >
+                              Delete<span className="sr-only"> {category.name}</span>
+                            </ConfirmButton>
+                          )}
+                        </div>
+                      </Td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+            <p className="text-xs text-slate-500">
+              Product counts include published products visible to retail shoppers; trade-only and archived products are not counted.
+              {!canDelete && ' Only administrators can delete categories.'}
+            </p>
+          </>
+        )}
       </div>
-      <div className="max-w-md rounded-lg border border-slate-200 bg-white p-5">
-        <h2 className="mb-3 font-semibold text-topflow-navy">Add Category</h2>
-        <form onSubmit={handleCreate} className="space-y-3">
-          <input required placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full rounded border border-slate-300 px-3 py-2 text-sm" />
-          <input required placeholder="Slug" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} className="w-full rounded border border-slate-300 px-3 py-2 text-sm" />
-          <input placeholder="Description (optional)" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full rounded border border-slate-300 px-3 py-2 text-sm" />
-          {error && <p className="text-sm text-red-500">{error}</p>}
-          <button type="submit" disabled={saving} className="rounded-md bg-topflow-teal px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{saving ? "Adding…" : "Add Category"}</button>
-        </form>
+
+      <div className="lg:sticky lg:top-6">
+        <CategoryForm
+          key={editing ? `edit-${editing.id}` : `new-${createdCount}`}
+          category={editing}
+          categories={data}
+          onSaved={onSaved}
+          onCancel={editing ? () => setEditingId(null) : undefined}
+        />
       </div>
     </div>
+  );
+}
+
+export default function AdminCategoriesPage() {
+  return (
+    <RequirePermission permission={Permission.CATALOG_WRITE} area="Catalog management">
+      <PageHeader
+        eyebrow="Catalog"
+        title="Categories"
+        description="Organise products into categories and sub-categories for storefront navigation and filters."
+        actions={
+          <LinkButton href="/admin/products" variant="secondary">
+            Products
+          </LinkButton>
+        }
+      />
+      <CategoriesManager />
+    </RequirePermission>
   );
 }
