@@ -45,3 +45,4 @@ packages/database/generated/
 **/.agents/
 **/.windsurf/
 **/skills-lock.json
+*.tsbuildinfo
