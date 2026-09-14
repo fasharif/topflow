@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   rowPressed: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Brand.surfaceMuted,
   },
   rowTop: {
     flexDirection: 'row',

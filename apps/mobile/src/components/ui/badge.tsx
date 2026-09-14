@@ -4,7 +4,7 @@ import { Brand, Radius } from '@/constants/theme';
 import type { Tone } from '@/lib/format';
 
 const TONES: Record<Tone, { background: string; text: string }> = {
-  neutral: { background: '#F1F5F9', text: Brand.textMuted },
+  neutral: { background: Brand.surfaceMuted, text: Brand.textMuted },
   info: { background: Brand.blueTint, text: Brand.blueInk },
   success: { background: Brand.successTint, text: Brand.success },
   warning: { background: Brand.warningTint, text: Brand.warning },

@@ -1,29 +1,54 @@
-import { formatMoney, type ProductDto } from '@topflow/shared';
+import type { ProductDto } from '@topflow/shared';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
+import { ProductPrice } from '@/components/product-price';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Brand, Radius } from '@/constants/theme';
+import { resolveImageUrl } from '@/lib/assets';
 import { addToCart, useCartQuantity } from '@/lib/cart';
-import { canPurchase, perUnit, quantityWithUnit, stockInfo } from '@/lib/format';
+import { canPurchase, priceAccessibilityLabel, quantityWithUnit, stockInfo } from '@/lib/format';
 import { errorMessage } from '@/lib/http';
 import { routes } from '@/lib/routes';
 
-export function ProductThumbnail({ product, size }: { product: Pick<ProductDto, 'imageUrl' | 'name'>; size: number }) {
+/**
+ * A product photo shown whole (`contain`) on white, as catalogue photos are shot on white. Falls back
+ * to the product's initial when there is no photo, its URL cannot be resolved (see
+ * `resolveImageUrl`) or it fails to load.
+ */
+export function ProductThumbnail({
+  product,
+  size,
+  style,
+}: {
+  product: Pick<ProductDto, 'imageUrl' | 'name'>;
+  /** Height in points. The width follows the container unless `style` sets one. */
+  size: number;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const [failedUri, setFailedUri] = useState<string | null>(null);
+  const resolved = resolveImageUrl(product.imageUrl);
+  const uri = resolved !== failedUri ? resolved : null;
+
   return (
-    <View style={[styles.thumb, { height: size }]}>
-      {product.imageUrl ? (
+    <View style={[styles.thumb, !uri && styles.thumbPlaceholder, { height: size }, style]}>
+      {uri ? (
         <Image
-          source={{ uri: product.imageUrl }}
+          source={{ uri }}
           style={StyleSheet.absoluteFill}
           contentFit="contain"
           transition={150}
+          onError={() => setFailedUri(uri)}
           accessibilityIgnoresInvertColors
         />
       ) : (
-        <Text style={styles.thumbInitial} accessibilityElementsHidden importantForAccessibility="no">
+        <Text
+          style={[styles.thumbInitial, { fontSize: Math.min(34, Math.round(size * 0.4)) }]}
+          accessibilityElementsHidden
+          importantForAccessibility="no">
           {product.name.charAt(0).toUpperCase()}
         </Text>
       )}
@@ -49,7 +74,7 @@ export function ProductCard({ product, style }: { product: ProductDto; style?: S
     <View style={[styles.card, style]}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${product.name}, ${formatMoney(product.retailPrice)} including VAT, ${stock.label}`}
+        accessibilityLabel={`${product.name}, ${priceAccessibilityLabel(product)}, ${stock.label}`}
         accessibilityHint="Opens product details"
         onPress={() => router.push(routes.product(product.slug))}
         style={({ pressed }) => [styles.body, pressed && styles.pressed]}>
@@ -62,8 +87,7 @@ export function ProductCard({ product, style }: { product: ProductDto; style?: S
           {meta}
         </Text>
         <View style={styles.priceBlock}>
-          <Text style={styles.price}>{formatMoney(product.retailPrice)}</Text>
-          <Text style={styles.priceNote}>incl. VAT · {perUnit(product.uom)}</Text>
+          <ProductPrice product={product} variant="card" />
         </View>
       </Pressable>
 
@@ -99,22 +123,26 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   body: {
+    // Cards in a grid row share the tallest card's height; keep the footers aligned.
+    flexGrow: 1,
     padding: 12,
     gap: 6,
   },
   pressed: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Brand.surfaceMuted,
   },
   thumb: {
     borderRadius: Radius.md,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: Brand.surface,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
     marginBottom: 4,
   },
+  thumbPlaceholder: {
+    backgroundColor: Brand.blueTint,
+  },
   thumbInitial: {
-    fontSize: 34,
     fontWeight: '700',
     color: Brand.blue,
   },
@@ -131,16 +159,6 @@ const styles = StyleSheet.create({
   },
   priceBlock: {
     marginTop: 2,
-  },
-  price: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: Brand.navy,
-    fontVariant: ['tabular-nums'],
-  },
-  priceNote: {
-    fontSize: 12,
-    color: Brand.textSubtle,
   },
   footer: {
     paddingHorizontal: 12,

@@ -21,6 +21,8 @@ export interface CartLine {
   sku: string;
   slug: string;
   name: string;
+  /** Catalogue image as returned by the API (may be site-relative); resolved when rendered. */
+  imageUrl: string | null;
   uom: UnitOfMeasure;
   /** Net unit price (excl. VAT) as a decimal string. */
   unitPrice: string;
@@ -132,6 +134,8 @@ function parseStoredLines(raw: string | null): CartLine[] {
     sku: line.sku,
     slug: line.slug,
     name: line.name,
+    // Carts saved before images were added have no `imageUrl`.
+    imageUrl: line.imageUrl ?? null,
     uom: line.uom,
     unitPrice: line.unitPrice,
     retailPrice: line.retailPrice,
@@ -148,6 +152,7 @@ function isCartLine(value: unknown): value is CartLine {
     typeof line.sku === 'string' &&
     typeof line.slug === 'string' &&
     typeof line.name === 'string' &&
+    (line.imageUrl === undefined || line.imageUrl === null || typeof line.imageUrl === 'string') &&
     typeof line.uom === 'string' &&
     UNITS.has(line.uom) &&
     isMoney(line.unitPrice) &&
@@ -194,6 +199,7 @@ export function addToCart(product: ProductDto, quantity?: number): CartLine {
     sku: product.sku,
     slug: product.slug,
     name: product.name,
+    imageUrl: product.imageUrl,
     uom: product.uom,
     unitPrice: product.unitPrice,
     retailPrice: product.retailPrice,

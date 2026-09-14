@@ -61,6 +61,10 @@ export default function RootLayout() {
           name="register"
           options={{ presentation: 'modal', title: 'Create account', headerRight: modalCloseButton }}
         />
+        <Stack.Screen
+          name="quote-request"
+          options={{ presentation: 'modal', title: 'Request a quote', headerRight: modalCloseButton }}
+        />
       </Stack>
     </ThemeProvider>
   );

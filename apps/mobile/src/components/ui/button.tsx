@@ -13,8 +13,8 @@ import { Brand, Radius, TouchTarget } from '@/constants/theme';
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
 const VARIANTS: Record<Variant, { background: string; pressed: string; border: string; text: string }> = {
-  primary: { background: Brand.blueInk, pressed: '#075985', border: Brand.blueInk, text: '#FFFFFF' },
-  secondary: { background: Brand.surface, pressed: '#F1F5F9', border: Brand.borderStrong, text: Brand.navy },
+  primary: { background: Brand.blueInk, pressed: '#003B32', border: Brand.blueInk, text: '#FFFFFF' },
+  secondary: { background: Brand.surface, pressed: Brand.surfaceMuted, border: Brand.borderStrong, text: Brand.navy },
   ghost: { background: 'transparent', pressed: Brand.blueTint, border: 'transparent', text: Brand.blueInk },
   danger: { background: Brand.danger, pressed: '#991B1B', border: Brand.danger, text: '#FFFFFF' },
 };

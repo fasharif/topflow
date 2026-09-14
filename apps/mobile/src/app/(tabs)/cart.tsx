@@ -4,11 +4,12 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CheckoutSection } from '@/components/checkout-section';
+import { ProductThumbnail } from '@/components/product-card';
 import { Button } from '@/components/ui/button';
 import { Card, DetailRow, Divider, SectionTitle } from '@/components/ui/card';
 import { QuantityStepper } from '@/components/ui/quantity-stepper';
 import { EmptyState, LoadingState } from '@/components/ui/states';
-import { Brand, TouchTarget } from '@/constants/theme';
+import { Brand, Radius, TouchTarget } from '@/constants/theme';
 import {
   cartTotals,
   MAX_LINE_QUANTITY,
@@ -19,6 +20,8 @@ import {
 } from '@/lib/cart';
 import { perUnit, pluralize, quantityWithUnit } from '@/lib/format';
 import { routes } from '@/lib/routes';
+
+const LINE_THUMB_SIZE = 56;
 
 export default function CartScreen() {
   const insets = useSafeAreaInsets();
@@ -87,6 +90,19 @@ export default function CartScreen() {
           ) : null}
         </Card>
 
+        <View style={styles.quote}>
+          <Button
+            label="Request a quote"
+            variant="secondary"
+            accessibilityHint="Opens a form to send the products in your cart to Top Flow's sales team"
+            onPress={() => router.push(routes.quoteRequest)}
+            fullWidth
+          />
+          <Text style={styles.quoteHint}>
+            Buying in quantity or for a project? Our sales team will reply with your best price. No account needed.
+          </Text>
+        </View>
+
         <CheckoutSection lines={lines} />
       </ScrollView>
     </View>
@@ -99,18 +115,29 @@ function CartLineRow({ line, lineTotalFils }: { line: CartLine; lineTotalFils: F
       <View style={styles.lineTop}>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel={[
+            line.name,
+            `SKU ${line.sku}`,
+            `${formatMoney(line.retailPrice)} ${perUnit(line.uom)} including VAT`,
+            line.minOrderQty > 1 ? `minimum order ${quantityWithUnit(line.minOrderQty, line.uom)}` : null,
+          ]
+            .filter(Boolean)
+            .join(', ')}
           accessibilityHint="Opens product details"
           onPress={() => router.push(routes.product(line.slug))}
           style={({ pressed }) => [styles.lineInfo, pressed && styles.pressed]}>
-          <Text style={styles.lineName} numberOfLines={2}>
-            {line.name}
-          </Text>
-          <Text style={styles.lineMeta}>
-            SKU {line.sku} · {formatMoney(line.retailPrice)} {perUnit(line.uom)} incl. VAT
-          </Text>
-          {line.minOrderQty > 1 ? (
-            <Text style={styles.lineMeta}>Minimum order {quantityWithUnit(line.minOrderQty, line.uom)}</Text>
-          ) : null}
+          <ProductThumbnail product={line} size={LINE_THUMB_SIZE} style={styles.lineThumb} />
+          <View style={styles.lineText}>
+            <Text style={styles.lineName} numberOfLines={2}>
+              {line.name}
+            </Text>
+            <Text style={styles.lineMeta}>
+              SKU {line.sku} · {formatMoney(line.retailPrice)} {perUnit(line.uom)} incl. VAT
+            </Text>
+            {line.minOrderQty > 1 ? (
+              <Text style={styles.lineMeta}>Minimum order {quantityWithUnit(line.minOrderQty, line.uom)}</Text>
+            ) : null}
+          </View>
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -181,6 +208,18 @@ const styles = StyleSheet.create({
   },
   lineInfo: {
     flex: 1,
+    flexDirection: 'row',
+    gap: 12,
+  },
+  lineThumb: {
+    width: LINE_THUMB_SIZE,
+    marginBottom: 0,
+    borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Brand.border,
+  },
+  lineText: {
+    flex: 1,
     gap: 3,
   },
   pressed: {
@@ -236,5 +275,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     color: Brand.blueInk,
+  },
+  quote: {
+    gap: 8,
+  },
+  quoteHint: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: Brand.textMuted,
+    textAlign: 'center',
   },
 });

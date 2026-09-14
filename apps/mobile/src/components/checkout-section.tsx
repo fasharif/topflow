@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
   },
   optionSelected: {
     borderColor: Brand.blue,
-    backgroundColor: '#F0F9FF',
+    backgroundColor: '#F1F7F5',
   },
   optionPressed: {
     opacity: 0.8,

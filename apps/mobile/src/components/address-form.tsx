@@ -7,19 +7,18 @@ import {
   type AuthUser,
 } from '@topflow/shared';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { StyleSheet, Switch, Text, View } from 'react-native';
 
+import { EmiratePicker } from '@/components/emirate-picker';
 import { Button } from '@/components/ui/button';
 import { InlineError } from '@/components/ui/states';
 import { TextField } from '@/components/ui/text-field';
-import { Brand, Radius, TouchTarget } from '@/constants/theme';
+import { Brand, TouchTarget } from '@/constants/theme';
 import { api } from '@/lib/api';
 import { collectFieldErrors, optional, type FieldErrors } from '@/lib/forms';
 import { errorMessage } from '@/lib/http';
 
 type AddressField = keyof AddressInput;
-
-const EMIRATES = Object.values(Emirate);
 
 export function AddressForm({
   user,
@@ -138,31 +137,14 @@ export function AddressForm({
         maxLength={100}
       />
 
-      <View style={styles.group}>
-        <Text style={styles.groupLabel}>Emirate</Text>
-        <View style={styles.emirates} accessibilityRole="radiogroup" accessibilityLabel="Emirate">
-          {EMIRATES.map((value) => {
-            const selected = value === emirate;
-            return (
-              <Pressable
-                key={value}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: selected }}
-                onPress={() => selectEmirate(value)}
-                style={({ pressed }) => [
-                  styles.emirate,
-                  selected && styles.emirateSelected,
-                  pressed && !selected && styles.emiratePressed,
-                ]}>
-                <Text style={[styles.emirateText, selected && styles.emirateTextSelected]}>
-                  {EMIRATE_LABELS[value]}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        {errors.emirate ? <Text style={styles.error}>{errors.emirate}</Text> : null}
-      </View>
+      <EmiratePicker
+        label="Emirate"
+        value={emirate}
+        onChange={(next) => {
+          if (next) selectEmirate(next);
+        }}
+        error={errors.emirate}
+      />
 
       <TextField
         label="City"
@@ -194,47 +176,6 @@ export function AddressForm({
 const styles = StyleSheet.create({
   form: {
     gap: 14,
-  },
-  group: {
-    gap: 8,
-  },
-  groupLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Brand.text,
-  },
-  emirates: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  emirate: {
-    minHeight: TouchTarget,
-    justifyContent: 'center',
-    paddingHorizontal: 14,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Brand.borderStrong,
-    backgroundColor: Brand.surface,
-  },
-  emirateSelected: {
-    backgroundColor: Brand.navy,
-    borderColor: Brand.navy,
-  },
-  emiratePressed: {
-    backgroundColor: Brand.blueTint,
-  },
-  emirateText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Brand.navy,
-  },
-  emirateTextSelected: {
-    color: '#FFFFFF',
-  },
-  error: {
-    fontSize: 13,
-    color: Brand.danger,
   },
   switchRow: {
     minHeight: TouchTarget,

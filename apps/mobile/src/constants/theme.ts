@@ -1,24 +1,35 @@
 /**
- * Top Flow brand palette. The app renders a light UI (see `userInterfaceStyle` in app.json).
- * Text colours are chosen for WCAG AA contrast on `surface` and `canvas`.
+ * Top Flow brand palette, matched to topflow.ae: warm cream canvas, white surfaces, a deep green
+ * accent and green-black ink. The app renders a light UI (see `userInterfaceStyle` in app.json).
+ *
+ * Key names predate the green palette and are kept so imports stay stable: `navy` is the brand ink
+ * and `blue` / `blueInk` / `blueTint` are the brand accent. Text colours meet WCAG AA (≥ 4.5:1) on
+ * `surface`, `canvas`, `surfaceMuted` and `blueTint`; white labels on `blueInk`, `navy` and `danger`
+ * do too.
  */
 export const Brand = {
-  navy: '#0A192F',
-  navyMuted: '#1E3A5F',
-  /** Brand blue — accents, icons, selection outlines (non-text UI, ≥ 3:1). */
-  blue: '#0284C7',
-  /** Darker brand blue for text and filled buttons with white labels (≥ 4.5:1). */
-  blueInk: '#0369A1',
-  blueTint: '#E0F2FE',
-  canvas: '#F6F9FC',
+  /** Brand ink (deep green-black): headings, prices, selected chips. 16.7:1 on white. */
+  navy: '#12211B',
+  navyMuted: '#24372F',
+  /** Brand accent (deep green): icons, spinners, selection outlines. 9.8:1 on white. */
+  blue: '#014D41',
+  /** Accent for text and for filled buttons with white labels. 9.8:1 with white. */
+  blueInk: '#014D41',
+  /** Accent tint: pressed and selected backgrounds, info badges. */
+  blueTint: '#E3EFEC',
+  canvas: '#FAF8F3',
   surface: '#FFFFFF',
-  border: '#E2E8F0',
-  borderStrong: '#CBD5E1',
-  text: '#0F172A',
-  textMuted: '#475569',
-  /** Tertiary text — use on `surface` only. */
-  textSubtle: '#64748B',
-  placeholder: '#94A3B8',
+  /** Warm neutral fill: pressed rows and cards, neutral badges. */
+  surfaceMuted: '#F3F0E8',
+  border: '#E4DFD2',
+  borderStrong: '#CFC8B6',
+  text: '#12211B',
+  /** Secondary text: ≥ 6:1 on every background above. */
+  textMuted: '#4A5A53',
+  /** Tertiary text: ≥ 4.7:1 on `surface`, `canvas`, `surfaceMuted` and `blueTint`. */
+  textSubtle: '#5E6B65',
+  /** Input placeholders only (3:1 on `surface`), never for content. */
+  placeholder: '#8C958F',
   success: '#047857',
   successTint: '#D1FAE5',
   warning: '#B45309',

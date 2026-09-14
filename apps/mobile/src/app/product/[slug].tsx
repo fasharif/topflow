@@ -5,6 +5,7 @@ import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ProductThumbnail } from '@/components/product-card';
+import { ProductPrice } from '@/components/product-price';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, DetailRow, SectionTitle } from '@/components/ui/card';
@@ -81,6 +82,16 @@ function ProductDetail({
     }
   };
 
+  const handleRequestQuote = () => {
+    try {
+      // A quote covers the whole cart, so make sure this product is part of it.
+      if (inCart === 0) addToCart(product, minimum);
+      router.push(routes.quoteRequest);
+    } catch (error) {
+      Alert.alert('Could not add to cart', errorMessage(error));
+    }
+  };
+
   return (
     <View style={styles.screen}>
       <ScrollView
@@ -107,11 +118,22 @@ function ProductDetail({
         </View>
 
         <Card>
-          <View>
-            <Text style={styles.price}>{formatMoney(product.retailPrice)}</Text>
-            <Text style={styles.priceNote}>incl. 5% VAT · {perUnit(product.uom)}</Text>
-          </View>
-          <DetailRow label="Price excl. VAT" value={`${formatMoney(product.unitPrice)} ${perUnit(product.uom)}`} />
+          <ProductPrice product={product} variant="detail" />
+          <Button
+            label="Request a quote"
+            variant="secondary"
+            accessibilityHint={
+              inCart > 0
+                ? 'Opens the quote request form for the products in your cart'
+                : `Adds ${quantityWithUnit(minimum, product.uom)} to your cart and opens the quote request form`
+            }
+            onPress={handleRequestQuote}
+            fullWidth
+          />
+          <DetailRow
+            label={product.priceRange ? 'Online price excl. VAT' : 'Price excl. VAT'}
+            value={`${formatMoney(product.unitPrice)} ${perUnit(product.uom)}`}
+          />
           <DetailRow
             label="Availability"
             value={
@@ -156,7 +178,7 @@ function ProductDetail({
           </View>
         ) : !purchasable ? (
           <Text style={styles.unavailable}>
-            Not enough stock to meet the minimum order right now. Please check back soon.
+            Not enough stock to meet the minimum order right now. Request a quote or check back soon.
           </Text>
         ) : null}
         <View style={styles.actionRow}>
@@ -219,16 +241,6 @@ const styles = StyleSheet.create({
   },
   meta: {
     fontSize: 14,
-    color: Brand.textMuted,
-  },
-  price: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: Brand.navy,
-    fontVariant: ['tabular-nums'],
-  },
-  priceNote: {
-    fontSize: 13,
     color: Brand.textMuted,
   },
   section: {

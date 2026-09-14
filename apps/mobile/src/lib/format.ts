@@ -1,5 +1,7 @@
 import {
   EMIRATE_LABELS,
+  formatMoney,
+  toFils,
   UOM_LABELS,
   type AddressDto,
   type OrderStatus,
@@ -77,6 +79,27 @@ export function perUnit(uom: UnitOfMeasure): string {
 /** "25 m", "3 pc". */
 export function quantityWithUnit(quantity: number, uom: UnitOfMeasure): string {
   return `${quantity} ${UOM_LABELS[uom]}`;
+}
+
+/**
+ * "AED 12.00 – 15.00": the currency is written once, and a single amount is shown when both ends
+ * match. Pass `' to '` as the separator for screen-reader text.
+ */
+export function formatMoneyRange(min: string, max: string, separator = ' – '): string {
+  const a = toFils(min);
+  const b = toFils(max);
+  const low = Math.min(a, b);
+  const high = Math.max(a, b);
+  if (low === high) return formatMoney(low);
+  return `${formatMoney(low)}${separator}${formatMoney(high, { currency: '' }).trim()}`;
+}
+
+/** Spoken price for accessibility labels, including the approximate range when there is one. */
+export function priceAccessibilityLabel(product: Pick<ProductDto, 'retailPrice' | 'priceRange'>): string {
+  const online = formatMoney(product.retailPrice);
+  if (!product.priceRange) return `${online} including VAT`;
+  const { retailMin, retailMax } = product.priceRange;
+  return `approximately ${formatMoneyRange(retailMin, retailMax, ' to ')} including VAT, or ${online} to buy online`;
 }
 
 // ─── Orders & addresses ──────────────────────────────────────────────────────

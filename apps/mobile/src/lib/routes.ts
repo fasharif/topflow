@@ -19,6 +19,7 @@ export const routes = {
   account: href('/account'),
   login: href('/login'),
   register: href('/register'),
+  quoteRequest: href('/quote-request'),
   product: (slug: string): Href => href(`/product/${encodeURIComponent(slug)}`),
   order: (id: string): Href => href(`/orders/${encodeURIComponent(id)}`),
 } as const;
