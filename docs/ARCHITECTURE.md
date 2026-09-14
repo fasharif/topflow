@@ -172,5 +172,5 @@ sequenceDiagram
 - **Configuration** is validated with Zod at boot (`apps/api/src/config/env.ts`); production refuses weak JWT secrets.
 - **Health:** `GET /health` (liveness) and `GET /health/ready` (database) for load balancers.
 - **Tracing:** every response carries `x-request-id`, also included in error bodies and server logs.
-- **Migrations** run with `prisma migrate deploy` when the container starts (guarded by Prisma's advisory lock).
+- **Releases** run `npm run release`: `apps/api/src/preflight.ts` validates the environment, then `prisma migrate deploy` applies pending migrations (guarded by Prisma's advisory lock). On Railway this is a pre-deploy step (`railway.json`). A misconfigured or failed release therefore never touches the database or replaces the running deployment. Without a platform release phase, the container `CMD` runs the same step before starting the API.
 - **Rate limiting:** global per-IP limits plus stricter limits on credential endpoints (in-memory store; use a shared store such as Redis when running multiple API instances).

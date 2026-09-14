@@ -131,8 +131,8 @@ npm run test:e2e -w @topflow/api        # end-to-end suite against a real databa
 
 | Component | Target | Notes |
 | --- | --- | --- |
-| API | Railway (root `Dockerfile`) | Multi-stage `turbo prune` image, non-root user, health check, runs `prisma migrate deploy` on start. Set `DATABASE_URL`, `JWT_SECRET` (≥ 32 chars), `APP_PUBLIC_URL`, `CORS_ORIGINS`, `TRUST_PROXY=true`, mail settings. |
-| Web | Vercel (`apps/web`) | Set `API_INTERNAL_URL` to the API origin — the browser reaches the API through the `/api` rewrite, so cookies stay first-party. |
+| API | Railway (root `Dockerfile`, `railway.json`) | Multi-stage `turbo prune` image, non-root user. Before traffic moves, a pre-deploy step runs `npm run release`: it validates the environment, then runs `prisma migrate deploy`. Railway switches over only once `/health/ready` answers. Set `DATABASE_URL`, `JWT_SECRET` (≥ 32 chars), `APP_PUBLIC_URL`, `CORS_ORIGINS` and the mail settings. |
+| Web | Vercel (project root `apps/web`, `apps/web/vercel.json`) | Installs the workspace from the repository root and builds `web` with its dependencies through Turborepo. Set `API_INTERNAL_URL` to the API origin — the browser reaches the API through the `/api` rewrite, so cookies stay first-party. |
 | Database | Managed PostgreSQL | Migration `20260914090000_platform_v2` converts v1 data (contractors → organizations, enquiries → RFQs). Test it on a copy of production first. |
 
 See `apps/api/.env.example` for every configuration option.
