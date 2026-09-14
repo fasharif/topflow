@@ -140,6 +140,15 @@ export function toRfqDto(rfq: RfqRecord): RfqDto {
     id: rfq.id,
     number: rfq.number,
     status: rfq.status,
+    source: rfq.source,
+    contact: rfq.contactEmail
+      ? {
+          name: rfq.contactName ?? '',
+          email: rfq.contactEmail,
+          phone: rfq.contactPhone,
+          companyName: rfq.companyName,
+        }
+      : null,
     organization: rfq.organization,
     requestedBy: rfq.requestedBy,
     assignedTo: rfq.assignedTo,

@@ -2,6 +2,7 @@ import {
   approvalDecisionSchema,
   createQuotationSchema,
   createRfqSchema,
+  createWebsiteQuoteRequestSchema,
   quotationQuerySchema,
   respondQuotationSchema,
   rfqQuerySchema,
@@ -11,6 +12,9 @@ import {
 import { createZodDto } from 'nestjs-zod';
 
 export class CreateRfqDto extends createZodDto(createRfqSchema) {}
+export class CreateWebsiteQuoteRequestDto extends createZodDto(
+  createWebsiteQuoteRequestSchema,
+) {}
 export class RfqQueryDto extends createZodDto(rfqQuerySchema) {}
 export class UpdateRfqDto extends createZodDto(updateRfqSchema) {}
 export class CreateQuotationDto extends createZodDto(createQuotationSchema) {}

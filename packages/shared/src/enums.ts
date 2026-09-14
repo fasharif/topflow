@@ -88,6 +88,13 @@ export const RfqStatus = {
 } as const;
 export type RfqStatus = ValueOf<typeof RfqStatus>;
 
+/** Where a request for quotation came from. */
+export const RfqSource = {
+  TRADE_PORTAL: 'TRADE_PORTAL',
+  WEBSITE: 'WEBSITE',
+} as const;
+export type RfqSource = ValueOf<typeof RfqSource>;
+
 export const QuotationStatus = {
   DRAFT: 'DRAFT',
   SENT: 'SENT',
@@ -193,6 +200,11 @@ export const RFQ_STATUS_LABELS: Record<RfqStatus, string> = {
   QUOTED: 'Quoted',
   CLOSED: 'Closed',
   CANCELLED: 'Cancelled',
+};
+
+export const RFQ_SOURCE_LABELS: Record<RfqSource, string> = {
+  TRADE_PORTAL: 'Trade portal',
+  WEBSITE: 'Website',
 };
 
 export const QUOTATION_STATUS_LABELS: Record<QuotationStatus, string> = {

@@ -19,6 +19,7 @@ import type {
   AuthenticatedUser,
   RequestMeta,
 } from '../common/request-context';
+import { strictThrottle } from '../common/throttle';
 import {
   ChangePasswordDto,
   ForgotPasswordDto,
@@ -33,12 +34,7 @@ import { AuthService } from './auth.service';
 import { SessionCookieService } from './session-cookie.service';
 
 /** Stricter per-IP limit for credential endpoints (brute force / credential stuffing). */
-export const authThrottle = {
-  default: {
-    limit: () => Number(process.env.AUTH_THROTTLE_LIMIT ?? 10),
-    ttl: 60_000,
-  },
-};
+export const authThrottle = strictThrottle;
 
 @ApiTags('Authentication')
 @Controller('auth')

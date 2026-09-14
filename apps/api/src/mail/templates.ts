@@ -36,6 +36,17 @@ export function invitationEmail(
   };
 }
 
+export function quoteRequestReceivedEmail(
+  name: string,
+  requestNumber: string,
+  lineCount: number,
+): Template {
+  return {
+    subject: `We received your quote request ${requestNumber}`,
+    text: `Hello ${name},\n\nThank you for your quote request ${requestNumber} (${lineCount} item${lineCount === 1 ? '' : 's'}). Our sales team will review it and get back to you with a formal quotation.\n\nPlease quote ${requestNumber} if you contact us about this request.${signature}`,
+  };
+}
+
 export function quotationSentEmail(
   name: string,
   quotationNumber: string,

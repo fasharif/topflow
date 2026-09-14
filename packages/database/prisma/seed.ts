@@ -1,9 +1,18 @@
 /**
- * Idempotent demo data for local development, CI end-to-end tests and portfolio demos.
+ * Idempotent reference and demo data for local development, CI end-to-end tests and demos.
  * Run with `npm run db:seed`. Refuses to run in production unless SEED_FORCE=true.
- * Set SEED_DEMO_DOCUMENTS=false to skip the sample RFQs, quotations and orders.
+ *
+ * - The catalogue in prisma/data/topflow-catalogue.json is Top Flow's product range with
+ *   indicative price ranges. Products that are no longer listed are unpublished, never deleted
+ *   (set SEED_KEEP_UNLISTED=true to leave them untouched). Re-running refreshes content and
+ *   prices but keeps live stock levels.
+ * - Demo accounts use SEED_DEMO_PASSWORD (the default, TopFlow2026!, is public: never use it in
+ *   production). SEED_RESET_PASSWORDS=true also resets the password of accounts that exist.
+ * - SEED_DEMO_DOCUMENTS=false skips the sample RFQs, quotations and orders.
  */
 import 'dotenv/config';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   bpsToPercent,
   calculateTotals,
@@ -45,63 +54,40 @@ if (!connectionString) {
 
 const prisma = createPrismaClient({ connectionString });
 const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? 'TopFlow2026!';
+const RESET_PASSWORDS = process.env.SEED_RESET_PASSWORDS === 'true';
 const DAY = 86_400_000;
 const daysAgo = (days: number) => new Date(Date.now() - days * DAY);
 
-const categories = [
-  { slug: 'sprinklers-rotors', name: 'Sprinklers & Rotors', description: 'Gear-driven rotors for medium and large turf areas.' },
-  { slug: 'spray-heads-nozzles', name: 'Spray Heads & Nozzles', description: 'Pop-up spray bodies, rotary and fixed nozzles.' },
-  { slug: 'drip-irrigation', name: 'Drip Irrigation', description: 'Driplines, emitters and micro-irrigation for planters and trees.' },
-  { slug: 'valves', name: 'Valves', description: 'Solenoid, master and isolation valves.' },
-  { slug: 'controllers-sensors', name: 'Controllers & Sensors', description: 'Smart controllers, weather and rain sensors.' },
-  { slug: 'pipes-fittings', name: 'Pipes & Fittings', description: 'uPVC and HDPE pipes, fittings and accessories.' },
-  { slug: 'filtration', name: 'Filtration', description: 'Screen and disc filters for clean irrigation water.' },
-  { slug: 'pumps', name: 'Pumps', description: 'Booster sets and pumps for irrigation networks.' },
-];
-
-type SeedProduct = {
-  sku: string;
+interface CatalogueCategory {
+  slug: string;
   name: string;
-  brand: string;
-  category: string;
-  price: string;
-  stock: number;
-  uom?: UnitOfMeasure;
-  moq?: number;
-  tradeOnly?: boolean;
-  specs: Record<string, string>;
   description: string;
-};
+  imageUrl: string | null;
+  displayOrder: number;
+}
 
-const products: SeedProduct[] = [
-  { sku: 'HU-PGP-ADJ', name: 'Hunter PGP Ultra Adjustable Rotor', brand: 'Hunter', category: 'sprinklers-rotors', price: '38.50', stock: 240, specs: { Radius: '7–16 m', Inlet: '3/4" BSP', Flow: '0.5–3.7 m³/h' }, description: 'Reliable gear-driven rotor with adjustable arc for parks and villa lawns.' },
-  { sku: 'RB-5004-PC', name: 'Rain Bird 5004 Plus PC Rotor', brand: 'Rain Bird', category: 'sprinklers-rotors', price: '42.00', stock: 180, specs: { Radius: '7.6–15.2 m', Inlet: '3/4" BSP', Arc: '40°–360°' }, description: 'Part-circle rotor with Rain Curtain nozzle technology.' },
-  { sku: 'TO-T7-ROTOR', name: 'Toro T7 Gear-Driven Rotor', brand: 'Toro', category: 'sprinklers-rotors', price: '29.75', stock: 95, specs: { Radius: '6.1–10.4 m', Inlet: '1/2" BSP' }, description: 'Compact rotor for residential turf.' },
-  { sku: 'HU-I20-04SS', name: 'Hunter I-20 Stainless Riser Rotor', brand: 'Hunter', category: 'sprinklers-rotors', price: '67.00', stock: 60, specs: { Radius: '5.2–14 m', Riser: 'Stainless steel 10 cm' }, description: 'Vandal-resistant rotor for public landscapes.' },
-  { sku: 'RB-1804-SAM', name: 'Rain Bird 1804 SAM Pop-up Spray Body', brand: 'Rain Bird', category: 'spray-heads-nozzles', price: '11.25', stock: 520, specs: { 'Pop-up height': '10 cm', 'Check valve': 'Seal-A-Matic' }, description: 'Industry-standard spray body with check valve.' },
-  { sku: 'HU-PRS40', name: 'Hunter Pro-Spray PRS40 Spray Body', brand: 'Hunter', category: 'spray-heads-nozzles', price: '13.90', stock: 400, specs: { 'Pop-up height': '10 cm', Regulation: '2.8 bar' }, description: 'Pressure-regulated spray body that reduces misting.' },
-  { sku: 'RB-HE-VAN-15', name: 'Rain Bird HE-VAN 15 ft Adjustable Nozzle', brand: 'Rain Bird', category: 'spray-heads-nozzles', price: '6.40', stock: 900, moq: 5, specs: { Radius: '2.4–4.6 m', Arc: '0°–360°' }, description: 'High-efficiency variable arc nozzle.' },
-  { sku: 'HU-MP2000', name: 'Hunter MP Rotator MP2000', brand: 'Hunter', category: 'spray-heads-nozzles', price: '24.50', stock: 300, specs: { Radius: '4–6.4 m', 'Precip. rate': '10 mm/h' }, description: 'Multi-trajectory rotating streams for water savings.' },
-  { sku: 'NE-TECHLINE-16', name: 'Netafim Techline CV 16 mm Dripline 2.1 L/h (100 m)', brand: 'Netafim', category: 'drip-irrigation', price: '245.00', stock: 40, uom: UnitOfMeasure.ROLL, specs: { Diameter: '16 mm', Spacing: '33 cm', Flow: '2.1 L/h' }, description: 'Pressure-compensating dripline with anti-drain check valves.' },
-  { sku: 'NE-UNIRAM-17', name: 'Netafim UniRam 17 mm Dripline 1.6 L/h (400 m)', brand: 'Netafim', category: 'drip-irrigation', price: '890.00', stock: 12, uom: UnitOfMeasure.ROLL, tradeOnly: true, specs: { Diameter: '17 mm', Spacing: '50 cm', Flow: '1.6 L/h' }, description: 'Heavy-wall dripline for large agricultural and municipal projects.' },
-  { sku: 'RB-XFD-16', name: 'Rain Bird XFD Inline Drip Tubing 16 mm', brand: 'Rain Bird', category: 'drip-irrigation', price: '3.20', stock: 5000, uom: UnitOfMeasure.METER, moq: 25, specs: { Diameter: '16 mm', Spacing: '30 cm' }, description: 'Flexible inline drip tubing sold by the metre.' },
-  { sku: 'NE-PCJ-2L', name: 'Netafim PCJ 2 L/h Pressure-Compensating Dripper', brand: 'Netafim', category: 'drip-irrigation', price: '1.15', stock: 8000, moq: 50, specs: { Flow: '2 L/h', Range: '0.5–4 bar' }, description: 'Button dripper for trees and planters.' },
-  { sku: 'RB-100-DV', name: 'Rain Bird 100-DV 1" Solenoid Valve', brand: 'Rain Bird', category: 'valves', price: '58.00', stock: 150, specs: { Size: '1"', Voltage: '24 VAC' }, description: 'Durable plastic solenoid valve with flow control.' },
-  { sku: 'HU-PGV-101G', name: 'Hunter PGV-101G 1" Globe Valve', brand: 'Hunter', category: 'valves', price: '52.50', stock: 110, specs: { Size: '1"', Voltage: '24 VAC' }, description: 'Globe-configuration valve for residential systems.' },
-  { sku: 'IR-205-2IN', name: 'Irritrol 205 2" Brass Master Valve', brand: 'Irritrol', category: 'valves', price: '485.00', stock: 8, tradeOnly: true, specs: { Size: '2"', Body: 'Brass' }, description: 'Commercial brass valve for mainline isolation.' },
-  { sku: 'GF-BALL-32', name: 'GF uPVC Ball Valve 32 mm', brand: 'GF Piping Systems', category: 'valves', price: '36.00', stock: 75, specs: { Size: '32 mm', Rating: 'PN16' }, description: 'True-union ball valve for isolation duty.' },
-  { sku: 'HU-HPC-400', name: 'Hunter Hydrawise HPC-400 Wi-Fi Controller', brand: 'Hunter', category: 'controllers-sensors', price: '690.00', stock: 22, specs: { Stations: '4 (expandable to 16)', Connectivity: 'Wi-Fi' }, description: 'Cloud-managed smart controller with predictive watering.' },
-  { sku: 'RB-ESP-TM2-8', name: 'Rain Bird ESP-TM2 8-Station Controller', brand: 'Rain Bird', category: 'controllers-sensors', price: '520.00', stock: 18, specs: { Stations: '8', Connectivity: 'LNK2 Wi-Fi ready' }, description: 'Easy-to-program controller for villas and small commercial sites.' },
-  { sku: 'HU-SOLAR-SYNC', name: 'Hunter Solar Sync ET Sensor', brand: 'Hunter', category: 'controllers-sensors', price: '415.00', stock: 4, specs: { Measures: 'Sunlight & temperature' }, description: 'Adjusts run times daily based on evapotranspiration.' },
-  { sku: 'RB-RSD-BEX', name: 'Rain Bird RSD-BEx Rain Sensor', brand: 'Rain Bird', category: 'controllers-sensors', price: '118.00', stock: 30, specs: { Settings: '3–25 mm' }, description: 'Interrupts watering during rainfall.' },
-  { sku: 'PVC-P-32-6', name: 'uPVC Pressure Pipe 32 mm PN10 (6 m length)', brand: 'Top Flow Select', category: 'pipes-fittings', price: '18.50', stock: 600, specs: { Diameter: '32 mm', Rating: 'PN10', Length: '6 m' }, description: 'Solvent-weld pressure pipe for irrigation mains.' },
-  { sku: 'HDPE-25-PN16', name: 'HDPE Pipe 25 mm PN16 (100 m coil)', brand: 'Top Flow Select', category: 'pipes-fittings', price: '310.00', stock: 25, uom: UnitOfMeasure.ROLL, specs: { Diameter: '25 mm', Rating: 'PN16', Length: '100 m' }, description: 'UV-stabilised polyethylene pipe for laterals.' },
-  { sku: 'PVC-ELB-32', name: 'uPVC Elbow 90° 32 mm', brand: 'Top Flow Select', category: 'pipes-fittings', price: '2.10', stock: 3000, moq: 10, specs: { Diameter: '32 mm', Angle: '90°' }, description: 'Solvent-weld elbow fitting.' },
-  { sku: 'AM-SCREEN-1IN', name: 'Amiad 1" Screen Filter 120 Mesh', brand: 'Amiad', category: 'filtration', price: '96.00', stock: 45, specs: { Size: '1"', Mesh: '120' }, description: 'Compact screen filter for drip zones.' },
-  { sku: 'AM-DISC-2IN', name: 'Amiad 2" Disc Filter 130 Micron', brand: 'Amiad', category: 'filtration', price: '540.00', stock: 6, specs: { Size: '2"', Filtration: '130 micron' }, description: 'High-capacity disc filter for main lines.' },
-  { sku: 'GR-CMBE-3-62', name: 'Grundfos CMBE 3-62 Booster Pump Set', brand: 'Grundfos', category: 'pumps', price: '4350.00', stock: 3, uom: UnitOfMeasure.SET, tradeOnly: true, specs: { 'Max flow': '4.5 m³/h', 'Max head': '62 m' }, description: 'Variable-speed booster set with integrated controls.' },
-  { sku: 'PE-PKM60', name: 'Pedrollo PKm 60 Peripheral Pump 0.5 HP', brand: 'Pedrollo', category: 'pumps', price: '310.00', stock: 14, specs: { Power: '0.37 kW', 'Max head': '40 m' }, description: 'Peripheral pump for small irrigation systems.' },
-];
+interface CatalogueFile {
+  source: string;
+  categories: Array<CatalogueCategory & { lines: CatalogueCategory[] }>;
+  products: Array<{
+    sku: string;
+    name: string;
+    category: string;
+    line: string;
+    brand: string;
+    description: string;
+    specifications: Record<string, string>;
+    priceMin: string | null;
+    priceMax: string | null;
+    uom: UnitOfMeasure;
+    stockStatus: StockStatus;
+    stockQuantity: number;
+    tags: string[];
+    imageUrl: string | null;
+  }>;
+}
+
+const catalogue = JSON.parse(readFileSync(join(__dirname, 'data', 'topflow-catalogue.json'), 'utf8')) as CatalogueFile;
 
 function slugify(value: string): string {
   return value
@@ -113,40 +99,74 @@ function slugify(value: string): string {
 async function upsertUser(email: string, fullName: string, role: Role, passwordHash: string, phoneNumber?: string) {
   return prisma.user.upsert({
     where: { email },
-    update: { fullName, role, isActive: true },
+    update: { fullName, role, isActive: true, ...(RESET_PASSWORDS && { passwordHash, passwordChangedAt: new Date() }) },
     create: { email, fullName, role, passwordHash, phoneNumber, emailVerifiedAt: new Date() },
   });
 }
 
-async function seedReferenceData(passwordHash: string) {
-  for (const [index, category] of categories.entries()) {
-    await prisma.category.upsert({
-      where: { slug: category.slug },
-      update: { name: category.name, description: category.description, displayOrder: index },
-      create: { ...category, displayOrder: index },
-    });
-  }
-  const categoryIds = new Map((await prisma.category.findMany()).map((c) => [c.slug, c.id]));
+/** Matches on slug or name, so categories created by earlier data sets are updated, not duplicated. */
+async function upsertCategory(data: CatalogueCategory & { parentId: number | null }) {
+  const existing = await prisma.category.findFirst({ where: { OR: [{ slug: data.slug }, { name: data.name }] } });
+  return existing ? prisma.category.update({ where: { id: existing.id }, data }) : prisma.category.create({ data });
+}
 
-  for (const product of products) {
-    const data = {
+async function seedCatalogue() {
+  const categoryIds = new Map<string, number>();
+  for (const category of catalogue.categories) {
+    const { lines, ...parent } = category;
+    const saved = await upsertCategory({ ...parent, parentId: null });
+    categoryIds.set(parent.slug, saved.id);
+    for (const line of lines) {
+      categoryIds.set(line.slug, (await upsertCategory({ ...line, parentId: saved.id })).id);
+    }
+  }
+
+  for (const product of catalogue.products) {
+    const content = {
       name: product.name,
       slug: slugify(`${product.name}-${product.sku}`),
       brand: product.brand,
-      categoryId: categoryIds.get(product.category) ?? null,
+      categoryId: categoryIds.get(product.line) ?? categoryIds.get(product.category) ?? null,
       description: product.description,
-      specifications: product.specs,
-      unitPrice: product.price,
-      uom: product.uom ?? UnitOfMeasure.PIECE,
-      minOrderQty: product.moq ?? 1,
-      stockQuantity: product.stock,
-      stockStatus: product.stock > 0 ? StockStatus.IN_STOCK : StockStatus.ON_ORDER,
-      isTradeOnly: product.tradeOnly ?? false,
+      specifications: product.specifications,
+      // Online orders are priced at the top of the indicative range; quotations can go lower.
+      unitPrice: product.priceMax ?? '0.00',
+      priceMin: product.priceMin,
+      priceMax: product.priceMax,
+      uom: product.uom,
+      imageUrl: product.imageUrl,
+      tags: product.tags,
+      // Without a price an item can only be quoted, so it is kept out of the retail storefront.
+      isTradeOnly: product.priceMax === null,
       isActive: true,
     };
-    await prisma.product.upsert({ where: { sku: product.sku }, update: data, create: { sku: product.sku, ...data } });
+    await prisma.product.upsert({
+      where: { sku: product.sku },
+      update: content,
+      create: {
+        sku: product.sku,
+        ...content,
+        minOrderQty: 1,
+        lowStockThreshold: 5,
+        stockQuantity: product.stockQuantity,
+        stockStatus: product.stockStatus,
+      },
+    });
   }
 
+  const retired =
+    process.env.SEED_KEEP_UNLISTED === 'true'
+      ? 0
+      : (
+          await prisma.product.updateMany({
+            where: { isActive: true, sku: { notIn: catalogue.products.map((p) => p.sku) } },
+            data: { isActive: false },
+          })
+        ).count;
+  return { categories: categoryIds.size, products: catalogue.products.length, retired };
+}
+
+async function seedAccounts(passwordHash: string) {
   await upsertUser('admin@topflow.ae', 'Aisha Rahman', Role.ADMIN, passwordHash, '+971 4 555 0100');
   await upsertUser('sales@topflow.ae', 'Omar Haddad', Role.SALES, passwordHash, '+971 4 555 0101');
   await upsertUser('warehouse@topflow.ae', 'Ravi Menon', Role.WAREHOUSE, passwordHash, '+971 4 555 0102');
@@ -356,9 +376,9 @@ async function seedDemoDocuments(organizationId: string, customerId: string) {
 
   // 1. A fresh RFQ waiting for the sales team.
   if (!(await prisma.quoteRequest.findUnique({ where: { number: 'TF-RFQ-2026-D00001' } }))) {
-    const lines = [{ sku: 'HU-MP2000', quantity: 120 }, { sku: 'RB-1804-SAM', quantity: 120 }];
+    const lines = [{ sku: 'WS-1702', quantity: 120 }, { sku: 'WS-VB910-G', quantity: 40 }];
     const priced = await price(lines, 0);
-    const rfq = await prisma.quoteRequest.create({ data: { ...rfqBase('TF-RFQ-2026-D00001', RfqStatus.SUBMITTED, 'Emirates Hills villa cluster — irrigation retrofit', lines, 1), notes: 'Please include MP rotator nozzles matched to the bodies.' } });
+    const rfq = await prisma.quoteRequest.create({ data: { ...rfqBase('TF-RFQ-2026-D00001', RfqStatus.SUBMITTED, 'Emirates Hills villa cluster — tree bubbler retrofit', lines, 1), notes: 'One bubbler per tree; valve boxes for each new zone.' } });
     for (const product of priced.products) {
       await prisma.quoteRequestItem.updateMany({ where: { quoteRequestId: rfq.id, sku: product.sku }, data: { productName: product.name, productId: product.id } });
     }
@@ -372,7 +392,7 @@ async function seedDemoDocuments(organizationId: string, customerId: string) {
     rfqStatus: RfqStatus.QUOTED,
     quotationStatus: QuotationStatus.SENT,
     project: 'Al Barari — community park upgrade',
-    lines: [{ sku: 'HU-PGP-ADJ', quantity: 60, discountBps: trade }, { sku: 'HU-HPC-400', quantity: 2, discountBps: trade }],
+    lines: [{ sku: 'AX-RB-SJ-01', quantity: 30, discountBps: trade }, { sku: 'WSI-F025-Y', quantity: 2, discountBps: trade }],
     age: 4,
   });
 
@@ -382,8 +402,8 @@ async function seedDemoDocuments(organizationId: string, customerId: string) {
     quotationNumber: 'TF-QT-2026-D00002',
     rfqStatus: RfqStatus.QUOTED,
     quotationStatus: QuotationStatus.PENDING_APPROVAL,
-    project: 'Dubai Hills Estate — Parkway drip zones',
-    lines: [{ sku: 'NE-TECHLINE-16', quantity: 40, discountBps: trade }, { sku: 'AM-DISC-2IN', quantity: 2, discountBps: trade }],
+    project: 'Dubai Hills Estate — Parkway HDPE mains',
+    lines: [{ sku: 'AX-EFS-005', quantity: 80, discountBps: trade }, { sku: 'WSI-F050-Y', quantity: 4, discountBps: trade }],
     age: 6,
     extra: { respondedById: buyer.id, respondedAt: daysAgo(1), purchaseOrderNumber: 'DB-PO-5120', responseNote: 'Approved in the Phase 2 budget — needs sign-off.' },
   });
@@ -395,7 +415,7 @@ async function seedDemoDocuments(organizationId: string, customerId: string) {
     rfqStatus: RfqStatus.CLOSED,
     quotationStatus: QuotationStatus.ACCEPTED,
     project: 'Jumeirah Golf Estates — valve replacement',
-    lines: [{ sku: 'RB-100-DV', quantity: 30, discountBps: trade }, { sku: 'PVC-P-32-6', quantity: 80, discountBps: trade }],
+    lines: [{ sku: 'WS-ISCV-101G', quantity: 12, discountBps: trade }, { sku: 'WS-VB1419-G', quantity: 12, discountBps: trade }],
     age: 9,
     extra: { respondedById: buyer.id, respondedAt: daysAgo(3), approvedById: approver.id, approvedAt: daysAgo(3), purchaseOrderNumber: 'DB-PO-5074' },
   });
@@ -431,7 +451,7 @@ async function seedDemoDocuments(organizationId: string, customerId: string) {
 
   // 5. Retail orders: one delivered and paid, one waiting to be picked.
   if (!(await prisma.order.findUnique({ where: { orderNumber: 'TF-SO-2026-D00002' } }))) {
-    const priced = await price([{ sku: 'HU-MP2000', quantity: 6 }, { sku: 'RB-RSD-BEX', quantity: 1 }], 25_00);
+    const priced = await price([{ sku: 'WS-DDRIP-14', quantity: 6 }, { sku: 'AX-RB-D-03', quantity: 10 }], 25_00);
     await prisma.order.create({
       data: {
         orderNumber: 'TF-SO-2026-D00002',
@@ -465,7 +485,7 @@ async function seedDemoDocuments(organizationId: string, customerId: string) {
   }
 
   if (!(await prisma.order.findUnique({ where: { orderNumber: 'TF-SO-2026-D00003' } }))) {
-    const priced = await price([{ sku: 'RB-HE-VAN-15', quantity: 10 }, { sku: 'RB-1804-SAM', quantity: 10 }], 25_00);
+    const priced = await price([{ sku: 'WS-1600', quantity: 10 }, { sku: 'WSI-F020-Y', quantity: 1 }], 25_00);
     await prisma.order.create({
       data: {
         orderNumber: 'TF-SO-2026-D00003',
@@ -492,12 +512,14 @@ async function seedDemoDocuments(organizationId: string, customerId: string) {
 
 async function main() {
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 12);
-  const { organizationId, customerId } = await seedReferenceData(passwordHash);
+  const catalog = await seedCatalogue();
+  const { organizationId, customerId } = await seedAccounts(passwordHash);
   const documents = process.env.SEED_DEMO_DOCUMENTS === 'false' ? 0 : await seedDemoDocuments(organizationId, customerId);
 
   console.log(
-    `Seeded ${categories.length} categories, ${products.length} products, 8 users, 2 organizations` +
-      ` and ${documents} new demo document(s). Demo password: ${process.env.SEED_DEMO_PASSWORD ? '(from SEED_DEMO_PASSWORD)' : DEMO_PASSWORD}`,
+    `Seeded ${catalog.categories} categories and ${catalog.products} products (${catalog.retired} unlisted product(s) unpublished), ` +
+      `8 users${RESET_PASSWORDS ? ' (passwords reset)' : ''}, 2 organizations and ${documents} new demo document(s). ` +
+      `Demo password: ${process.env.SEED_DEMO_PASSWORD ? '(from SEED_DEMO_PASSWORD)' : DEMO_PASSWORD}`,
   );
 }
 

@@ -4,19 +4,23 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import type { Prisma } from '@topflow/database';
+import type { Prisma, Product } from '@topflow/database';
 import {
   DocumentType,
+  EMIRATE_LABELS,
   Permission,
   RFQ_TRANSITIONS,
+  RfqSource,
   RfqStatus,
   assertTransition,
   hasPermission,
   type CreateRfqInput,
+  type CreateWebsiteQuoteRequestInput,
   type Paginated,
   type RfqDto,
   type RfqQuery,
   type UpdateRfqInput,
+  type WebsiteQuoteReceiptDto,
 } from '@topflow/shared';
 import { AuditAction } from '../audit/audit-actions';
 import { AuditService } from '../audit/audit.service';
@@ -31,6 +35,7 @@ import { pageArgs, paginated } from '../common/serialization';
 import { InjectConfig } from '../config/config.module';
 import type { AppConfig } from '../config/env';
 import { MailService } from '../mail/mail.service';
+import { quoteRequestReceivedEmail } from '../mail/templates';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   AddressBookService,
@@ -38,6 +43,22 @@ import {
   formatAddress,
 } from '../users/address-book.service';
 import { rfqInclude, toRfqDto } from './procurement.mapper';
+
+interface ResolvedLine {
+  product: Product;
+  quantity: number;
+  notes: string[];
+}
+
+function toItemRow(line: ResolvedLine) {
+  return {
+    productId: line.product.id,
+    sku: line.product.sku,
+    productName: line.product.name,
+    quantity: line.quantity,
+    notes: line.notes.join('; ') || null,
+  };
+}
 
 @Injectable()
 export class RfqService {
@@ -59,32 +80,9 @@ export class RfqService {
     actor: AuthenticatedUser,
     meta: RequestMeta,
   ): Promise<RfqDto> {
-    // The same product added twice becomes one line.
-    const lines = new Map<string, { quantity: number; notes: string[] }>();
-    for (const item of input.items) {
-      const line = lines.get(item.productId) ?? { quantity: 0, notes: [] };
-      line.quantity += item.quantity;
-      if (item.notes) line.notes.push(item.notes);
-      lines.set(item.productId, line);
-    }
-
-    const products = await this.prisma.product.findMany({
-      where: { id: { in: [...lines.keys()] }, isActive: true },
+    const lines = await this.resolveLines(input.items, {
+      includeTradeOnly: true,
     });
-    const byId = new Map(products.map((product) => [product.id, product]));
-    for (const [productId, line] of lines) {
-      const product = byId.get(productId);
-      if (!product) {
-        throw new NotFoundException(
-          'One or more products are no longer available',
-        );
-      }
-      if (line.quantity < product.minOrderQty) {
-        throw new BadRequestException(
-          `The minimum order quantity for ${product.sku} is ${product.minOrderQty}`,
-        );
-      }
-    }
 
     const site = input.addressId
       ? await this.addressBook.get(
@@ -107,18 +105,7 @@ export class RfqService {
           deliveryAddress: snapshot ?? undefined,
           requiredBy: input.requiredBy ? uaeDate(input.requiredBy) : null,
           notes: input.notes,
-          items: {
-            create: [...lines].map(([productId, line]) => {
-              const product = byId.get(productId)!;
-              return {
-                productId,
-                sku: product.sku,
-                productName: product.name,
-                quantity: line.quantity,
-                notes: line.notes.join('; ') || null,
-              };
-            }),
-          },
+          items: { create: lines.map(toItemRow) },
         },
         include: rfqInclude(false),
       });
@@ -130,7 +117,7 @@ export class RfqService {
           organizationId: ctx.organizationId,
           userId: actor.id,
           ipAddress: meta.ipAddress,
-          details: { number, lines: lines.size },
+          details: { number, lines: lines.length },
         },
         tx,
       );
@@ -142,6 +129,72 @@ export class RfqService {
       `${actor.fullName} submitted ${rfq.items.length} line(s).\n${this.config.app.publicUrl}/admin/rfqs/${rfq.id}`,
     );
     return toRfqDto(rfq);
+  }
+
+  /**
+   * A visitor on the public website asks for a quotation. There is no account or organization:
+   * sales replies to the contact details, and a formal quotation can follow once the customer
+   * has an account.
+   */
+  async createFromWebsite(
+    input: CreateWebsiteQuoteRequestInput,
+    meta: RequestMeta,
+  ): Promise<WebsiteQuoteReceiptDto> {
+    // Trade-only items are hidden from the public catalog, so they cannot be requested here.
+    const lines = await this.resolveLines(input.items, {
+      includeTradeOnly: false,
+    });
+
+    const rfq = await this.prisma.$transaction(async (tx) => {
+      const number = await this.numbering.next(DocumentType.QUOTE_REQUEST, tx);
+      const created = await tx.quoteRequest.create({
+        data: {
+          number,
+          source: RfqSource.WEBSITE,
+          status: RfqStatus.SUBMITTED,
+          contactName: input.name,
+          contactEmail: input.email,
+          contactPhone: input.phone,
+          companyName: input.companyName,
+          shippingAddress: input.emirate ? EMIRATE_LABELS[input.emirate] : null,
+          notes: input.notes,
+          items: { create: lines.map(toItemRow) },
+        },
+      });
+      await this.audit.record(
+        {
+          action: AuditAction.RFQ_SUBMITTED,
+          entityType: 'QuoteRequest',
+          entityId: created.id,
+          ipAddress: meta.ipAddress,
+          details: { number, lines: lines.length, source: RfqSource.WEBSITE },
+        },
+        tx,
+      );
+      return created;
+    });
+
+    this.notifySales(
+      `New website quote request ${rfq.number}`,
+      `${input.name}${input.companyName ? ` (${input.companyName})` : ''} asked for a quotation on ${lines.length} line(s).\n${this.config.app.publicUrl}/admin/rfqs/${rfq.id}`,
+    );
+    this.mail
+      .send({
+        to: input.email,
+        ...quoteRequestReceivedEmail(input.name, rfq.number, lines.length),
+      })
+      .catch((error: unknown) => {
+        this.logger.error(
+          `Could not acknowledge quote request ${rfq.number}`,
+          error instanceof Error ? error.stack : error,
+        );
+      });
+
+    return {
+      number: rfq.number,
+      lineCount: lines.length,
+      createdAt: rfq.createdAt.toISOString(),
+    };
   }
 
   async listForOrganization(
@@ -261,6 +314,7 @@ export class RfqService {
   private filters(query: RfqQuery): Prisma.QuoteRequestWhereInput {
     return {
       ...(query.status && { status: query.status }),
+      ...(query.source && { source: query.source }),
       ...(query.search && {
         OR: [
           { number: { contains: query.search, mode: 'insensitive' } },
@@ -270,9 +324,56 @@ export class RfqService {
               name: { contains: query.search, mode: 'insensitive' },
             },
           },
+          { contactName: { contains: query.search, mode: 'insensitive' } },
+          { contactEmail: { contains: query.search, mode: 'insensitive' } },
+          { companyName: { contains: query.search, mode: 'insensitive' } },
         ],
       }),
     };
+  }
+
+  /**
+   * Merges repeated products into one line, then checks that each product is still sold, is
+   * visible to the requester and is ordered in at least its minimum quantity.
+   */
+  private async resolveLines(
+    items: ReadonlyArray<{
+      productId: string;
+      quantity: number;
+      notes?: string;
+    }>,
+    options: { includeTradeOnly: boolean },
+  ): Promise<ResolvedLine[]> {
+    const merged = new Map<string, { quantity: number; notes: string[] }>();
+    for (const item of items) {
+      const line = merged.get(item.productId) ?? { quantity: 0, notes: [] };
+      line.quantity += item.quantity;
+      if (item.notes) line.notes.push(item.notes);
+      merged.set(item.productId, line);
+    }
+
+    const products = await this.prisma.product.findMany({
+      where: {
+        id: { in: [...merged.keys()] },
+        isActive: true,
+        ...(!options.includeTradeOnly && { isTradeOnly: false }),
+      },
+    });
+    const byId = new Map(products.map((product) => [product.id, product]));
+    return [...merged].map(([productId, line]) => {
+      const product = byId.get(productId);
+      if (!product) {
+        throw new NotFoundException(
+          'One or more products are no longer available',
+        );
+      }
+      if (line.quantity < product.minOrderQty) {
+        throw new BadRequestException(
+          `The minimum order quantity for ${product.sku} is ${product.minOrderQty}`,
+        );
+      }
+      return { product, ...line };
+    });
   }
 
   private async list(

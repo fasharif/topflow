@@ -13,6 +13,7 @@ import type {
   PaymentStatus,
   PaymentTerms,
   QuotationStatus,
+  RfqSource,
   RfqStatus,
   Role,
   StockStatus,
@@ -165,6 +166,16 @@ export interface CategoryDto {
   productCount?: number;
 }
 
+/** Indicative price range for one unit of a product (AED amounts as strings). */
+export interface PriceRangeDto {
+  /** Lowest and highest net prices, excl. VAT. */
+  min: string;
+  max: string;
+  /** The same range including 5% VAT, for consumer display. */
+  retailMin: string;
+  retailMax: string;
+}
+
 export interface ProductDto {
   id: string;
   sku: string;
@@ -179,12 +190,15 @@ export interface ProductDto {
   retailPrice: string;
   /** Net price after the caller's organization discount, when acting in a B2B context. */
   tradePrice: string | null;
+  /** Indicative market range; a quotation can land anywhere in it. */
+  priceRange: PriceRangeDto | null;
   uom: UnitOfMeasure;
   minOrderQty: number;
   stockStatus: StockStatus;
   stockQuantity: number;
   lowStockThreshold: number;
   imageUrl: string | null;
+  tags: string[];
   isActive: boolean;
   isTradeOnly: boolean;
   category: { id: number; name: string; slug: string } | null;
@@ -232,10 +246,21 @@ export interface QuotationSummaryDto {
   createdAt: string;
 }
 
+/** Who to reply to for a request submitted on the public website. */
+export interface RfqContactDto {
+  name: string;
+  email: string;
+  phone: string | null;
+  companyName: string | null;
+}
+
 export interface RfqDto {
   id: string;
   number: string;
   status: RfqStatus;
+  source: RfqSource;
+  /** Present for website requests, which have no account or organization. */
+  contact: RfqContactDto | null;
   organization: OrganizationRef | null;
   requestedBy: UserRef | null;
   assignedTo: UserRef | null;
@@ -248,6 +273,13 @@ export interface RfqDto {
   quotations: QuotationSummaryDto[];
   createdAt: string;
   updatedAt: string;
+}
+
+/** Returned to a website visitor after they submit a quote request. */
+export interface WebsiteQuoteReceiptDto {
+  number: string;
+  lineCount: number;
+  createdAt: string;
 }
 
 export interface QuotationDto extends QuotationSummaryDto {

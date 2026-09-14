@@ -36,7 +36,10 @@ export class CategoriesService {
     private readonly audit: AuditService,
   ) {}
 
-  /** Categories with the number of products visible to retail shoppers. */
+  /**
+   * Categories with the number of products visible to retail shoppers. A parent's count
+   * includes its sub-categories, matching the catalog filter, which includes them too.
+   */
   async list(): Promise<CategoryDto[]> {
     const categories = await this.prisma.category.findMany({
       include: {
@@ -48,7 +51,21 @@ export class CategoriesService {
       },
       orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
     });
-    return categories.map(toCategoryDto);
+    const totals = new Map(
+      categories.map((category) => [category.id, category._count.products]),
+    );
+    for (const category of categories) {
+      if (category.parentId !== null) {
+        totals.set(
+          category.parentId,
+          (totals.get(category.parentId) ?? 0) + category._count.products,
+        );
+      }
+    }
+    return categories.map((category) => ({
+      ...toCategoryDto(category),
+      productCount: totals.get(category.id) ?? 0,
+    }));
   }
 
   async create(

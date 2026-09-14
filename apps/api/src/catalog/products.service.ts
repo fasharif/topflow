@@ -1,8 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type { Prisma } from '@topflow/database';
 import {
   ProductSort,
   StockStatus,
+  toFils,
   type AdjustStockInput,
   type CreateProductInput,
   type Paginated,
@@ -74,6 +79,7 @@ export class ProductsService {
           { sku: { contains: query.search, mode: 'insensitive' } },
           { brand: { contains: query.search, mode: 'insensitive' } },
           { description: { contains: query.search, mode: 'insensitive' } },
+          { tags: { has: query.search.toLowerCase() } },
         ],
       }),
     };
@@ -156,7 +162,21 @@ export class ProductsService {
     actor: AuthenticatedUser,
     meta: RequestMeta,
   ): Promise<ProductDto> {
-    await this.findOrThrow(id);
+    const current = await this.findOrThrow(id);
+    // A partial update may change one end of the range; check it against the stored other end.
+    const priceMin =
+      input.priceMin === undefined ? current.priceMin : input.priceMin;
+    const priceMax =
+      input.priceMax === undefined ? current.priceMax : input.priceMax;
+    if (
+      priceMin !== null &&
+      priceMax !== null &&
+      toFils(priceMin) > toFils(priceMax)
+    ) {
+      throw new BadRequestException(
+        'The upper price must be at least the lower price',
+      );
+    }
     const product = await this.prisma.product.update({
       where: { id },
       data: input,

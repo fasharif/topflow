@@ -286,12 +286,17 @@ model Product {
   specifications    Json?
   /// Net list price per unit of measure, excluding VAT.
   unitPrice         Decimal       @default(0.00) @db.Decimal(10, 2)
+  /// Indicative market range per unit (net, excl. VAT) shown to shoppers; quotations can land anywhere in it.
+  priceMin          Decimal?      @db.Decimal(10, 2)
+  priceMax          Decimal?      @db.Decimal(10, 2)
   uom               UnitOfMeasure @default(PIECE)
   minOrderQty       Int           @default(1)
   stockStatus       StockStatus   @default(IN_STOCK)
   stockQuantity     Int           @default(0)
   lowStockThreshold Int           @default(10)
   imageUrl          String?
+  /// Lower-case search keywords, e.g. "disc", "filter".
+  tags              String[]      @default([])
   /// Unpublished products stay referenced by historic orders (soft delete).
   isActive          Boolean       @default(true)
   /// Trade-only items are hidden from retail shoppers and can only be quoted.
@@ -357,9 +362,18 @@ enum QuotationStatus {
 }
 
 /// Request for Quotation raised by a customer (evolution of the prototype's "enquiry").
+/// Where a request for quotation came from.
+enum RfqSource {
+  /// A buyer inside a trade organization.
+  TRADE_PORTAL
+  /// Anyone on the public website, identified by contact details only.
+  WEBSITE
+}
+
 model QuoteRequest {
   id               String        @id @default(uuid())
   number           String        @unique
+  source           RfqSource     @default(TRADE_PORTAL)
   organizationId   String?
   organization     Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   requestedById    String?
@@ -372,6 +386,11 @@ model QuoteRequest {
   deliveryAddress  Json?
   requiredBy       DateTime?
   notes            String?
+  /// Website requests: who to reply to. Trade-portal requests use the requester's account.
+  contactName      String?
+  contactEmail     String?
+  contactPhone     String?
+  companyName      String?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
@@ -380,6 +399,7 @@ model QuoteRequest {
 
   @@index([organizationId, status])
   @@index([requestedById])
+  @@index([source, status])
   @@index([status])
   @@map("quote_requests")
 }

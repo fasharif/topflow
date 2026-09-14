@@ -1,13 +1,19 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import type {
-  AddressDto,
-  AuthSession,
-  OrderDto,
-  Paginated,
-  ProductDto,
-  QuotationDto,
-  RfqDto,
+import {
+  calculateTotals,
+  fromFils,
+  retailDeliveryFeeFils,
+  toFils,
+  type AddressDto,
+  type AuthSession,
+  type CategoryDto,
+  type OrderDto,
+  type Paginated,
+  type ProductDto,
+  type QuotationDto,
+  type RfqDto,
+  type WebsiteQuoteReceiptDto,
 } from '@topflow/shared';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
@@ -290,7 +296,7 @@ describe('Top Flow API (e2e)', () => {
     it('lets a buyer accept a quotation within their limit and creates the sales order', async () => {
       const buyer = await login('buyer@desertbloom.ae');
       const org = buyer.user.memberships[0].organizationId;
-      const quotation = await quoteAndSend(buyer, 'PVC-ELB-32', 20);
+      const quotation = await quoteAndSend(buyer, 'AX-EFS-001', 20);
 
       const accepted = (
         await http()
@@ -321,7 +327,7 @@ describe('Top Flow API (e2e)', () => {
       const buyer = await login('buyer@desertbloom.ae');
       const approver = await login('approver@desertbloom.ae');
       const org = buyer.user.memberships[0].organizationId;
-      const quotation = await quoteAndSend(buyer, 'HU-PGP-ADJ', 160);
+      const quotation = await quoteAndSend(buyer, 'AX-EFS-003', 160);
 
       const pending = (
         await http()
@@ -355,6 +361,79 @@ describe('Top Flow API (e2e)', () => {
     });
   });
 
+  describe('catalog & website quote requests', () => {
+    it('exposes indicative price ranges and counts sub-category products under their parent', async () => {
+      const item = await product('AX-EFS-002');
+      expect(item.priceRange).not.toBeNull();
+      const range = item.priceRange!;
+      expect(Number(range.min)).toBeLessThanOrEqual(Number(range.max));
+      expect(Number(range.retailMax)).toBeGreaterThan(Number(range.max));
+      expect(item.unitPrice).toBe(range.max);
+
+      const categories = (await http().get('/catalog/categories').expect(200))
+        .body as CategoryDto[];
+      const parent = categories.find(
+        (c) => c.slug === 'electrofusion-hdpe-fittings',
+      );
+      const lines = categories.filter((c) => c.parentId === parent?.id);
+      expect(lines.length).toBeGreaterThan(0);
+      expect(parent?.productCount).toBe(
+        lines.reduce((sum, line) => sum + (line.productCount ?? 0), 0),
+      );
+    });
+
+    it('accepts a quote request from a website visitor and shows it to sales', async () => {
+      const item = await product('AX-EFS-002');
+      const email = unique('visitor');
+      const receipt = (
+        await http()
+          .post('/quote-requests')
+          .send({
+            name: 'Website Visitor',
+            email,
+            phone: '+971 50 555 0199',
+            companyName: 'Oasis Villas',
+            emirate: 'DUBAI',
+            items: [{ productId: item.id, quantity: 12 }],
+          })
+          .expect(201)
+      ).body as WebsiteQuoteReceiptDto;
+      expect(receipt).toMatchObject({
+        lineCount: 1,
+        number: expect.stringMatching(/^TF-RFQ-\d{4}-\d{6}$/) as string,
+      });
+      expect(mail.lastMessageTo(email)?.subject).toContain(receipt.number);
+
+      const sales = await login('sales@topflow.ae');
+      const inbox = (
+        await http()
+          .get('/admin/rfqs')
+          .query({ source: 'WEBSITE', search: email })
+          .set(bearer(sales))
+          .expect(200)
+      ).body as Paginated<RfqDto>;
+      expect(inbox.items[0]).toMatchObject({
+        number: receipt.number,
+        source: 'WEBSITE',
+        organization: null,
+        contact: {
+          name: 'Website Visitor',
+          email,
+          companyName: 'Oasis Villas',
+        },
+      });
+
+      await http()
+        .post('/quote-requests')
+        .send({
+          name: 'No Phone',
+          email: unique('visitor'),
+          items: [{ productId: item.id, quantity: 1 }],
+        })
+        .expect(400);
+    });
+  });
+
   describe('retail orders', () => {
     it('prices checkout on the server and moves the order through fulfilment', async () => {
       const customer = await login('customer@example.com');
@@ -362,25 +441,31 @@ describe('Top Flow API (e2e)', () => {
       const addresses = (
         await http().get('/me/addresses').set(bearer(customer)).expect(200)
       ).body as AddressDto[];
-      const rotor = await product('RB-5004-PC');
+      const fitting = await product('AX-EFS-002');
 
       const order = (
         await http()
           .post('/me/orders')
           .set(bearer(customer))
           .send({
-            items: [{ productId: rotor.id, quantity: 2, unitPrice: '0.01' }],
+            items: [{ productId: fitting.id, quantity: 2, unitPrice: '0.01' }],
             addressId: addresses[0].id,
             paymentMethod: 'CASH_ON_DELIVERY',
           })
           .expect(201)
       ).body as OrderDto;
+      // Expected totals come from the catalog price, not the price the client tried to send.
+      const netSubtotal = toFils(fitting.unitPrice) * 2;
+      const expected = calculateTotals(
+        [{ listPriceFils: toFils(fitting.unitPrice), quantity: 2 }],
+        { deliveryFeeFils: retailDeliveryFeeFils(netSubtotal) },
+      );
       expect(order).toMatchObject({
         status: 'CONFIRMED',
-        subtotal: '84.00',
-        deliveryFee: '25.00',
-        vatAmount: '5.45',
-        totalAmount: '114.45',
+        subtotal: fromFils(expected.subtotalFils),
+        deliveryFee: fromFils(expected.deliveryFeeFils),
+        vatAmount: fromFils(expected.vatFils),
+        totalAmount: fromFils(expected.totalFils),
       });
 
       for (const [status, extra] of [
@@ -405,8 +490,8 @@ describe('Top Flow API (e2e)', () => {
         paymentStatus: 'PAID',
         trackingReference: 'E2E-TRACK',
       });
-      expect((await product('RB-5004-PC')).stockQuantity).toBe(
-        rotor.stockQuantity - 2,
+      expect((await product('AX-EFS-002')).stockQuantity).toBe(
+        fitting.stockQuantity - 2,
       );
     });
   });

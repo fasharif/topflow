@@ -1,14 +1,17 @@
 import { z } from 'zod';
 import { QUOTATION_DEFAULT_VALIDITY_DAYS, QUOTATION_MAX_VALIDITY_DAYS } from '../constants';
-import { QuotationStatus, RfqStatus } from '../enums';
+import { Emirate, QuotationStatus, RfqSource, RfqStatus } from '../enums';
 import { ApprovalDecision, QuotationResponse } from '../workflows/quotation';
 import {
+  emailSchema,
   idSchema,
   isoDateSchema,
   moneySchema,
+  nameSchema,
   optionalText,
   paginationSchema,
   percentSchema,
+  phoneSchema,
   quantitySchema,
 } from './common';
 
@@ -27,8 +30,24 @@ export const createRfqSchema = z.object({
 });
 export type CreateRfqInput = z.infer<typeof createRfqSchema>;
 
+/** A visitor on the public website asks for a quotation. No account is needed. */
+export const createWebsiteQuoteRequestSchema = z.object({
+  name: nameSchema,
+  email: emailSchema,
+  phone: phoneSchema,
+  companyName: optionalText(160),
+  emirate: z.enum(Emirate).optional(),
+  notes: optionalText(2000),
+  items: z
+    .array(z.object({ productId: idSchema, quantity: quantitySchema }))
+    .min(1, { error: 'Add at least one product' })
+    .max(100, { error: 'A quote request can contain at most 100 lines' }),
+});
+export type CreateWebsiteQuoteRequestInput = z.infer<typeof createWebsiteQuoteRequestSchema>;
+
 export const rfqQuerySchema = paginationSchema.extend({
   status: z.enum(RfqStatus).optional(),
+  source: z.enum(RfqSource).optional(),
   organizationId: idSchema.optional(),
   search: optionalText(100),
 });

@@ -7,11 +7,16 @@ import {
   OrgProcurementController,
 } from './procurement.controller';
 import { QuotationsService } from './quotations.service';
+import { WebsiteQuoteRequestsController } from './quote-requests.controller';
 import { RfqService } from './rfq.service';
 
 @Module({
   imports: [UsersModule, OrdersModule],
-  controllers: [OrgProcurementController, AdminProcurementController],
+  controllers: [
+    OrgProcurementController,
+    AdminProcurementController,
+    WebsiteQuoteRequestsController,
+  ],
   providers: [RfqService, QuotationsService, QuotationPdfService],
 })
 export class ProcurementModule {}
