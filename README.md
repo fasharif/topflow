@@ -2,7 +2,7 @@
 
 > From an academic prototype (the UWL *Bicycle Shop* Android app) to a production-grade commerce platform for **Top Flow — Irrigation & Flow Control Supplies, UAE** ([www.topflow.ae](https://www.topflow.ae/)).
 
-Top Flow sells sprinklers, drip irrigation, valves, controllers, pipes and pumps to two very different audiences:
+Top Flow supplies electrofusion and HDPE fittings, sprinklers and rotors, drip irrigation, pipes and fittings, valves, filtration and landscaping products to two very different audiences:
 
 - **Consumers** who want to buy a few rotors for a villa garden online, at VAT-inclusive prices, paying on delivery.
 - **Businesses** — landscapers, MEP contractors, facility managers, developers — who buy for projects through **quotations**, negotiated prices, **purchase approvals** and **credit terms**.
@@ -15,7 +15,9 @@ This monorepo contains the API, the web storefront / trade portal / back office,
 
 | Capability | What it does |
 | --- | --- |
-| **Retail (B2C)** | Searchable catalog with VAT-inclusive prices, guest cart, server-priced checkout (cash/card on delivery), order tracking with a full status timeline. |
+| **Catalogue** | Top Flow's range of 323 products, organised as 9 categories and 41 product lines, with photos and specifications. Each product has an indicative price range, and search covers names, codes and tags. See [packages/database/prisma/data](packages/database/prisma/data/README.md). |
+| **Quote requests** | Any visitor can send their basket as a quote request, with no account needed. Requests land in the sales inbox next to trade RFQs, and the visitor gets an email acknowledgement. |
+| **Retail (B2C)** | VAT-inclusive prices, a guest basket, server-priced checkout (cash or card on delivery), and order tracking with a full status timeline. |
 | **Procurement (B2B)** | Organizations with Owner / Approver / Buyer roles, RFQs from the cart, **versioned quotations** with automated **PDF** generation, accept / reject / request-revision, **spending-limit approvals** (segregation of duties), sales orders released on the organization's **credit terms**. |
 | **Multi-tenancy** | Every B2B request runs inside a verified organization context (`x-organization-id`); users can belong to several organizations; KYC verification by Top Flow staff. |
 | **Operations** | Role-based back office for Sales, Warehouse and Admin: KYC queue, quotation builder, fulfilment state machine, stock deduction at dispatch, low-stock alerts, dashboard KPIs, immutable audit trail. |
@@ -102,7 +104,7 @@ npm run dev
 
 ### Demo accounts
 
-All seeded accounts use the password `TopFlow2026!`.
+Locally, all seeded accounts use the password `TopFlow2026!`. Because that password is public, a shared or production environment must be seeded with its own `SEED_DEMO_PASSWORD` (see `.env.example`).
 
 | Email | Role | Try |
 | --- | --- | --- |

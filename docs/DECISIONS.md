@@ -91,3 +91,23 @@ Short records of the decisions that shape the codebase: the context, the decisio
 **Decision.** Checkout and quotation endpoints accept product ids and quantities only; the server loads prices, applies discounts, delivery and VAT. Document lines snapshot SKU, name, unit and prices; products are archived, never deleted.
 
 **Consequences.** Price tampering is impossible through the API, historical documents stay accurate, and the catalog can evolve freely.
+
+---
+
+## ADR-010 — Indicative price ranges with the online price at the top
+
+**Context.** Top Flow works enquiry-first. Most of its catalogue shows "price on request", but a storefront still needs prices people can act on. Project buyers expect to negotiate, while homeowners want to buy a few items straight away.
+
+**Decision.** Each product stores an indicative range (`priceMin` / `priceMax`, net of VAT) next to `unitPrice`, the price used for online orders. The catalogue sets `unitPrice` to the top of the range. The storefront shows the VAT-inclusive range first and invites a quotation "for your best price". Quotations keep using the list price with line discounts, so they can land anywhere in the range or below it.
+
+**Consequences.** Visitors see honest guidance instead of "call for price", online checkout needs no special cases, and sales keeps room to negotiate. When a range is missing, the single retail price is shown instead.
+
+---
+
+## ADR-011 — Website quote requests are RFQs with a source
+
+**Context.** Anyone should be able to ask for a quotation from their basket without creating an account. Sales should not have to work in two inboxes.
+
+**Decision.** `quote_requests` gains a `source` (`TRADE_PORTAL` or `WEBSITE`) and contact fields. `POST /quote-requests` is public and rate-limited like the credential endpoints. It validates products and minimum quantities exactly as trade RFQs do, emails the visitor an acknowledgement and notifies sales. Website requests appear in the same back-office RFQ list, which can be filtered by source. A formal quotation still needs a registered customer.
+
+**Consequences.** One pipeline and one audit trail for every request. Trade-only products cannot be requested anonymously, because they are invisible to the public catalogue. Turning a website lead into a quotation takes one extra step: the customer registers, or sales replies by email.
