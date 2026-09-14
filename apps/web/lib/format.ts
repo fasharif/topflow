@@ -7,6 +7,11 @@ export function aed(value: string): string {
   return formatMoney(value);
 }
 
+/** "AED 22.05 – 30.45" for an indicative price range (the currency is shown once). */
+export function aedRange(min: string, max: string): string {
+  return min === max ? aed(min) : `${aed(min)} – ${aed(max).replace(/^AED\s*/, '')}`;
+}
+
 export function formatDate(iso: string | null | undefined): string {
   return iso ? new Intl.DateTimeFormat('en-AE', { dateStyle: 'medium', timeZone: DUBAI }).format(new Date(iso)) : '—';
 }

@@ -12,18 +12,18 @@ type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'dark';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 const buttonBase =
-  'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap';
+  'inline-flex items-center justify-center gap-2 rounded-full font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap';
 const buttonVariants: Record<ButtonVariant, string> = {
-  primary: 'bg-brand-600 text-white shadow-sm hover:bg-brand-700',
-  secondary: 'border border-slate-300 bg-white text-ink-900 hover:bg-slate-50',
+  primary: 'bg-brand-600 text-white hover:bg-brand-700',
+  secondary: 'border border-ink-900/20 bg-white text-ink-900 hover:border-ink-900/45',
   ghost: 'text-slate-600 hover:bg-slate-100 hover:text-ink-900',
-  danger: 'bg-red-600 text-white shadow-sm hover:bg-red-700',
-  dark: 'bg-ink-900 text-white shadow-sm hover:bg-ink-800',
+  danger: 'bg-red-700 text-white hover:bg-red-800',
+  dark: 'bg-ink-900 text-canvas hover:bg-ink-800',
 };
 const buttonSizes: Record<ButtonSize, string> = {
-  sm: 'h-8 px-3 text-sm',
-  md: 'h-10 px-4 text-sm',
-  lg: 'h-12 px-6 text-base',
+  sm: 'h-8 px-3.5 text-sm',
+  md: 'h-10 px-5 text-sm',
+  lg: 'h-12 px-7 text-[15px]',
 };
 
 export function buttonClass(variant: ButtonVariant = 'primary', size: ButtonSize = 'md', className?: string): string {
@@ -109,7 +109,7 @@ export function Field({
 // ─── Surfaces & feedback ───────────────────────────────────────────────────
 
 export function Card({ className, ...props }: ComponentProps<'div'>) {
-  return <div className={cx('rounded-xl border border-slate-200 bg-white shadow-xs', className)} {...props} />;
+  return <div className={cx('rounded-2xl border border-slate-200 bg-white', className)} {...props} />;
 }
 
 export function CardHeader({ title, description, action }: { title: ReactNode; description?: ReactNode; action?: ReactNode }) {
@@ -179,8 +179,8 @@ export function LoadingBlock({ label = 'Loading…' }: { label?: string }) {
 
 export function EmptyState({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
   return (
-    <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
-      <p className="font-semibold text-ink-900">{title}</p>
+    <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
+      <p className="font-display text-xl text-ink-900">{title}</p>
       {description && <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">{description}</p>}
       {action && <div className="mt-5 flex justify-center">{action}</div>}
     </div>
@@ -191,8 +191,8 @@ export function PageHeader({ title, description, actions, eyebrow }: { title: st
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
-        {eyebrow && <div className="mb-1 text-xs font-medium uppercase tracking-wide text-brand-700">{eyebrow}</div>}
-        <h1 className="text-2xl font-bold tracking-tight text-ink-900">{title}</h1>
+        {eyebrow && <div className="eyebrow mb-2 text-brand-600">{eyebrow}</div>}
+        <h1 className="font-display text-3xl tracking-tight text-ink-900 sm:text-4xl">{title}</h1>
         {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -204,7 +204,7 @@ export function Stat({ label, value, hint, tone = 'neutral' }: { label: string; 
   return (
     <Card className={cx('p-5', tone === 'warning' && 'border-amber-200 bg-amber-50/60', tone === 'brand' && 'border-brand-200 bg-brand-50/60')}>
       <p className="text-sm text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold tracking-tight text-ink-900">{value}</p>
+      <p className="mt-1 font-display text-3xl tracking-tight text-ink-900">{value}</p>
       {hint && <p className="mt-1 text-xs text-slate-500">{hint}</p>}
     </Card>
   );
@@ -214,14 +214,14 @@ export function Stat({ label, value, hint, tone = 'neutral' }: { label: string; 
 
 export function Table({ children }: { children: ReactNode }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-xs">
+    <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
       <table className="w-full min-w-[640px] text-left text-sm">{children}</table>
     </div>
   );
 }
 
 export function Th({ children, className }: { children?: ReactNode; className?: string }) {
-  return <th className={cx('bg-slate-50 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500', className)}>{children}</th>;
+  return <th className={cx('bg-slate-50 px-4 py-2.5 font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500', className)}>{children}</th>;
 }
 
 export function Td({ children, className, colSpan }: { children?: ReactNode; className?: string; colSpan?: number }) {

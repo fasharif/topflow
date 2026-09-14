@@ -20,6 +20,8 @@ export interface CartLine {
   minOrderQty: number;
   isTradeOnly: boolean;
   quantity: number;
+  /** Absent on lines saved before images were added. */
+  imageUrl?: string | null;
 }
 
 const STORAGE_KEY = 'topflow.cart.v2';
@@ -92,6 +94,7 @@ export function addToCart(product: ProductDto, quantity: number = product.minOrd
       minOrderQty: product.minOrderQty,
       isTradeOnly: product.isTradeOnly,
       quantity: Math.max(quantity, product.minOrderQty),
+      imageUrl: product.imageUrl,
     },
   ]);
 }

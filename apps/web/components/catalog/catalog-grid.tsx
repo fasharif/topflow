@@ -31,7 +31,7 @@ export function CatalogGrid({ initial, query }: { initial: Paginated<ProductDto>
       {data.items.length === 0 ? (
         <EmptyState title="No products match your filters" description="Try a different search term or clear the filters." />
       ) : (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {data.items.map((product) => (
             <ProductCard key={product.id} product={product} trade={tradeMode} />
           ))}

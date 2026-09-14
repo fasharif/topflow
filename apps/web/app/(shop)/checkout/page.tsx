@@ -29,7 +29,7 @@ function CheckoutForm() {
 
   if (addresses.loading && !addresses.data) return <LoadingBlock />;
   if (lines.length === 0) {
-    return <EmptyState title="Your cart is empty" action={<LinkButton href="/products">Browse products</LinkButton>} />;
+    return <EmptyState title="Your basket is empty" action={<LinkButton href="/products">Browse the catalogue</LinkButton>} />;
   }
 
   const saved = addresses.data ?? [];
@@ -175,8 +175,10 @@ function CheckoutForm() {
 export default function CheckoutPage() {
   return (
     <RequireAuth>
-      <PageHeader title="Checkout" />
-      <CheckoutForm />
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+        <PageHeader eyebrow="Checkout" title="Delivery & payment" />
+        <CheckoutForm />
+      </div>
     </RequireAuth>
   );
 }

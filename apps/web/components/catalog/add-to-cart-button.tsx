@@ -17,7 +17,7 @@ export function AddToCartButton({ product, compact = false }: { product: Product
 
   if (compact) {
     return (
-      <Button size="sm" onClick={add} aria-label={`Add ${product.name} to cart`}>
+      <Button size="sm" onClick={add} aria-label={`Add ${product.name} to basket`}>
         {added ? 'Added ✓' : 'Add'}
       </Button>
     );
@@ -38,7 +38,7 @@ export function AddToCartButton({ product, compact = false }: { product: Product
         className="w-24"
       />
       <Button size="lg" onClick={add}>
-        {added ? 'Added to cart ✓' : 'Add to cart'}
+        {added ? 'Added to basket ✓' : 'Add to basket'}
       </Button>
     </div>
   );
