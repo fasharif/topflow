@@ -37,7 +37,7 @@ export function specificationsFromRows(rows: SpecificationRow[]): { specificatio
 
     const valueKey = `specifications.${index}.value`;
     if (!value) errors[valueKey] = 'Enter a value';
-    else if (value.length > 200) errors[valueKey] = 'Use at most 200 characters';
+    else if (value.length > 500) errors[valueKey] = 'Use at most 500 characters';
 
     if (name) seen.add(name.toLowerCase());
     if (name && value) specifications[name] = value;
@@ -113,7 +113,7 @@ export function SpecificationsEditor({ rows, onChange, errors }: { rows: Specifi
                   <Input
                     id={`${baseId}-value-${index}`}
                     value={row.value}
-                    maxLength={200}
+                    maxLength={500}
                     placeholder="e.g. 3/4 in BSP"
                     onChange={(e) => change(row.key, { value: e.target.value })}
                     aria-invalid={Boolean(valueError)}

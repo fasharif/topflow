@@ -1,4 +1,4 @@
-import { EMIRATE_LABELS, OrderChannel, type AddressSnapshot } from '@topflow/shared';
+import { EMIRATE_LABELS, OrderChannel, RFQ_SOURCE_LABELS, RfqSource, type AddressSnapshot } from '@topflow/shared';
 import type { ReactNode } from 'react';
 import { Alert, Badge, Button, EmptyState, LinkButton, cx } from '@/components/ui';
 
@@ -10,6 +10,16 @@ export const CHANNEL_LABELS: Record<OrderChannel, string> = {
 
 export function ChannelBadge({ channel }: { channel: OrderChannel }) {
   return <Badge tone={channel === OrderChannel.B2B ? 'brand' : 'neutral'}>{CHANNEL_LABELS[channel]}</Badge>;
+}
+
+/** Where an RFQ came from: an organization's trade portal account, or the public website. */
+export function RfqSourceBadge({ source }: { source: RfqSource }) {
+  return <Badge tone={source === RfqSource.WEBSITE ? 'info' : 'brand'}>{RFQ_SOURCE_LABELS[source]}</Badge>;
+}
+
+/** `tel:` link for a number typed with spaces or dashes, e.g. "+971 50 123 4567". */
+export function telHref(phone: string): string {
+  return `tel:${phone.replace(/[^\d+]/g, '')}`;
 }
 
 /** API percentages are 2dp strings: "12.50" → "12.5%", "10.00" → "10%". */

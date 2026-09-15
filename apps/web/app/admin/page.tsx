@@ -5,10 +5,13 @@ import {
   OrderStatus,
   Permission,
   RFQ_STATUS_LABELS,
+  RfqSource,
   RfqStatus,
   enumValues,
   hasPermission,
   type DashboardStatsDto,
+  type Paginated,
+  type RfqDto,
 } from '@topflow/shared';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
@@ -21,6 +24,7 @@ import { useApiQuery } from '@/lib/use-api';
 
 const ORDER_STATUSES = enumValues(OrderStatus);
 const RFQ_STATUSES = enumValues(RfqStatus);
+const WEBSITE_RFQS_HREF = `/admin/rfqs?source=${RfqSource.WEBSITE}`;
 
 const ORDER_BAR_COLORS: Record<OrderStatus, string> = {
   PENDING_PAYMENT: 'bg-amber-400',
@@ -99,15 +103,25 @@ function SectionHeading({ title, description, action }: { title: string; descrip
   );
 }
 
-function Dashboard({ stats, can }: { stats: DashboardStatsDto; can: (permission: Permission) => boolean }) {
+function Dashboard({
+  stats,
+  can,
+  newWebsiteRfqs,
+}: {
+  stats: DashboardStatsDto;
+  can: (permission: Permission) => boolean;
+  /** New (submitted) website enquiries, or null when the count isn't available. */
+  newWebsiteRfqs: number | null;
+}) {
   const canOrders = can(Permission.ORDERS_READ_ALL);
   const canRfqs = can(Permission.RFQS_MANAGE);
   const canQuotations = can(Permission.QUOTATIONS_MANAGE);
   const canOrganizations = can(Permission.ORGANIZATIONS_REVIEW);
   const canCatalog = can(Permission.CATALOG_WRITE);
   const ordersTotal = ORDER_STATUSES.reduce((sum, status) => sum + stats.ordersByStatus[status], 0);
+  // RFQ counts cover every source: trade portal RFQs and website quote requests.
   const rfqsTotal = RFQ_STATUSES.reduce((sum, status) => sum + stats.rfqsByStatus[status], 0);
-  const rfqsToQuote = stats.rfqsByStatus.SUBMITTED + stats.rfqsByStatus.IN_REVIEW;
+  const openRfqs = stats.rfqsByStatus.SUBMITTED + stats.rfqsByStatus.IN_REVIEW;
 
   return (
     <div className="space-y-8">
@@ -115,9 +129,9 @@ function Dashboard({ stats, can }: { stats: DashboardStatsDto; can: (permission:
         <Stat label="Revenue · last 30 days" value={aed(stats.revenueLast30Days)} hint="Order totals incl. VAT, excluding cancellations" tone="brand" />
         <Stat label="Orders · last 30 days" value={stats.ordersLast30Days} hint={canOrders ? <StatLink href="/admin/orders">View all orders →</StatLink> : 'Retail and trade'} />
         <Stat
-          label="RFQs to quote"
-          value={rfqsToQuote}
-          hint={canRfqs ? <StatLink href="/admin/rfqs?status=SUBMITTED">New requests →</StatLink> : 'Submitted or in review'}
+          label="Open RFQs"
+          value={openRfqs}
+          hint={canRfqs ? <StatLink href="/admin/rfqs?status=SUBMITTED">New requests →</StatLink> : 'Submitted or in review, from the trade portal and website'}
         />
         <Stat
           label="Quotations awaiting response"
@@ -157,7 +171,7 @@ function Dashboard({ stats, can }: { stats: DashboardStatsDto; can: (permission:
           </div>
         </Card>
         <Card>
-          <CardHeader title="RFQs by status" description={`${pluralize(rfqsTotal, 'request')} in total`} />
+          <CardHeader title="RFQs by status" description={`${pluralize(rfqsTotal, 'request')} in total, from the trade portal and the website`} />
           <div className="p-5">
             <StatusBars
               statuses={RFQ_STATUSES}
@@ -167,6 +181,22 @@ function Dashboard({ stats, can }: { stats: DashboardStatsDto; can: (permission:
               hrefFor={canRfqs ? (status) => `/admin/rfqs?status=${status}` : undefined}
             />
           </div>
+          {canRfqs && (
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-slate-100 px-5 py-3 text-sm">
+              <span className="text-slate-600">
+                Website enquiries
+                {newWebsiteRfqs !== null && (
+                  <>
+                    {' · '}
+                    <Link href={`${WEBSITE_RFQS_HREF}&status=${RfqStatus.SUBMITTED}`} className="font-semibold tabular-nums text-brand-700 hover:underline">
+                      {newWebsiteRfqs} new<span className="sr-only"> website enquiries</span>
+                    </Link>
+                  </>
+                )}
+              </span>
+              <StatLink href={WEBSITE_RFQS_HREF}>View website requests →</StatLink>
+            </div>
+          )}
         </Card>
       </div>
 
@@ -286,7 +316,12 @@ export default function AdminDashboardPage() {
   const { user } = useSession();
   const role = user?.role;
   const canView = hasPermission(role, Permission.DASHBOARD_VIEW);
+  const canRfqs = hasPermission(role, Permission.RFQS_MANAGE);
   const { data, error, loading, reload } = useApiQuery<DashboardStatsDto>(canView ? '/admin/dashboard' : null);
+  // The dashboard stats don't split RFQs by source, so new website enquiries are counted with the existing RFQ list endpoint.
+  const websiteRfqs = useApiQuery<Paginated<RfqDto>>(canView && canRfqs ? '/admin/rfqs' : null, {
+    query: { source: RfqSource.WEBSITE, status: RfqStatus.SUBMITTED, pageSize: 1 },
+  });
   const firstName = user?.fullName.split(' ')[0] ?? '';
 
   if (!canView) {
@@ -298,6 +333,11 @@ export default function AdminDashboardPage() {
     );
   }
 
+  const refresh = () => {
+    reload();
+    websiteRfqs.reload();
+  };
+
   return (
     <>
       <PageHeader
@@ -306,7 +346,7 @@ export default function AdminDashboardPage() {
         description="Sales, fulfilment and stock at a glance."
         actions={
           data ? (
-            <Button variant="secondary" size="sm" loading={loading} onClick={reload}>
+            <Button variant="secondary" size="sm" loading={loading} onClick={refresh}>
               Refresh
             </Button>
           ) : undefined
@@ -317,7 +357,7 @@ export default function AdminDashboardPage() {
       ) : !data ? (
         <LoadingBlock label="Loading dashboard…" />
       ) : (
-        <Dashboard stats={data} can={(permission) => hasPermission(role, permission)} />
+        <Dashboard stats={data} can={(permission) => hasPermission(role, permission)} newWebsiteRfqs={websiteRfqs.data?.total ?? null} />
       )}
     </>
   );

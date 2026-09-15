@@ -4,12 +4,16 @@ import { createCategorySchema, updateCategorySchema, type CategoryDto } from '@t
 import { useState, type FormEvent } from 'react';
 import { Alert, Button, Card, CardHeader, Field, Input, Select, Textarea } from '@/components/ui';
 import { ApiError, api, errorMessage } from '@/lib/api';
+import { pluralize } from '@/lib/format';
 import { apiFieldErrors, zodFieldErrors, type FieldErrors } from '@/lib/forms';
-import { categoryOptionLabel, categoryTree, categoryWithDescendants, parseWholeNumber, slugify } from './helpers';
+import { parseWholeNumber, slugify } from './helpers';
 
 /**
  * Create or edit a category. Render with a `key` that changes between categories (and after a
  * create) so the form starts from fresh state.
+ *
+ * Categories form a two-level tree: top-level categories and the product lines inside them. Only a
+ * top-level category can be a parent, and a category that has product lines stays at the top level.
  */
 export function CategoryForm({
   category,
@@ -37,23 +41,34 @@ export function CategoryForm({
   const [saving, setSaving] = useState(false);
 
   const slug = slugEdited ? draft.slug : slugify(draft.name);
-  const excluded = category ? categoryWithDescendants(categories, category.id) : new Set<number>();
-  const parentOptions = categoryTree(categories).filter((node) => !excluded.has(node.category.id));
+  const categoryId = category?.id ?? null;
+  const lineCount = categoryId === null ? 0 : categories.filter((item) => item.parentId === categoryId).length;
+  const savedParentId = category?.parentId ?? null;
+  const savedParent = savedParentId === null ? undefined : categories.find((item) => item.id === savedParentId);
+  const topLevel = lineCount > 0 ? [] : categories.filter((item) => item.parentId === null && item.id !== categoryId);
+  // The saved parent stays selectable even when it isn't top level (data from before the two-level rule).
+  const parentOptions = savedParent && !topLevel.includes(savedParent) ? [...topLevel, savedParent] : topLevel;
+  const parentHint =
+    lineCount > 0
+      ? `It has ${pluralize(lineCount, 'product line')}, so it ${savedParent ? 'can only move to' : 'stays at'} the top level.`
+      : 'Choose a top-level category to make this one of its product lines.';
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
     const displayOrder = parseWholeNumber(draft.displayOrder);
+    const parentId = draft.parentId ? Number(draft.parentId) : null;
     const input = {
       name: draft.name,
       slug,
       description: draft.description,
       displayOrder: displayOrder ?? undefined,
-      parentId: draft.parentId ? Number(draft.parentId) : editing ? null : undefined,
+      parentId: parentId ?? (editing ? null : undefined),
     };
     const parsed = editing ? updateCategorySchema.safeParse(input) : createCategorySchema.safeParse(input);
     const nextErrors: FieldErrors = parsed.success ? {} : zodFieldErrors(parsed.error);
     if (displayOrder === null) nextErrors.displayOrder = 'Enter a whole number, 0 or more';
+    if (categoryId !== null && parentId === categoryId) nextErrors.parentId = 'A category cannot be its own parent';
     // The API treats an empty description as "unchanged", so clearing it would silently do nothing.
     if (category?.description && !draft.description.trim()) nextErrors.description = "A description can't be removed once set. Enter a replacement.";
     setErrors(nextErrors);
@@ -69,6 +84,7 @@ export function CategoryForm({
     } catch (err) {
       const fieldErrors = apiFieldErrors(err);
       if (err instanceof ApiError && err.status === 409 && /slug/i.test(err.message)) fieldErrors.slug = 'Another category already uses this slug';
+      if (err instanceof ApiError && err.status === 400 && /own parent/i.test(err.message)) fieldErrors.parentId = err.message;
       setErrors(fieldErrors);
       setError(errorMessage(err));
     } finally {
@@ -113,12 +129,18 @@ export function CategoryForm({
           </button>
         )}
 
-        <Field label="Parent category" htmlFor="category-parent" error={errors.parentId} hint={editing ? 'A category cannot sit inside itself or one of its sub-categories.' : undefined}>
-          <Select id="category-parent" value={draft.parentId} onChange={(e) => setDraft({ ...draft, parentId: e.target.value })} aria-invalid={Boolean(errors.parentId)}>
+        <Field label="Parent category" htmlFor="category-parent" error={errors.parentId} hint={parentHint}>
+          <Select
+            id="category-parent"
+            value={draft.parentId}
+            onChange={(e) => setDraft({ ...draft, parentId: e.target.value })}
+            disabled={lineCount > 0 && !savedParent}
+            aria-invalid={Boolean(errors.parentId)}
+          >
             <option value="">None (top level)</option>
-            {parentOptions.map((node) => (
-              <option key={node.category.id} value={String(node.category.id)}>
-                {categoryOptionLabel(node)}
+            {parentOptions.map((item) => (
+              <option key={item.id} value={String(item.id)}>
+                {item.parentId === null ? item.name : `${item.name} (current)`}
               </option>
             ))}
           </Select>
