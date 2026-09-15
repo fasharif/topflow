@@ -73,18 +73,34 @@ export function categoryOptionLabel({ category, depth }: CategoryNode): string {
   return `${'— '.repeat(depth)}${category.name}`;
 }
 
-/** A category plus all of its descendants: none of them may become its parent. */
-export function categoryWithDescendants(categories: CategoryDto[], id: number): Set<number> {
-  const ids = new Set([id]);
-  let added = true;
-  while (added) {
-    added = false;
-    for (const category of categories) {
-      if (category.parentId !== null && ids.has(category.parentId) && !ids.has(category.id)) {
-        ids.add(category.id);
-        added = true;
-      }
-    }
+export interface CategoryGroup {
+  parent: CategoryDto;
+  /** The product lines beneath it, in tree order (deeper levels, if any, follow their own parent). */
+  lines: CategoryNode[];
+}
+
+/** Top-level categories, each with the product lines beneath it. */
+export function categoryGroups(categories: CategoryDto[]): CategoryGroup[] {
+  const groups: CategoryGroup[] = [];
+  for (const node of categoryTree(categories)) {
+    const current = groups[groups.length - 1];
+    if (node.depth === 0 || !current) groups.push({ parent: node.category, lines: [] });
+    else current.lines.push(node);
   }
-  return ids;
+  return groups;
+}
+
+/** "Drip, drip , Pressure  compensating," → ["drip", "pressure compensating"]: trimmed, lower-cased, de-duplicated. */
+export function parseTags(value: string): string[] {
+  const tags: string[] = [];
+  for (const part of value.split(',')) {
+    const tag = part.trim().replace(/\s+/g, ' ').toLowerCase();
+    if (tag && !tags.includes(tag)) tags.push(tag);
+  }
+  return tags;
+}
+
+/** Same tags in the same order. */
+export function sameTags(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((tag, index) => tag === b[index]);
 }

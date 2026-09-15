@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { RequirePermission, useCan } from '@/components/admin-catalog/access';
 import { CategoryForm } from '@/components/admin-catalog/category-form';
 import { ConfirmButton } from '@/components/admin-catalog/confirm-dialog';
-import { categoryTree } from '@/components/admin-catalog/helpers';
+import { categoryGroups } from '@/components/admin-catalog/helpers';
 import { LoadError } from '@/components/admin-catalog/list-controls';
 import { Alert, Button, EmptyState, LinkButton, LoadingBlock, PageHeader, Spinner, Table, Td, Th, cx } from '@/components/ui';
 import { api } from '@/lib/api';
@@ -25,8 +25,13 @@ function CategoriesManager() {
   }
 
   const editing = editingId === null ? undefined : data.find((category) => category.id === editingId);
-  const parentNames = new Map(data.map((category) => [category.id, category.name]));
-  const subcategoryCount = (id: number) => data.filter((category) => category.parentId === id).length;
+  const groups = categoryGroups(data);
+  const lineTotal = data.length - groups.length;
+  const names = new Map(data.map((category) => [category.id, category.name]));
+  const lineCounts = new Map<number, number>();
+  for (const category of data) {
+    if (category.parentId !== null) lineCounts.set(category.parentId, (lineCounts.get(category.parentId) ?? 0) + 1);
+  }
 
   const onSaved = (category: CategoryDto, created: boolean) => {
     setNotice(created ? `Category “${category.name}” was created.` : `Changes to “${category.name}” were saved.`);
@@ -36,10 +41,84 @@ function CategoriesManager() {
   };
 
   const remove = async (category: CategoryDto) => {
+    const lines = lineCounts.get(category.id) ?? 0;
     await api<void>(`/admin/categories/${category.id}`, { method: 'DELETE' });
     if (editingId === category.id) setEditingId(null);
-    setNotice(`Category “${category.name}” was deleted. Its products are now uncategorised.`);
+    setNotice(
+      lines > 0
+        ? `Category “${category.name}” was deleted. Its product lines are now top-level categories, and products filed directly under it are uncategorised.`
+        : `Category “${category.name}” was deleted. Its products are now uncategorised.`,
+    );
     reload();
+  };
+
+  const renderRow = (category: CategoryDto, depth: number) => {
+    const lines = lineCounts.get(category.id) ?? 0;
+    const products = category.productCount ?? 0;
+    const selected = editingId === category.id;
+    const parentName = category.parentId === null ? undefined : names.get(category.parentId);
+    return (
+      <tr
+        key={category.id}
+        className={cx('transition', selected ? 'bg-brand-50/70' : depth === 0 ? 'bg-slate-50/60 hover:bg-slate-100/70' : 'hover:bg-slate-50/70')}
+      >
+        <Td className="min-w-56">
+          <div className="flex items-start gap-2" style={depth > 1 ? { paddingLeft: `${(depth - 1) * 1.25}rem` } : undefined}>
+            {depth > 0 && <span aria-hidden="true" className="mt-0.5 ml-1.5 h-2 w-3 shrink-0 rounded-bl-sm border-b border-l border-slate-300" />}
+            <div className="min-w-0">
+              <p className={cx('text-ink-900', depth === 0 ? 'font-semibold' : 'font-medium')}>
+                {category.name}
+                {depth > 0 && parentName && <span className="sr-only"> (product line of {parentName})</span>}
+              </p>
+              {(depth === 0 || category.description) && (
+                <p className="mt-0.5 line-clamp-1 max-w-md text-xs text-slate-500">
+                  {depth === 0 && (lines > 0 ? pluralize(lines, 'product line') : 'No product lines')}
+                  {depth === 0 && category.description ? ' · ' : null}
+                  {category.description}
+                </p>
+              )}
+            </div>
+          </div>
+        </Td>
+        <Td className="font-mono text-xs whitespace-nowrap text-slate-600">{category.slug}</Td>
+        <Td className="text-right tabular-nums text-slate-600">{category.displayOrder}</Td>
+        <Td className={cx('text-right tabular-nums', depth === 0 ? 'font-semibold text-ink-900' : 'text-slate-700')}>{category.productCount ?? '—'}</Td>
+        <Td className="text-right whitespace-nowrap">
+          <div className="flex justify-end gap-1">
+            <Button variant="ghost" size="sm" aria-pressed={selected} onClick={() => setEditingId(category.id)}>
+              Edit<span className="sr-only"> {category.name}</span>
+            </Button>
+            {canDelete && (
+              <ConfirmButton
+                variant="ghost"
+                className="text-red-600! hover:bg-red-50! hover:text-red-700!"
+                title={`Delete “${category.name}”?`}
+                description={
+                  <>
+                    {lines > 0 ? (
+                      <p>
+                        Its {pluralize(lines, 'product line')} will move to the top level with their products. Products filed directly under this
+                        category stay in the catalog but become uncategorised.
+                      </p>
+                    ) : (
+                      <p>
+                        Products in this category stay in the catalog but become uncategorised
+                        {products > 0 ? ` (it has ${pluralize(products, 'published product')})` : ''}.
+                      </p>
+                    )}
+                    <p>This can&apos;t be undone.</p>
+                  </>
+                }
+                confirmLabel="Delete category"
+                onConfirm={() => remove(category)}
+              >
+                Delete<span className="sr-only"> {category.name}</span>
+              </ConfirmButton>
+            )}
+          </div>
+        </Td>
+      </tr>
+    );
   };
 
   return (
@@ -53,15 +132,14 @@ function CategoriesManager() {
         ) : (
           <>
             <div className="flex items-center gap-2 text-sm text-slate-500" aria-live="polite">
-              {pluralize(data.length, 'category', 'categories')}
+              {pluralize(groups.length, 'category', 'categories')} · {pluralize(lineTotal, 'product line')}
               {loading && <Spinner className="size-4 text-brand-600" />}
             </div>
             <Table>
               <thead>
                 <tr>
-                  <Th>Name</Th>
+                  <Th>Category</Th>
                   <Th>Slug</Th>
-                  <Th>Parent</Th>
                   <Th className="text-right">Order</Th>
                   <Th className="text-right">Products</Th>
                   <Th className="text-right">
@@ -69,66 +147,16 @@ function CategoriesManager() {
                   </Th>
                 </tr>
               </thead>
-              <tbody>
-                {categoryTree(data).map(({ category, depth }) => {
-                  const subcategories = subcategoryCount(category.id);
-                  const products = category.productCount ?? 0;
-                  return (
-                    <tr key={category.id} className={cx('transition', editingId === category.id ? 'bg-brand-50/70' : 'hover:bg-slate-50/70')}>
-                      <Td className="min-w-52">
-                        <div style={{ paddingLeft: `${depth * 1.25}rem` }}>
-                          <span className="inline-flex items-center gap-2 font-medium text-ink-900">
-                            {depth > 0 && (
-                              <span aria-hidden="true" className="text-slate-300">
-                                └
-                              </span>
-                            )}
-                            {category.name}
-                          </span>
-                          {category.description && <p className="mt-0.5 line-clamp-1 max-w-sm text-xs text-slate-500">{category.description}</p>}
-                        </div>
-                      </Td>
-                      <Td className="font-mono text-xs whitespace-nowrap text-slate-600">{category.slug}</Td>
-                      <Td className="whitespace-nowrap text-slate-600">
-                        {category.parentId === null ? <span className="text-slate-400">Top level</span> : (parentNames.get(category.parentId) ?? '—')}
-                      </Td>
-                      <Td className="text-right tabular-nums">{category.displayOrder}</Td>
-                      <Td className="text-right tabular-nums">{category.productCount ?? '—'}</Td>
-                      <Td className="text-right whitespace-nowrap">
-                        <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="sm" aria-pressed={editingId === category.id} onClick={() => setEditingId(category.id)}>
-                            Edit<span className="sr-only"> {category.name}</span>
-                          </Button>
-                          {canDelete && (
-                            <ConfirmButton
-                              variant="ghost"
-                              className="text-red-600! hover:bg-red-50! hover:text-red-700!"
-                              title={`Delete “${category.name}”?`}
-                              description={
-                                <>
-                                  <p>
-                                    Products in this category stay in the catalog but become uncategorised
-                                    {products > 0 ? ` (it has ${pluralize(products, 'published product')})` : ''}.
-                                  </p>
-                                  {subcategories > 0 && <p>Its {pluralize(subcategories, 'sub-category', 'sub-categories')} will move to the top level.</p>}
-                                  <p>This can&apos;t be undone.</p>
-                                </>
-                              }
-                              confirmLabel="Delete category"
-                              onConfirm={() => remove(category)}
-                            >
-                              Delete<span className="sr-only"> {category.name}</span>
-                            </ConfirmButton>
-                          )}
-                        </div>
-                      </Td>
-                    </tr>
-                  );
-                })}
-              </tbody>
+              {groups.map((group) => (
+                <tbody key={group.parent.id}>
+                  {renderRow(group.parent, 0)}
+                  {group.lines.map((node) => renderRow(node.category, node.depth))}
+                </tbody>
+              ))}
             </Table>
             <p className="text-xs text-slate-500">
-              Product counts include published products visible to retail shoppers; trade-only and archived products are not counted.
+              Product lines are listed under their category. Product counts include published products visible to retail shoppers (trade-only and
+              archived products are not counted), and a category&apos;s count includes its product lines.
               {!canDelete && ' Only administrators can delete categories.'}
             </p>
           </>
@@ -154,7 +182,7 @@ export default function AdminCategoriesPage() {
       <PageHeader
         eyebrow="Catalog"
         title="Categories"
-        description="Organise products into categories and sub-categories for storefront navigation and filters."
+        description="Organise products into top-level categories and the product lines within them, for storefront navigation and filters."
         actions={
           <LinkButton href="/admin/products" variant="secondary">
             Products

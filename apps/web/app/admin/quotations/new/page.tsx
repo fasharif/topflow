@@ -5,6 +5,7 @@ import {
   Permission,
   QUOTATION_DEFAULT_VALIDITY_DAYS,
   RFQ_STATUS_LABELS,
+  RfqSource,
   RfqStatus,
   createQuotationSchema,
   hasPermission,
@@ -196,7 +197,8 @@ function NewQuotationFromRfq({ rfqId }: { rfqId: string }) {
   ).data?.organization;
 
   useEffect(() => {
-    if (!rfqData) return;
+    // An RFQ without a customer account can't be quoted (see `blocked` below), so there is nothing to price.
+    if (!rfqData?.requestedBy) return;
     let cancelled = false;
     const productIds = rfqData.items.flatMap((item) => (item.productId ? [item.productId] : []));
     loadCatalog(productIds)
@@ -217,12 +219,24 @@ function NewQuotationFromRfq({ rfqId }: { rfqId: string }) {
     );
   }
 
-  const blocked =
+  const blocked: { title: string; message: string } | null =
     rfqData.status === RfqStatus.CLOSED || rfqData.status === RfqStatus.CANCELLED
-      ? `${rfqData.number} is ${RFQ_STATUS_LABELS[rfqData.status].toLowerCase()} and can no longer be quoted.`
+      ? {
+          title: 'This RFQ can’t be quoted again',
+          message: `${rfqData.number} is ${RFQ_STATUS_LABELS[rfqData.status].toLowerCase()} and can no longer be quoted.`,
+        }
       : rfqData.quotations.length > 0
-        ? `${rfqData.number} already has a quotation — edit the draft or issue a revision instead.`
-        : null;
+        ? { title: 'This RFQ can’t be quoted again', message: `${rfqData.number} already has a quotation — edit the draft or issue a revision instead.` }
+        : !rfqData.requestedBy
+          ? {
+              // Quotations are addressed to the requester's account; the API rejects an RFQ without one.
+              title: 'A quotation needs a customer account',
+              message:
+                rfqData.source === RfqSource.WEBSITE
+                  ? `${rfqData.number} came from the website, and a formal quotation needs a customer account. Reply to the customer by email or phone instead, or ask them to register for a trade account and send the request from the trade portal.`
+                  : `The account that sent ${rfqData.number} no longer exists, so there is no customer to address a quotation to.`,
+            }
+          : null;
 
   if (blocked) {
     return (
@@ -235,8 +249,8 @@ function NewQuotationFromRfq({ rfqId }: { rfqId: string }) {
           }
           title="New quotation"
         />
-        <Alert tone="warning" title="This RFQ can’t be quoted again">
-          {blocked}
+        <Alert tone="warning" title={blocked.title}>
+          {blocked.message}
         </Alert>
         {rfqData.quotations.length > 0 && (
           <Card className="mt-4">

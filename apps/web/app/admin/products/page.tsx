@@ -22,7 +22,7 @@ import { STOCK_LABELS } from '@/components/catalog/labels';
 import { ProductImage } from '@/components/catalog/product-card';
 import { Alert, Badge, Button, Card, EmptyState, LinkButton, LoadingBlock, PageHeader, Pagination, Select, Table, Td, Th, cx } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
-import { aed } from '@/lib/format';
+import { aed, aedRange } from '@/lib/format';
 import { useApiQuery } from '@/lib/use-api';
 
 const SORT_LABELS: Record<ProductSort, string> = {
@@ -189,6 +189,12 @@ function ProductsList() {
                       <Td className="text-right whitespace-nowrap tabular-nums">
                         {aed(product.unitPrice)}
                         <span className="block text-xs text-slate-400">per {UOM_LABELS[product.uom]}</span>
+                        {product.priceRange && (
+                          <span className="block text-xs text-slate-500">
+                            <span className="sr-only">Indicative range </span>
+                            {aedRange(product.priceRange.min, product.priceRange.max)} net
+                          </span>
+                        )}
                       </Td>
                       <Td className="text-right whitespace-nowrap text-slate-600 tabular-nums">{aed(product.retailPrice)}</Td>
                       <Td className="text-right whitespace-nowrap tabular-nums">
@@ -277,7 +283,7 @@ function ProductsList() {
           <SearchForm
             id="product-search"
             label="Search products"
-            placeholder="Search SKU, name, brand or description"
+            placeholder="Search SKU, name, brand, description or tag"
             value={search}
             onSearch={(value) => update({ search: value })}
             className="md:col-span-3 xl:col-span-1"
