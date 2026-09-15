@@ -1,8 +1,6 @@
 # Top Flow — B2B/B2C Commerce Platform
 
-> From an academic prototype (the UWL *Bicycle Shop* Android app) to a production-grade commerce platform for **Top Flow — Irrigation & Flow Control Supplies, UAE** ([www.topflow.ae](https://www.topflow.ae/)).
-
-Top Flow supplies electrofusion and HDPE fittings, sprinklers and rotors, drip irrigation, pipes and fittings, valves, filtration and landscaping products to two very different audiences:
+> From **Top Flow — Irrigation & Flow Control Supplies, UAE** supplies electrofusion and HDPE fittings, sprinklers and rotors, drip irrigation, pipes and fittings, valves, filtration and landscaping products to two very different audiences:
 
 - **Consumers** who want to buy a few rotors for a villa garden online, at VAT-inclusive prices, paying on delivery.
 - **Businesses** — landscapers, MEP contractors, facility managers, developers — who buy for projects through **quotations**, negotiated prices, **purchase approvals** and **credit terms**.
