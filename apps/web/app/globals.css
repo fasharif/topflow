@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+/*
+ * Top Flow design tokens, following the topflow.ae brand: warm paper background, deep
+ * green-black ink and an evergreen accent. Fraunces sets display type, Archivo the interface and
+ * IBM Plex Mono the codes and labels. Tailwind's slate scale is replaced with warm neutrals, so
+ * every screen (storefront, portal and back office) shares the same tone.
+ */
+@theme {
+  --color-ink-950: #0b1712;
+  --color-ink-900: #12211b;
+  --color-ink-800: #1d3129;
+  --color-ink-700: #2f443a;
+
+  --color-brand-50: #eef5f2;
+  --color-brand-100: #dcebe5;
+  --color-brand-200: #b5d5ca;
+  --color-brand-300: #86b9a8;
+  --color-brand-500: #2a7a67;
+  --color-brand-600: #014d41;
+  --color-brand-700: #013f35;
+  --color-brand-800: #01322a;
+
+  --color-sand-50: #fdfcf8;
+  --color-sand-100: #f4f1e9;
+  --color-sand-200: #e4dfd2;
+  --color-sand-300: #cfc8b6;
+
+  --color-slate-50: #f8f6f1;
+  --color-slate-100: #f0ede5;
+  --color-slate-200: #e4dfd2;
+  --color-slate-300: #cfc8b6;
+  --color-slate-400: #9d9684;
+  --color-slate-500: #6f695c;
+  --color-slate-600: #575347;
+  --color-slate-700: #423f36;
+  --color-slate-800: #2d2b24;
+  --color-slate-900: #1b1a16;
+
+  --color-canvas: #faf8f3;
+
+  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+
+  --animate-marquee: marquee 60s linear infinite;
+
+  @keyframes marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+}
+
+/* Small uppercase mono label used above headings ("CATALOGUE", "WHY TOP FLOW"). */
+@utility eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    @apply bg-canvas text-slate-800 antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  ::selection {
+    @apply bg-brand-200 text-ink-900;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-500;
+  }
+}

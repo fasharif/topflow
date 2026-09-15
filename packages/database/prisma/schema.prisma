@@ -1,0 +1,631 @@
+// Top Flow — commerce platform data model (v2)
+//
+// Bounded contexts (mirrored by the NestJS modules in apps/api):
+//   Identity & access ....... User, RefreshToken, OneTimeToken
+//   B2B tenancy ............. Organization, OrganizationMember, OrganizationInvitation, Address
+//   Catalog ................. Category, Product
+//   Procurement ............. QuoteRequest (RFQ) -> Quotation (revisions) -> Order
+//   Fulfilment .............. Order, OrderItem, OrderStatusEvent
+//   Platform ................ AuditLog, DocumentSequence
+//
+// Money is stored as DECIMAL (AED, 2dp) and always computed server-side in integer fils
+// (see @topflow/shared/money). Prices on products are NET (excluding 5% UAE VAT).
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../generated/prisma"
+  moduleFormat        = "cjs"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────── Identity & access ───────────────────────────────
+
+/// Platform-level role. B2B capabilities come from OrganizationMember.role instead.
+enum Role {
+  CUSTOMER
+  SALES
+  WAREHOUSE
+  ADMIN
+}
+
+enum TokenPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+model User {
+  id                String    @id @default(uuid())
+  email             String    @unique
+  passwordHash      String
+  fullName          String
+  phoneNumber       String?
+  role              Role      @default(CUSTOMER)
+  isActive          Boolean   @default(true)
+  emailVerifiedAt   DateTime?
+  lastLoginAt       DateTime?
+  passwordChangedAt DateTime?
+  /// Legacy prototype field — superseded by Organization. Not collected by new clients.
+  companyName       String?
+  /// Legacy prototype field (data minimisation: no longer collected).
+  birthDate         DateTime?
+  /// Legacy prototype field (data minimisation: no longer collected).
+  gender            String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  refreshTokens      RefreshToken[]
+  oneTimeTokens      OneTimeToken[]
+  memberships        OrganizationMember[]
+  invitationsSent    OrganizationInvitation[] @relation("InvitationSender")
+  addresses          Address[]
+  carts              Cart[]
+  orders             Order[]
+  quoteRequests      QuoteRequest[]           @relation("RfqRequester")
+  assignedRfqs       QuoteRequest[]           @relation("RfqAssignee")
+  quotations         Quotation[]              @relation("QuotationCustomer")
+  quotationsAuthored Quotation[]              @relation("QuotationAuthor")
+  quotationsAnswered Quotation[]              @relation("QuotationResponder")
+  quotationsApproved Quotation[]              @relation("QuotationApprover")
+  orderEvents        OrderStatusEvent[]
+  auditLogs          AuditLog[]
+
+  @@map("users")
+}
+
+/// Opaque refresh tokens (stored as SHA-256 hashes) with rotation families for reuse detection.
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyId  String
+  tokenHash String    @unique
+  expiresAt DateTime
+  rotatedAt DateTime?
+  revokedAt DateTime?
+  userAgent String?
+  ipAddress String?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+/// Single-use tokens for email verification and password reset (hashed at rest).
+model OneTimeToken {
+  id         String       @id @default(uuid())
+  userId     String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose    TokenPurpose
+  tokenHash  String       @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime     @default(now())
+
+  @@index([userId, purpose])
+  @@map("one_time_tokens")
+}
+
+// ─────────────────────────────── B2B tenancy ───────────────────────────────
+
+enum OrgRole {
+  OWNER
+  APPROVER
+  BUYER
+}
+
+enum OrgStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+}
+
+enum OrgType {
+  CONTRACTOR
+  LANDSCAPING
+  FACILITY_MANAGEMENT
+  DEVELOPER
+  GOVERNMENT
+  RESELLER
+  OTHER
+}
+
+enum PaymentTerms {
+  PREPAID
+  NET_15
+  NET_30
+  NET_60
+}
+
+enum Emirate {
+  ABU_DHABI
+  DUBAI
+  SHARJAH
+  AJMAN
+  UMM_AL_QUWAIN
+  RAS_AL_KHAIMAH
+  FUJAIRAH
+}
+
+/// A business customer account (tenant). All B2B data is scoped by organizationId.
+model Organization {
+  id                 String       @id @default(uuid())
+  name               String
+  legalName          String?
+  type               OrgType      @default(CONTRACTOR)
+  status             OrgStatus    @default(PENDING_VERIFICATION)
+  tradeLicenseNumber String?
+  /// UAE VAT Tax Registration Number (15 digits).
+  trn                String?      @unique
+  email              String?
+  phoneNumber        String?
+  paymentTerms       PaymentTerms @default(PREPAID)
+  creditLimit        Decimal      @default(0) @db.Decimal(12, 2)
+  /// Negotiated trade discount off list price, in percent (0–100).
+  discountRate       Decimal      @default(0) @db.Decimal(5, 2)
+  verifiedAt         DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  members       OrganizationMember[]
+  invitations   OrganizationInvitation[]
+  addresses     Address[]
+  quoteRequests QuoteRequest[]
+  quotations    Quotation[]
+  orders        Order[]
+
+  @@index([status])
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           OrgRole      @default(BUYER)
+  /// Max order value (net, AED) this member may commit without approval. Null = no limit.
+  approvalLimit  Decimal?     @db.Decimal(12, 2)
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@map("organization_members")
+}
+
+model OrganizationInvitation {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String
+  role           OrgRole      @default(BUYER)
+  tokenHash      String       @unique
+  invitedById    String?
+  invitedBy      User?        @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: SetNull)
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+  @@index([email])
+  @@map("organization_invitations")
+}
+
+/// Personal address book (userId) or B2B delivery site (organizationId).
+model Address {
+  id             String        @id @default(uuid())
+  userId         String?
+  user           User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  label          String
+  contactName    String
+  phoneNumber    String
+  line1          String
+  line2          String?
+  area           String
+  city           String
+  emirate        Emirate
+  country        String        @default("AE")
+  isDefault      Boolean       @default(false)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([organizationId])
+  @@map("addresses")
+}
+
+// ─────────────────────────────── Catalog ───────────────────────────────
+
+enum StockStatus {
+  IN_STOCK
+  ON_ORDER
+}
+
+enum UnitOfMeasure {
+  PIECE
+  METER
+  ROLL
+  BOX
+  SET
+}
+
+model Category {
+  id           Int        @id @default(autoincrement())
+  name         String     @unique
+  slug         String     @unique
+  description  String?
+  imageUrl     String?
+  displayOrder Int        @default(0)
+  parentId     Int?
+  parent       Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children     Category[] @relation("CategoryTree")
+  createdAt    DateTime   @default(now())
+
+  products Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id                String        @id @default(uuid())
+  sku               String        @unique
+  slug              String        @unique
+  name              String
+  brand             String?
+  categoryId        Int?
+  category          Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  description       String?
+  specifications    Json?
+  /// Net list price per unit of measure, excluding VAT.
+  unitPrice         Decimal       @default(0.00) @db.Decimal(10, 2)
+  /// Indicative market range per unit (net, excl. VAT) shown to shoppers; quotations can land anywhere in it.
+  priceMin          Decimal?      @db.Decimal(10, 2)
+  priceMax          Decimal?      @db.Decimal(10, 2)
+  uom               UnitOfMeasure @default(PIECE)
+  minOrderQty       Int           @default(1)
+  stockStatus       StockStatus   @default(IN_STOCK)
+  stockQuantity     Int           @default(0)
+  lowStockThreshold Int           @default(10)
+  imageUrl          String?
+  /// Lower-case search keywords, e.g. "disc", "filter".
+  tags              String[]      @default([])
+  /// Unpublished products stay referenced by historic orders (soft delete).
+  isActive          Boolean       @default(true)
+  /// Trade-only items are hidden from retail shoppers and can only be quoted.
+  isTradeOnly       Boolean       @default(false)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  cartItems         CartItem[]
+  orderItems        OrderItem[]
+  quoteRequestItems QuoteRequestItem[]
+  quotationItems    QuotationItem[]
+
+  @@index([categoryId])
+  @@index([brand])
+  @@index([isActive])
+  @@map("products")
+}
+
+model Cart {
+  id           String   @id @default(uuid())
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionToken String?  @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  items CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String  @id @default(uuid())
+  cartId    String
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int
+
+  @@unique([cartId, productId])
+  @@map("cart_items")
+}
+
+// ─────────────────────────────── Procurement (B2B) ───────────────────────────────
+
+enum RfqStatus {
+  SUBMITTED
+  IN_REVIEW
+  QUOTED
+  CLOSED
+  CANCELLED
+}
+
+enum QuotationStatus {
+  DRAFT
+  SENT
+  PENDING_APPROVAL
+  ACCEPTED
+  REJECTED
+  REVISION_REQUESTED
+  EXPIRED
+  SUPERSEDED
+}
+
+/// Request for Quotation raised by a customer (evolution of the prototype's "enquiry").
+/// Where a request for quotation came from.
+enum RfqSource {
+  /// A buyer inside a trade organization.
+  TRADE_PORTAL
+  /// Anyone on the public website, identified by contact details only.
+  WEBSITE
+}
+
+model QuoteRequest {
+  id               String        @id @default(uuid())
+  number           String        @unique
+  source           RfqSource     @default(TRADE_PORTAL)
+  organizationId   String?
+  organization     Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  requestedById    String?
+  requestedBy      User?         @relation("RfqRequester", fields: [requestedById], references: [id], onDelete: SetNull)
+  assignedToId     String?
+  assignedTo       User?         @relation("RfqAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  status           RfqStatus     @default(SUBMITTED)
+  projectReference String?
+  shippingAddress  String?
+  deliveryAddress  Json?
+  requiredBy       DateTime?
+  notes            String?
+  /// Website requests: who to reply to. Trade-portal requests use the requester's account.
+  contactName      String?
+  contactEmail     String?
+  contactPhone     String?
+  companyName      String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  items      QuoteRequestItem[]
+  quotations Quotation[]
+
+  @@index([organizationId, status])
+  @@index([requestedById])
+  @@index([source, status])
+  @@index([status])
+  @@map("quote_requests")
+}
+
+model QuoteRequestItem {
+  id             String       @id @default(uuid())
+  quoteRequestId String
+  quoteRequest   QuoteRequest @relation(fields: [quoteRequestId], references: [id], onDelete: Cascade)
+  productId      String?
+  product        Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
+  sku            String
+  productName    String
+  quantity       Int
+  notes          String?
+
+  @@index([quoteRequestId])
+  @@map("quote_request_items")
+}
+
+/// A priced, versioned commercial offer. Each revision is a separate row sharing `number`.
+model Quotation {
+  id                  String          @id @default(uuid())
+  number              String
+  revision            Int             @default(1)
+  quoteRequestId      String?
+  quoteRequest        QuoteRequest?   @relation(fields: [quoteRequestId], references: [id], onDelete: SetNull)
+  organizationId      String?
+  organization        Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  customerId          String?
+  customer            User?           @relation("QuotationCustomer", fields: [customerId], references: [id], onDelete: SetNull)
+  createdById         String?
+  createdBy           User?           @relation("QuotationAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  status              QuotationStatus @default(DRAFT)
+  currency            String          @default("AED")
+  vatRateBps          Int             @default(500)
+  subtotal            Decimal         @default(0) @db.Decimal(12, 2)
+  discountTotal       Decimal         @default(0) @db.Decimal(12, 2)
+  deliveryFee         Decimal         @default(0) @db.Decimal(12, 2)
+  vatAmount           Decimal         @default(0) @db.Decimal(12, 2)
+  total               Decimal         @default(0) @db.Decimal(12, 2)
+  validUntil          DateTime
+  terms               String?
+  notes               String?
+  internalNotes       String?
+  sentAt              DateTime?
+  respondedAt         DateTime?
+  respondedById       String?
+  respondedBy         User?           @relation("QuotationResponder", fields: [respondedById], references: [id], onDelete: SetNull)
+  responseNote        String?
+  purchaseOrderNumber String?
+  approvedById        String?
+  approvedBy          User?           @relation("QuotationApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedAt          DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  items QuotationItem[]
+  order Order?
+
+  @@unique([number, revision])
+  @@index([organizationId, status])
+  @@index([quoteRequestId])
+  @@index([status])
+  @@map("quotations")
+}
+
+model QuotationItem {
+  id           String        @id @default(uuid())
+  quotationId  String
+  quotation    Quotation     @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  productId    String?
+  product      Product?      @relation(fields: [productId], references: [id], onDelete: SetNull)
+  sku          String
+  productName  String
+  uom          UnitOfMeasure @default(PIECE)
+  quantity     Int
+  /// List price (net) at the time of quoting.
+  listPrice    Decimal       @db.Decimal(10, 2)
+  /// Line discount in percent (0–100).
+  discountRate Decimal       @default(0) @db.Decimal(5, 2)
+  /// Net unit price after discount.
+  unitPrice    Decimal       @db.Decimal(10, 2)
+  lineSubtotal Decimal       @db.Decimal(12, 2)
+  vatAmount    Decimal       @db.Decimal(12, 2)
+  lineTotal    Decimal       @db.Decimal(12, 2)
+  sortOrder    Int           @default(0)
+
+  @@index([quotationId])
+  @@map("quotation_items")
+}
+
+// ─────────────────────────────── Orders & fulfilment ───────────────────────────────
+
+enum OrderChannel {
+  RETAIL
+  B2B
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  PROCESSING
+  DISPATCHED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH_ON_DELIVERY
+  CARD
+  BANK_TRANSFER
+  CREDIT_ACCOUNT
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
+}
+
+model Order {
+  id                  String         @id @default(uuid())
+  orderNumber         String         @unique
+  channel             OrderChannel   @default(RETAIL)
+  status              OrderStatus    @default(PENDING_PAYMENT)
+  userId              String?
+  user                User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organizationId      String?
+  organization        Organization?  @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  quotationId         String?        @unique
+  quotation           Quotation?     @relation(fields: [quotationId], references: [id], onDelete: SetNull)
+  currency            String         @default("AED")
+  vatRateBps          Int            @default(500)
+  subtotal            Decimal        @default(0) @db.Decimal(12, 2)
+  discountTotal       Decimal        @default(0) @db.Decimal(12, 2)
+  deliveryFee         Decimal        @default(0) @db.Decimal(12, 2)
+  vatAmount           Decimal        @default(0) @db.Decimal(12, 2)
+  totalAmount         Decimal        @db.Decimal(12, 2)
+  paymentMethod       PaymentMethod?
+  paymentStatus       PaymentStatus  @default(UNPAID)
+  paymentReference    String?
+  paidAt              DateTime?
+  purchaseOrderNumber String?
+  projectReference    String?
+  shippingAddress     String
+  deliveryAddress     Json?
+  notes               String?
+  trackingReference   String?
+  confirmedAt         DateTime?
+  dispatchedAt        DateTime?
+  deliveredAt         DateTime?
+  cancelledAt         DateTime?
+  cancellationReason  String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  items  OrderItem[]
+  events OrderStatusEvent[]
+
+  @@index([userId])
+  @@index([organizationId, status])
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id           String        @id @default(uuid())
+  orderId      String
+  order        Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId    String?
+  product      Product?      @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName  String
+  sku          String
+  uom          UnitOfMeasure @default(PIECE)
+  /// Net unit price after any discount.
+  unitPrice    Decimal       @db.Decimal(10, 2)
+  discountRate Decimal       @default(0) @db.Decimal(5, 2)
+  quantity     Int
+  /// Net line subtotal (unitPrice × quantity).
+  totalPrice   Decimal       @db.Decimal(10, 2)
+  vatAmount    Decimal       @default(0) @db.Decimal(12, 2)
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+/// Immutable order timeline — every state-machine transition is recorded here.
+model OrderStatusEvent {
+  id         String       @id @default(uuid())
+  orderId    String
+  order      Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  actorId    String?
+  actor      User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  note       String?
+  createdAt  DateTime     @default(now())
+
+  @@index([orderId])
+  @@map("order_status_events")
+}
+
+// ─────────────────────────────── Platform ───────────────────────────────
+
+model AuditLog {
+  id             String   @id @default(uuid())
+  userId         String?
+  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organizationId String?
+  action         String
+  entityType     String
+  entityId       String?
+  details        Json?
+  ipAddress      String?
+  createdAt      DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+/// Gap-free, per-year counters for human-readable document numbers (TF-SO-2026-000123).
+model DocumentSequence {
+  key       String   @id
+  value     Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@map("document_sequences")
+}

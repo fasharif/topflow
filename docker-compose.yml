@@ -1,0 +1,41 @@
+# Full stack in containers: `docker compose up --build`
+# (For day-to-day development `npm run db:up` + `npm run dev` is faster and needs no Docker.)
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: topflow
+      POSTGRES_PASSWORD: topflow
+      POSTGRES_DB: topflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - topflow_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U topflow -d topflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://topflow:topflow@postgres:5432/topflow
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET (32+ random characters) in your shell or a .env file}
+      APP_PUBLIC_URL: http://localhost:3002
+      CORS_ORIGINS: http://localhost:3002
+      COOKIE_SECURE: "false"
+      TRUST_PROXY: "false"
+      SWAGGER_ENABLED: "true"
+
+volumes:
+  topflow_pg_data:

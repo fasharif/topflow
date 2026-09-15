@@ -1,0 +1,51 @@
+{
+  "name": "topflow",
+  "private": true,
+  "description": "Top Flow — B2B/B2C irrigation & flow-control commerce platform (Turborepo monorepo)",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "packageManager": "npm@11.17.0",
+  "overrides": {
+    "prisma": "7.9.1",
+    "@prisma/client": "7.9.1"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "check-types": "turbo run check-types",
+    "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "db:up": "npx prisma dev --name topflow --detach",
+    "db:generate": "npm run generate -w @topflow/database",
+    "db:migrate": "npm run db:migrate -w @topflow/database",
+    "db:deploy": "npm run db:deploy -w @topflow/database",
+    "db:seed": "npm run db:seed -w @topflow/database",
+    "db:studio": "npm run db:studio -w @topflow/database",
+    "release": "node apps/api/dist/preflight.js && npm run db:deploy"
+  },
+  "devDependencies": {
+    "prettier": "^3.7.4",
+    "turbo": "^2.10.11",
+    "typescript": "~6.0.3"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "npm",
+      "version": ">=11.17.0"
+    }
+  },
+  "allowScripts": {
+    "prisma@7.9.1": true,
+    "unrs-resolver@1.12.2": true,
+    "@parcel/watcher@2.6.0": true,
+    "@prisma/engines@7.9.1": true,
+    "esbuild@0.28.2": true
+  }
+}
