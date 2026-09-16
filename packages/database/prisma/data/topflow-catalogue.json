@@ -1,5 +1,5 @@
 {
-  "source": "Top Flow catalogue (topflow.ae), imported with Top Flow’s approval on 2026-09-15. Indicative price ranges researched from UAE and international list prices.",
+  "source": "Top Flow catalogue (topflow.ae), imported with Top Flow’s approval on 2026-09-15. Indicative price ranges researched from UAE and international list prices. Curated on 2026-09-17 to irrigation, water management and farm supplies: out-of-scope categories and duplicate listings removed, variant names made unique.",
   "categories": [
     {
       "slug": "electrofusion-hdpe-fittings",
@@ -259,50 +259,6 @@
       ]
     },
     {
-      "slug": "landscaping-hardscape",
-      "name": "Landscaping & Hardscape",
-      "description": "Landscape irrigation ranges plus edging, grass grid pavers, catch basins and soil cells that let trees thrive under paving.",
-      "imageUrl": "/catalog/products/wsi-ln-2-wsi-ln-4.webp",
-      "displayOrder": 6,
-      "lines": [
-        {
-          "slug": "landscape-irrigation-ranges",
-          "name": "Landscape Irrigation Ranges",
-          "description": "Complete ranges of sprays, rotors, bubblers, dripline, valves and valve boxes, ready to specify as one landscape package.",
-          "imageUrl": "/catalog/products/wsi-ln-2-wsi-ln-4.webp",
-          "displayOrder": 0
-        },
-        {
-          "slug": "landscape-edging",
-          "name": "Landscape Edging",
-          "description": "UV-stabilised polyethylene edging that keeps lawns, gravel and planting beds crisp and defined.",
-          "imageUrl": "/catalog/products/ws-peq.webp",
-          "displayOrder": 1
-        },
-        {
-          "slug": "grass-grid-pavers",
-          "name": "Grass Grid Pavers",
-          "description": "Recycled HDPE grass grid pavers for green parking bays, fire lanes and access paths.",
-          "imageUrl": "/catalog/products/ws-grassgrid.webp",
-          "displayOrder": 2
-        },
-        {
-          "slug": "catch-basins",
-          "name": "Catch Basins",
-          "description": "HDPE catch basins, grates and kits that collect surface water from lawns, planters and paved areas.",
-          "imageUrl": "/catalog/products/catch-basin-square.webp",
-          "displayOrder": 3
-        },
-        {
-          "slug": "soil-cells",
-          "name": "Soil Cells",
-          "description": "Modular soil cells that carry pavement loads while leaving loose soil for healthy tree roots and stormwater storage.",
-          "imageUrl": "/catalog/products/soil-cell-g2-module.webp",
-          "displayOrder": 4
-        }
-      ]
-    },
-    {
       "slug": "specialty",
       "name": "Specialty",
       "description": "Center-pivot sprinklers and drops for agriculture, and purple-coded pipe, fittings and valve boxes for recycled-water systems.",
@@ -324,56 +280,12 @@
           "displayOrder": 1
         }
       ]
-    },
-    {
-      "slug": "facilities-mep",
-      "name": "Facilities & MEP",
-      "description": "Ventilation, lighting, sanitary and fire-retardant waste products for facilities teams and MEP contractors.",
-      "imageUrl": "/catalog/products/afm-pvt-00503.webp",
-      "displayOrder": 8,
-      "lines": [
-        {
-          "slug": "ventilation",
-          "name": "Ventilation",
-          "description": "Adjustable ventilation fans for plant rooms, washrooms and service areas.",
-          "imageUrl": "/catalog/products/afm-pvt-00503.webp",
-          "displayOrder": 0
-        },
-        {
-          "slug": "waste-management",
-          "name": "Waste Management",
-          "description": "Durable waste bins for back-of-house and public areas.",
-          "imageUrl": "/catalog/products/afm-mf001168.webp",
-          "displayOrder": 1
-        },
-        {
-          "slug": "lighting",
-          "name": "Lighting",
-          "description": "Decorative aluminium LED luminaires for lobbies, corridors and outdoor walkways.",
-          "imageUrl": "/catalog/products/afm-mf-001169.webp",
-          "displayOrder": 2
-        },
-        {
-          "slug": "fire-retardant-products",
-          "name": "Fire-Retardant Products",
-          "description": "Fire-retardant sack holders with removable bodies for buildings with strict fire-safety requirements.",
-          "imageUrl": "/catalog/products/afm-pc-00927.webp",
-          "displayOrder": 3
-        },
-        {
-          "slug": "sanitary",
-          "name": "Sanitary",
-          "description": "Washroom dispensers built for high-traffic commercial facilities.",
-          "imageUrl": "/catalog/products/afm-pvt-00502.webp",
-          "displayOrder": 4
-        }
-      ]
     }
   ],
   "products": [
     {
       "sku": "AX-EFS-001",
-      "name": "Electrofusion Reducer 63 x 32",
+      "name": "Electrofusion Reducer (63 x 32 mm)",
       "category": "electrofusion-hdpe-fittings",
       "line": "hdpe-electrofusion-fittings",
       "brand": "Top Flow",
@@ -445,7 +357,7 @@
     },
     {
       "sku": "AX-EFS-004",
-      "name": "Tee (63 mm)",
+      "name": "Electrofusion Tee (63 mm)",
       "category": "electrofusion-hdpe-fittings",
       "line": "hdpe-electrofusion-fittings",
       "brand": "Top Flow",
@@ -469,7 +381,7 @@
     },
     {
       "sku": "AX-EFS-005",
-      "name": "Reducer Tee (110 x 90)",
+      "name": "Electrofusion Reducing Tee (110 x 90 mm)",
       "category": "electrofusion-hdpe-fittings",
       "line": "hdpe-electrofusion-fittings",
       "brand": "Top Flow",
@@ -518,7 +430,7 @@
     },
     {
       "sku": "AX-EFS-007",
-      "name": "Electrofusion Reducer (50 x 32)",
+      "name": "Electrofusion Reducer (50 x 32 mm)",
       "category": "electrofusion-hdpe-fittings",
       "line": "hdpe-electrofusion-fittings",
       "brand": "Top Flow",
@@ -542,7 +454,7 @@
     },
     {
       "sku": "AX-EFS-008",
-      "name": "Tee (75 mm)",
+      "name": "Electrofusion Tee (75 mm)",
       "category": "electrofusion-hdpe-fittings",
       "line": "hdpe-electrofusion-fittings",
       "brand": "Top Flow",
@@ -563,30 +475,6 @@
         "fitting"
       ],
       "imageUrl": "/catalog/products/ax-efs-008.webp"
-    },
-    {
-      "sku": "AX-EFS-009",
-      "name": "Electrofusion Reducer (63 x 32)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "63 x 32",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "30.00",
-      "priceMax": "46.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 204,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "reducer",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-efs-009.webp"
     },
     {
       "sku": "AX-EFS-010",
@@ -637,32 +525,8 @@
       "imageUrl": "/catalog/products/ax-efs-011.webp"
     },
     {
-      "sku": "AX-EFS-012",
-      "name": "Electrofusion Elbow (110 mm)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "110 x 110",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "68.00",
-      "priceMax": "104.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 39,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "elbow",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-efs-012.webp"
-    },
-    {
       "sku": "AX-EFS-013",
-      "name": "Electrofusion Socket (110 mm)",
+      "name": "Electrofusion Coupler (110 mm)",
       "category": "electrofusion-hdpe-fittings",
       "line": "hdpe-electrofusion-fittings",
       "brand": "Top Flow",
@@ -685,38 +549,14 @@
       "imageUrl": "/catalog/products/ax-efs-013.webp"
     },
     {
-      "sku": "AX-EFS-014",
-      "name": "Electrofusion Elbow (110 mm)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "110 x 110",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "81.00",
-      "priceMax": "124.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 28,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "elbow",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-efs-014.webp"
-    },
-    {
       "sku": "AX-EFS-015",
-      "name": "Electrofusion Elbow (75 x 90)",
+      "name": "Electrofusion Reducing Elbow (90 x 75 mm)",
       "category": "electrofusion-hdpe-fittings",
       "line": "hdpe-electrofusion-fittings",
       "brand": "Top Flow",
       "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
       "specifications": {
-        "Size": "75 x 90",
+        "Size": "90 x 75",
         "Product line": "HDPE Electrofusion Fittings"
       },
       "priceMin": "55.00",
@@ -733,80 +573,8 @@
       "imageUrl": "/catalog/products/ax-efs-015.webp"
     },
     {
-      "sku": "AX-EFS-016",
-      "name": "Electrofusion Reducer (50 x 32)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "50 x 32",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "21.00",
-      "priceMax": "30.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 200,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "reducer",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-efs-016.webp"
-    },
-    {
-      "sku": "AX-EFS-017",
-      "name": "Electrofusion Elbow (40 mm)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "40 x 40",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "17.00",
-      "priceMax": "26.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 65,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "elbow",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-efs-017.webp"
-    },
-    {
-      "sku": "AX-EFS-018",
-      "name": "Electrofusion Elbow (50 mm)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "50 x 50",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "21.00",
-      "priceMax": "33.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 139,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "elbow",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-efs-018.webp"
-    },
-    {
       "sku": "AX-EFS-019",
-      "name": "Electrofusion Socket (40 mm)",
+      "name": "Electrofusion Coupler (40 mm)",
       "category": "electrofusion-hdpe-fittings",
       "line": "hdpe-electrofusion-fittings",
       "brand": "Top Flow",
@@ -830,7 +598,7 @@
     },
     {
       "sku": "AX-EFS-020",
-      "name": "Electrofusion Socket (50 mm)",
+      "name": "Electrofusion Coupler (50 mm)",
       "category": "electrofusion-hdpe-fittings",
       "line": "hdpe-electrofusion-fittings",
       "brand": "Top Flow",
@@ -854,7 +622,7 @@
     },
     {
       "sku": "AX-EFS-021",
-      "name": "Electrofusion Socket (32 mm)",
+      "name": "Electrofusion Coupler (32 mm)",
       "category": "electrofusion-hdpe-fittings",
       "line": "hdpe-electrofusion-fittings",
       "brand": "Top Flow",
@@ -877,80 +645,8 @@
       "imageUrl": "/catalog/products/ax-efs-021.webp"
     },
     {
-      "sku": "AX-EFS-022",
-      "name": "Electrofusion Socket (110 mm)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "110 x 110",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "64.00",
-      "priceMax": "86.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 4,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "socket",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-efs-022.webp"
-    },
-    {
-      "sku": "AX-EFS-023",
-      "name": "Electrofusion Socket (110 mm)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "110 x 110",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "72.00",
-      "priceMax": "98.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 19,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "socket",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-efs-023.webp"
-    },
-    {
-      "sku": "AX-EFS-024",
-      "name": "Electrofusion Socket (110 mm)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "110 x 110",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "77.00",
-      "priceMax": "104.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 7,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "socket",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-efs-024.webp"
-    },
-    {
       "sku": "AX-EFS-025",
-      "name": "Electrofusion Socket (20 mm)",
+      "name": "Electrofusion Coupler (20 mm)",
       "category": "electrofusion-hdpe-fittings",
       "line": "hdpe-electrofusion-fittings",
       "brand": "Top Flow",
@@ -974,13 +670,13 @@
     },
     {
       "sku": "AX-EFS-026",
-      "name": "Welding Reducer - Small 36 x 32",
+      "name": "Welding Reducer (63 x 32 mm)",
       "category": "electrofusion-hdpe-fittings",
       "line": "hdpe-electrofusion-fittings",
       "brand": "Top Flow",
       "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
       "specifications": {
-        "Size": "36 x 32",
+        "Size": "63 x 32",
         "Product line": "HDPE Electrofusion Fittings"
       },
       "priceMin": "13.00",
@@ -998,7 +694,7 @@
     },
     {
       "sku": "AX-EFS-027",
-      "name": "Welding Reducer - Medium 63 x 40",
+      "name": "Welding Reducer (63 x 40 mm)",
       "category": "electrofusion-hdpe-fittings",
       "line": "hdpe-electrofusion-fittings",
       "brand": "Top Flow",
@@ -1022,7 +718,7 @@
     },
     {
       "sku": "AX-EFS-028",
-      "name": "Welding Reducer - Large 63 x 50",
+      "name": "Welding Reducer (63 x 50 mm)",
       "category": "electrofusion-hdpe-fittings",
       "line": "hdpe-electrofusion-fittings",
       "brand": "Top Flow",
@@ -1046,7 +742,7 @@
     },
     {
       "sku": "AX-EFS-029",
-      "name": "Electrofusion Reducer (63 x 50)",
+      "name": "Electrofusion Reducer (63 x 50 mm)",
       "category": "electrofusion-hdpe-fittings",
       "line": "hdpe-electrofusion-fittings",
       "brand": "Top Flow",
@@ -1070,7 +766,7 @@
     },
     {
       "sku": "AX-EFS-030",
-      "name": "Electrofusion Reducer (50 x 40)",
+      "name": "Electrofusion Reducer (50 x 40 mm)",
       "category": "electrofusion-hdpe-fittings",
       "line": "hdpe-electrofusion-fittings",
       "brand": "Top Flow",
@@ -1093,80 +789,8 @@
       "imageUrl": "/catalog/products/ax-efs-030.webp"
     },
     {
-      "sku": "AX-EFS-031",
-      "name": "Electrofusion Elbow (50 mm)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "50 x 50",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "17.00",
-      "priceMax": "26.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 47,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "elbow",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-efs-031.webp"
-    },
-    {
-      "sku": "AX-EFS-032",
-      "name": "Electrofusion Elbow (110 mm)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "110 x 110",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "68.00",
-      "priceMax": "104.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 6,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "elbow",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-efs-014.webp"
-    },
-    {
-      "sku": "AX-EFS-033",
-      "name": "Electrofusion Reducer (50 x 32)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "50 x 32",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "21.00",
-      "priceMax": "30.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 17,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "reducer",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-efs-033.webp"
-    },
-    {
       "sku": "AX-EFS-034",
-      "name": "Electrofusion Reducer (40 x 32)",
+      "name": "Electrofusion Reducer (40 x 32 mm)",
       "category": "electrofusion-hdpe-fittings",
       "line": "hdpe-electrofusion-fittings",
       "brand": "Top Flow",
@@ -1187,30 +811,6 @@
         "fitting"
       ],
       "imageUrl": "/catalog/products/ax-efs-034.webp"
-    },
-    {
-      "sku": "AX-EFS-035",
-      "name": "Electrofusion Elbow (40 mm)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "40 x 40",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "26.00",
-      "priceMax": "39.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 63,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "elbow",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-efs-035.webp"
     },
     {
       "sku": "AX-EFS-036",
@@ -1235,30 +835,6 @@
         "fitting"
       ],
       "imageUrl": "/catalog/products/ax-efs-036.webp"
-    },
-    {
-      "sku": "AX-EFS-037",
-      "name": "Electrofusion Elbow (110 mm)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "110 x 110",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "64.00",
-      "priceMax": "98.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 63,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "elbow",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-efs-037.webp"
     },
     {
       "sku": "AX-EFS-038",
@@ -1309,32 +885,8 @@
       "imageUrl": "/catalog/products/ax-efs-039.webp"
     },
     {
-      "sku": "AX-EFS-040",
-      "name": "Electrofusion Elbow (90 x 75)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "90 x 75",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "43.00",
-      "priceMax": "65.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 20,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "elbow",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-efs-040.webp"
-    },
-    {
       "sku": "AX-EFS-041",
-      "name": "Electrofusion Socket (75 mm)",
+      "name": "Electrofusion Coupler (75 mm)",
       "category": "electrofusion-hdpe-fittings",
       "line": "hdpe-electrofusion-fittings",
       "brand": "Top Flow",
@@ -1357,62 +909,14 @@
       "imageUrl": "/catalog/products/ax-efs-041.webp"
     },
     {
-      "sku": "AX-GF-001",
-      "name": "Electrofusion Tee (50 mm)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "50 x 50 x 50",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "21.00",
-      "priceMax": "33.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 62,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "tee",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-gf-001.webp"
-    },
-    {
-      "sku": "AX-GF-002",
-      "name": "Socket (75 mm)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "75 x 75",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "47.00",
-      "priceMax": "63.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 64,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "socket",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-gf-002.webp"
-    },
-    {
       "sku": "AX-GF-003",
-      "name": "Electrofusion Socket (160 mm)",
+      "name": "Electrofusion Coupler (160 mm)",
       "category": "electrofusion-hdpe-fittings",
       "line": "hdpe-electrofusion-fittings",
       "brand": "Top Flow",
       "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
       "specifications": {
-        "Size": "d160 x 160",
+        "Size": "160 x 160",
         "Product line": "HDPE Electrofusion Fittings"
       },
       "priceMin": "68.00",
@@ -1429,38 +933,14 @@
       "imageUrl": "/catalog/products/ax-gf-003.webp"
     },
     {
-      "sku": "AX-GF-004",
-      "name": "Electrofusion Reducer (63 x 32)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "63 x 32",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "30.00",
-      "priceMax": "46.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 109,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "reducer",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-gf-004.webp"
-    },
-    {
       "sku": "AX-GF-005",
-      "name": "Electrofusion Reducer (90 x 63)",
+      "name": "Electrofusion Reducer (90 x 63 mm)",
       "category": "electrofusion-hdpe-fittings",
       "line": "hdpe-electrofusion-fittings",
       "brand": "Top Flow",
       "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
       "specifications": {
-        "Size": "d90 x 63",
+        "Size": "90 x 63",
         "Product line": "HDPE Electrofusion Fittings"
       },
       "priceMin": "43.00",
@@ -1477,38 +957,14 @@
       "imageUrl": "/catalog/products/ax-gf-005.webp"
     },
     {
-      "sku": "AX-GF-006",
-      "name": "Socket (50 mm)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "50 x 50",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "26.00",
-      "priceMax": "38.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 188,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "socket",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-gf-006.webp"
-    },
-    {
       "sku": "AX-GF-007",
-      "name": "Electrofusion Socket (200 mm)",
+      "name": "Electrofusion Coupler (200 mm)",
       "category": "electrofusion-hdpe-fittings",
       "line": "hdpe-electrofusion-fittings",
       "brand": "Top Flow",
       "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
       "specifications": {
-        "Size": "d200 x 200",
+        "Size": "200 x 200",
         "Product line": "HDPE Electrofusion Fittings"
       },
       "priceMin": "85.00",
@@ -1525,32 +981,8 @@
       "imageUrl": "/catalog/products/ax-gf-007.webp"
     },
     {
-      "sku": "AX-GF-008",
-      "name": "Electrofusion Reducer (63 x 50)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "63 x 50",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "26.00",
-      "priceMax": "39.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 132,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "reducer",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-gf-008.webp"
-    },
-    {
       "sku": "AX-GF-009",
-      "name": "Electrofusion Socket (125 mm)",
+      "name": "Electrofusion Coupler (125 mm)",
       "category": "electrofusion-hdpe-fittings",
       "line": "hdpe-electrofusion-fittings",
       "brand": "Top Flow",
@@ -1574,7 +1006,7 @@
     },
     {
       "sku": "AX-GF-010",
-      "name": "Electrofusion Reducer (110 x 90)",
+      "name": "Electrofusion Reducer (110 x 90 mm)",
       "category": "electrofusion-hdpe-fittings",
       "line": "hdpe-electrofusion-fittings",
       "brand": "Top Flow",
@@ -1597,248 +1029,8 @@
       "imageUrl": "/catalog/products/ax-gf-010.webp"
     },
     {
-      "sku": "AX-GF-011",
-      "name": "Electrofusion Tee (63 mm)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "63 x 63 x 63",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "68.00",
-      "priceMax": "92.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 13,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "tee",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-gf-011.webp"
-    },
-    {
-      "sku": "AX-GF-012",
-      "name": "Electrofusion Tee (32 mm)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "32 x 32 x 32",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "13.00",
-      "priceMax": "19.50",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 62,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "tee",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-gf-012.webp"
-    },
-    {
-      "sku": "AX-GF-013",
-      "name": "Electrofusion Reducer (50 x 32)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "50 x 32",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "17.00",
-      "priceMax": "24.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 61,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "reducer",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-gf-013.webp"
-    },
-    {
-      "sku": "AX-GF-014",
-      "name": "Electrofusion Reducer (40 x 32)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "40 x 32",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "13.00",
-      "priceMax": "18.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 164,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "reducer",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-gf-014.webp"
-    },
-    {
-      "sku": "AX-GF-015",
-      "name": "Electrofusion Socket (110 mm)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "110 x 110",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "77.00",
-      "priceMax": "104.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 9,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "socket",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-gf-015.webp"
-    },
-    {
-      "sku": "AX-GF-016",
-      "name": "Tee (110 mm)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "110 x 110 x 110",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "81.00",
-      "priceMax": "124.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 4,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "tee",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-gf-016.webp"
-    },
-    {
-      "sku": "AX-GF-017",
-      "name": "Electrofusion Elbow (110 mm)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "110 x 110",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "64.00",
-      "priceMax": "98.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 2,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "elbow",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-gf-017.webp"
-    },
-    {
-      "sku": "AX-GF-018",
-      "name": "Socket (63 mm)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "63 x 63",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "26.00",
-      "priceMax": "40.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 23,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "socket",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-gf-018.webp"
-    },
-    {
-      "sku": "AX-GF-019",
-      "name": "Electrofusion Elbow (50 mm)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "d50 x 50",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "21.00",
-      "priceMax": "33.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 23,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "elbow",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-gf-019.webp"
-    },
-    {
-      "sku": "AX-EF-001",
-      "name": "Electrofusion Tee (32 mm)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "32 x 32 x 32",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "17.00",
-      "priceMax": "26.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 184,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "tee",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-ef-001.webp"
-    },
-    {
       "sku": "AX-EF-002",
-      "name": "Electrofusion Coupler (40 mm) / Coupler (20 mm) / Welding Reducer",
+      "name": "Electrofusion Reducer (40 x 20 mm)",
       "category": "electrofusion-hdpe-fittings",
       "line": "hdpe-electrofusion-fittings",
       "brand": "Top Flow",
@@ -1863,7 +1055,7 @@
     },
     {
       "sku": "AX-EF-003",
-      "name": "Electrofusion Tee (50 x 40)",
+      "name": "Electrofusion Reducing Tee (50 x 40 mm)",
       "category": "electrofusion-hdpe-fittings",
       "line": "hdpe-electrofusion-fittings",
       "brand": "Top Flow",
@@ -1908,263 +1100,6 @@
         "fitting"
       ],
       "imageUrl": "/catalog/products/ax-ef-004.webp"
-    },
-    {
-      "sku": "AX-EF-005",
-      "name": "Electrofusion Coupler (50 mm) / Coupler (32 mm) / Welding Reducer",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "50 x 32",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "21.00",
-      "priceMax": "30.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 390,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "reducer",
-        "coupler",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-ef-005.webp"
-    },
-    {
-      "sku": "AX-EF-006",
-      "name": "Electrofusion Socket (40 mm)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "40 x 40",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "30.00",
-      "priceMax": "44.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 791,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "socket",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-ef-006.webp"
-    },
-    {
-      "sku": "AX-EF-007",
-      "name": "Electrofusion Socket (20 mm)",
-      "category": "electrofusion-hdpe-fittings",
-      "line": "hdpe-electrofusion-fittings",
-      "brand": "Top Flow",
-      "description": "Electrofusion couplers, elbows, tees and reducers with embedded heating coils for PE100 and PE80 pipe. Fused with a standard control unit, the joint is as strong as the pipe itself.",
-      "specifications": {
-        "Size": "20 x 20",
-        "Product line": "HDPE Electrofusion Fittings"
-      },
-      "priceMin": "13.00",
-      "priceMax": "19.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 1038,
-      "tags": [
-        "electrofusion",
-        "hdpe",
-        "socket",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ax-ef-007.webp"
-    },
-    {
-      "sku": "AFM-PVT-00503",
-      "name": "Vario Ventilation Fan 150/6\" - 230/9\" - 300/12\"",
-      "category": "facilities-mep",
-      "line": "ventilation",
-      "brand": "Top Flow",
-      "description": "Adjustable ventilation fans for plant rooms, washrooms and service areas.",
-      "specifications": {
-        "Size": "150/6\" - 230/9\" - 300/12\"",
-        "Product line": "Ventilation"
-      },
-      "priceMin": "170.00",
-      "priceMax": "230.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 209,
-      "tags": [
-        "ventilation",
-        "vario",
-        "fan"
-      ],
-      "imageUrl": "/catalog/products/afm-pvt-00503.webp"
-    },
-    {
-      "sku": "AFM-MF001168",
-      "name": "Waste Bin 40 x 28",
-      "category": "facilities-mep",
-      "line": "waste-management",
-      "brand": "Top Flow",
-      "description": "Durable waste bins for back-of-house and public areas.",
-      "specifications": {
-        "Size": "40 x 28",
-        "Product line": "Waste Management"
-      },
-      "priceMin": "64.00",
-      "priceMax": "95.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 45,
-      "tags": [
-        "waste",
-        "management",
-        "bin"
-      ],
-      "imageUrl": "/catalog/products/afm-mf001168.webp"
-    },
-    {
-      "sku": "AFM-MF-001169",
-      "name": "Aluminium LED Decorative Light 520 mm / 509.5 mm",
-      "category": "facilities-mep",
-      "line": "lighting",
-      "brand": "Top Flow",
-      "description": "Decorative aluminium LED luminaires for lobbies, corridors and outdoor walkways.",
-      "specifications": {
-        "Size": "520 mm / 509.5 mm",
-        "Product line": "Lighting"
-      },
-      "priceMin": "64.00",
-      "priceMax": "100.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 22,
-      "tags": [
-        "lighting",
-        "aluminium",
-        "led"
-      ],
-      "imageUrl": "/catalog/products/afm-mf-001169.webp"
-    },
-    {
-      "sku": "AFM-PC-00927",
-      "name": "Removable Body Fire-Retardant Sackholder 43 x 32 x 55",
-      "category": "facilities-mep",
-      "line": "fire-retardant-products",
-      "brand": "Top Flow",
-      "description": "Fire-retardant sack holders with removable bodies for buildings with strict fire-safety requirements.",
-      "specifications": {
-        "Size": "43 x 32 x 55",
-        "Product line": "Fire-Retardant Products"
-      },
-      "priceMin": "128.00",
-      "priceMax": "173.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 55,
-      "tags": [
-        "fire",
-        "retardant",
-        "removable"
-      ],
-      "imageUrl": "/catalog/products/afm-pc-00927.webp"
-    },
-    {
-      "sku": "AFM-PC-00928",
-      "name": "Removable Body Fire-Retardant Sackholder 43 x 32 x 55",
-      "category": "facilities-mep",
-      "line": "fire-retardant-products",
-      "brand": "Top Flow",
-      "description": "Fire-retardant sack holders with removable bodies for buildings with strict fire-safety requirements.",
-      "specifications": {
-        "Size": "43 x 32 x 55",
-        "Product line": "Fire-Retardant Products"
-      },
-      "priceMin": "128.00",
-      "priceMax": "173.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 43,
-      "tags": [
-        "fire",
-        "retardant",
-        "removable"
-      ],
-      "imageUrl": "/catalog/products/afm-pc-00928.webp"
-    },
-    {
-      "sku": "AFM-PC-00929",
-      "name": "Removable Body Fire-Retardant Sackholder 43 x 32 x 55",
-      "category": "facilities-mep",
-      "line": "fire-retardant-products",
-      "brand": "Top Flow",
-      "description": "Fire-retardant sack holders with removable bodies for buildings with strict fire-safety requirements.",
-      "specifications": {
-        "Size": "43 x 32 x 55",
-        "Product line": "Fire-Retardant Products"
-      },
-      "priceMin": "128.00",
-      "priceMax": "173.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 5,
-      "tags": [
-        "fire",
-        "retardant",
-        "removable"
-      ],
-      "imageUrl": "/catalog/products/afm-pc-00928.webp"
-    },
-    {
-      "sku": "AFM-PC-00930",
-      "name": "Removable Body Fire-Retardant Sackholder 43 x 32 x 55",
-      "category": "facilities-mep",
-      "line": "fire-retardant-products",
-      "brand": "Top Flow",
-      "description": "Fire-retardant sack holders with removable bodies for buildings with strict fire-safety requirements.",
-      "specifications": {
-        "Size": "43 x 32 x 55",
-        "Product line": "Fire-Retardant Products"
-      },
-      "priceMin": "170.00",
-      "priceMax": "230.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 5,
-      "tags": [
-        "fire",
-        "retardant",
-        "removable"
-      ],
-      "imageUrl": "/catalog/products/afm-pc-00930.webp"
-    },
-    {
-      "sku": "AFM-PVT-00502",
-      "name": "Towel Dispenser 13 x 11",
-      "category": "facilities-mep",
-      "line": "sanitary",
-      "brand": "Top Flow",
-      "description": "Washroom dispensers built for high-traffic commercial facilities.",
-      "specifications": {
-        "Size": "13 x 11",
-        "Product line": "Sanitary"
-      },
-      "priceMin": "110.00",
-      "priceMax": "175.00",
-      "uom": "PIECE",
-      "stockStatus": "IN_STOCK",
-      "stockQuantity": 28,
-      "tags": [
-        "sanitary",
-        "towel",
-        "dispenser"
-      ],
-      "imageUrl": "/catalog/products/afm-pvt-00502.webp"
     },
     {
       "sku": "AX-RB-D-01",
@@ -3382,7 +2317,7 @@
     },
     {
       "sku": "WS-SRB13",
-      "name": "Bubbler Stake, BSP Outlet",
+      "name": "Bubbler Stake, BSP Outlet (13 mm barb)",
       "category": "sprinklers-rotors",
       "line": "bubblers-stakes",
       "brand": "Top Flow",
@@ -3406,7 +2341,7 @@
     },
     {
       "sku": "WS-SRB16",
-      "name": "Bubbler Stake, BSP Outlet",
+      "name": "Bubbler Stake, BSP Outlet (16 mm barb)",
       "category": "sprinklers-rotors",
       "line": "bubblers-stakes",
       "brand": "Top Flow",
@@ -4018,31 +2953,6 @@
       "imageUrl": "/catalog/products/hdpe-pipe.webp"
     },
     {
-      "sku": "TF-PIPE-03",
-      "name": "Underground Wastewater Pipe (PE80)",
-      "category": "pipes-fittings",
-      "line": "irrigation-pipes",
-      "brand": "Top Flow",
-      "description": "HDPE pressure pipe to ISO 4427, wastewater and slotted drainage pipe, and LDPE pipe for drip and micro irrigation.",
-      "specifications": {
-        "Size": "110-630mm OD",
-        "Product line": "Irrigation Pipes",
-        "Details": "PE80, black, per DIN 8075/DIN 19537, SDR33/26/17.6, PN3.2-PN6 (3.2-6 Bar), 6m rods",
-        "Catalogue reference": "HDPE Underground Wastewater Pipe PE80"
-      },
-      "priceMin": "8.50",
-      "priceMax": "13.00",
-      "uom": "METER",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "pipe",
-        "irrigation",
-        "pipes"
-      ],
-      "imageUrl": "/catalog/products/hdpe-pipe.webp"
-    },
-    {
       "sku": "TF-PIPE-04",
       "name": "Slotted Drainage Pipe",
       "category": "pipes-fittings",
@@ -4094,7 +3004,7 @@
     },
     {
       "sku": "TF-CF-01",
-      "name": "Coupling (Equal)",
+      "name": "Compression Coupling (Equal)",
       "category": "pipes-fittings",
       "line": "compression-fittings",
       "brand": "Top Flow",
@@ -4119,7 +3029,7 @@
     },
     {
       "sku": "TF-CF-02",
-      "name": "Reducing Coupling",
+      "name": "Compression Reducing Coupling",
       "category": "pipes-fittings",
       "line": "compression-fittings",
       "brand": "Top Flow",
@@ -4145,7 +3055,7 @@
     },
     {
       "sku": "TF-CF-03",
-      "name": "Tee (Equal)",
+      "name": "Compression Tee (Equal)",
       "category": "pipes-fittings",
       "line": "compression-fittings",
       "brand": "Top Flow",
@@ -4170,7 +3080,7 @@
     },
     {
       "sku": "TF-CF-04",
-      "name": "Reducing Tee",
+      "name": "Compression Reducing Tee",
       "category": "pipes-fittings",
       "line": "compression-fittings",
       "brand": "Top Flow",
@@ -4195,7 +3105,7 @@
     },
     {
       "sku": "TF-CF-05",
-      "name": "Female Threaded Tee",
+      "name": "Compression Female Threaded Tee",
       "category": "pipes-fittings",
       "line": "compression-fittings",
       "brand": "Top Flow",
@@ -4220,7 +3130,7 @@
     },
     {
       "sku": "TF-CF-06",
-      "name": "Male Threaded Tee",
+      "name": "Compression Male Threaded Tee",
       "category": "pipes-fittings",
       "line": "compression-fittings",
       "brand": "Top Flow",
@@ -4245,7 +3155,7 @@
     },
     {
       "sku": "TF-CF-07",
-      "name": "Elbow (90 deg, Equal)",
+      "name": "Compression Elbow (90 deg, Equal)",
       "category": "pipes-fittings",
       "line": "compression-fittings",
       "brand": "Top Flow",
@@ -4270,7 +3180,7 @@
     },
     {
       "sku": "TF-CF-08",
-      "name": "Female Threaded Elbow",
+      "name": "Compression Female Threaded Elbow",
       "category": "pipes-fittings",
       "line": "compression-fittings",
       "brand": "Top Flow",
@@ -4295,7 +3205,7 @@
     },
     {
       "sku": "TF-CF-09",
-      "name": "Male Threaded Elbow",
+      "name": "Compression Male Threaded Elbow",
       "category": "pipes-fittings",
       "line": "compression-fittings",
       "brand": "Top Flow",
@@ -4320,7 +3230,7 @@
     },
     {
       "sku": "TF-CF-10",
-      "name": "Male Adaptor",
+      "name": "Compression Male Adaptor",
       "category": "pipes-fittings",
       "line": "compression-fittings",
       "brand": "Top Flow",
@@ -4345,7 +3255,7 @@
     },
     {
       "sku": "TF-CF-11",
-      "name": "Female Adaptor",
+      "name": "Compression Female Adaptor",
       "category": "pipes-fittings",
       "line": "compression-fittings",
       "brand": "Top Flow",
@@ -4370,7 +3280,7 @@
     },
     {
       "sku": "TF-CF-12",
-      "name": "End Cap",
+      "name": "Compression End Cap",
       "category": "pipes-fittings",
       "line": "compression-fittings",
       "brand": "Top Flow",
@@ -4395,7 +3305,7 @@
     },
     {
       "sku": "TF-CF-13",
-      "name": "Flange Adaptor",
+      "name": "Compression Flange Adaptor",
       "category": "pipes-fittings",
       "line": "compression-fittings",
       "brand": "Top Flow",
@@ -4421,7 +3331,7 @@
     },
     {
       "sku": "TF-CF-14",
-      "name": "Cross Tee (4-Way)",
+      "name": "Compression Cross Tee (4-Way)",
       "category": "pipes-fittings",
       "line": "compression-fittings",
       "brand": "Top Flow",
@@ -4446,7 +3356,7 @@
     },
     {
       "sku": "TF-CF-15",
-      "name": "Cross Tee Male Threaded",
+      "name": "Compression Cross Tee Male Threaded",
       "category": "pipes-fittings",
       "line": "compression-fittings",
       "brand": "Top Flow",
@@ -4471,7 +3381,7 @@
     },
     {
       "sku": "TF-CF-16",
-      "name": "Elbow (Male-Female)",
+      "name": "Compression Elbow (Male-Female)",
       "category": "pipes-fittings",
       "line": "compression-fittings",
       "brand": "Top Flow",
@@ -4521,7 +3431,7 @@
     },
     {
       "sku": "TF-BF-01",
-      "name": "Male Adaptor",
+      "name": "Barbed Male Adaptor",
       "category": "pipes-fittings",
       "line": "barbed-fittings",
       "brand": "Top Flow",
@@ -4546,7 +3456,7 @@
     },
     {
       "sku": "TF-BF-02",
-      "name": "Joiner / Straight Coupling",
+      "name": "Barbed Joiner / Straight Coupling",
       "category": "pipes-fittings",
       "line": "barbed-fittings",
       "brand": "Top Flow",
@@ -4571,7 +3481,7 @@
     },
     {
       "sku": "TF-BF-03",
-      "name": "Reducing Joiner",
+      "name": "Barbed Reducing Joiner",
       "category": "pipes-fittings",
       "line": "barbed-fittings",
       "brand": "Top Flow",
@@ -4596,7 +3506,7 @@
     },
     {
       "sku": "TF-BF-04",
-      "name": "End Plug",
+      "name": "Barbed End Plug",
       "category": "pipes-fittings",
       "line": "barbed-fittings",
       "brand": "Top Flow",
@@ -4621,7 +3531,7 @@
     },
     {
       "sku": "TF-BF-05",
-      "name": "Tee (Equal)",
+      "name": "Barbed Tee (Equal)",
       "category": "pipes-fittings",
       "line": "barbed-fittings",
       "brand": "Top Flow",
@@ -4646,7 +3556,7 @@
     },
     {
       "sku": "TF-BF-06",
-      "name": "Reducing Tee",
+      "name": "Barbed Reducing Tee",
       "category": "pipes-fittings",
       "line": "barbed-fittings",
       "brand": "Top Flow",
@@ -4671,7 +3581,7 @@
     },
     {
       "sku": "TF-BF-07",
-      "name": "Male Threaded Tee",
+      "name": "Barbed Male Threaded Tee",
       "category": "pipes-fittings",
       "line": "barbed-fittings",
       "brand": "Top Flow",
@@ -4696,7 +3606,7 @@
     },
     {
       "sku": "TF-BF-08",
-      "name": "Female Threaded Tee",
+      "name": "Barbed Female Threaded Tee",
       "category": "pipes-fittings",
       "line": "barbed-fittings",
       "brand": "Top Flow",
@@ -4721,7 +3631,7 @@
     },
     {
       "sku": "TF-BF-09",
-      "name": "Elbow (90 deg)",
+      "name": "Barbed Elbow (90 deg)",
       "category": "pipes-fittings",
       "line": "barbed-fittings",
       "brand": "Top Flow",
@@ -4746,7 +3656,7 @@
     },
     {
       "sku": "TF-BF-10",
-      "name": "Male Threaded Elbow",
+      "name": "Barbed Male Threaded Elbow",
       "category": "pipes-fittings",
       "line": "barbed-fittings",
       "brand": "Top Flow",
@@ -4771,7 +3681,7 @@
     },
     {
       "sku": "TF-BF-11",
-      "name": "Female Threaded Elbow",
+      "name": "Barbed Female Threaded Elbow",
       "category": "pipes-fittings",
       "line": "barbed-fittings",
       "brand": "Top Flow",
@@ -5298,7 +4208,7 @@
     },
     {
       "sku": "WSI-AE-QCV34",
-      "name": "Quick Coupling Valve",
+      "name": "Quick Coupling Valve (3/4 in)",
       "category": "pipes-fittings",
       "line": "quick-couplings",
       "brand": "Top Flow",
@@ -5323,7 +4233,7 @@
     },
     {
       "sku": "WSI-AE-QCV10",
-      "name": "Quick Coupling Valve",
+      "name": "Quick Coupling Valve (1 in)",
       "category": "pipes-fittings",
       "line": "quick-couplings",
       "brand": "Top Flow",
@@ -5348,7 +4258,7 @@
     },
     {
       "sku": "WSI-AE-QCE34",
-      "name": "Quick Coupling Swivel Elbow",
+      "name": "Quick Coupling Swivel Elbow (3/4 in)",
       "category": "pipes-fittings",
       "line": "quick-couplings",
       "brand": "Top Flow",
@@ -5372,7 +4282,7 @@
     },
     {
       "sku": "WSI-AE-QCE10",
-      "name": "Quick Coupling Swivel Elbow",
+      "name": "Quick Coupling Swivel Elbow (1 in)",
       "category": "pipes-fittings",
       "line": "quick-couplings",
       "brand": "Top Flow",
@@ -5396,7 +4306,7 @@
     },
     {
       "sku": "WSI-AE-QCK34",
-      "name": "Quick Coupling Key",
+      "name": "Quick Coupling Key (3/4 in)",
       "category": "pipes-fittings",
       "line": "quick-couplings",
       "brand": "Top Flow",
@@ -5420,7 +4330,7 @@
     },
     {
       "sku": "WSI-AE-QCK10",
-      "name": "Quick Coupling Key",
+      "name": "Quick Coupling Key (1 in)",
       "category": "pipes-fittings",
       "line": "quick-couplings",
       "brand": "Top Flow",
@@ -5444,7 +4354,7 @@
     },
     {
       "sku": "TF-VQA-01",
-      "name": "Barbed Valve",
+      "name": "Barbed Valve (16 x 16 mm)",
       "category": "pipes-fittings",
       "line": "valve-quick-adaptors",
       "brand": "Top Flow",
@@ -5469,7 +4379,7 @@
     },
     {
       "sku": "TF-VQA-02",
-      "name": "Barbed Valve",
+      "name": "Barbed Valve (20 x 20 mm)",
       "category": "pipes-fittings",
       "line": "valve-quick-adaptors",
       "brand": "Top Flow",
@@ -5494,7 +4404,7 @@
     },
     {
       "sku": "TF-VQA-03",
-      "name": "Threaded-Barbed Valve f/m",
+      "name": "Threaded-Barbed Valve f/m (16 mm barb x 1/2 in)",
       "category": "pipes-fittings",
       "line": "valve-quick-adaptors",
       "brand": "Top Flow",
@@ -5519,7 +4429,7 @@
     },
     {
       "sku": "TF-VQA-04",
-      "name": "Threaded-Barbed Valve f/m",
+      "name": "Threaded-Barbed Valve f/m (16 mm barb x 3/4 in)",
       "category": "pipes-fittings",
       "line": "valve-quick-adaptors",
       "brand": "Top Flow",
@@ -5544,7 +4454,7 @@
     },
     {
       "sku": "TF-VQA-05",
-      "name": "Threaded-Barbed Valve f/m",
+      "name": "Threaded-Barbed Valve f/m (20 mm barb x 1/2 in)",
       "category": "pipes-fittings",
       "line": "valve-quick-adaptors",
       "brand": "Top Flow",
@@ -5569,7 +4479,7 @@
     },
     {
       "sku": "TF-VQA-06",
-      "name": "Threaded-Barbed Valve f/m",
+      "name": "Threaded-Barbed Valve f/m (20 mm barb x 3/4 in)",
       "category": "pipes-fittings",
       "line": "valve-quick-adaptors",
       "brand": "Top Flow",
@@ -5594,7 +4504,7 @@
     },
     {
       "sku": "WSGS150-020",
-      "name": "Fusible Golf Saddle",
+      "name": "Fusible Golf Saddle (1.5 in outlet x 2 in IPS)",
       "category": "pipes-fittings",
       "line": "fusible-golf-saddles",
       "brand": "Top Flow",
@@ -5618,7 +4528,7 @@
     },
     {
       "sku": "WSGS150-030",
-      "name": "Fusible Golf Saddle",
+      "name": "Fusible Golf Saddle (1.5 in outlet x 3 in IPS)",
       "category": "pipes-fittings",
       "line": "fusible-golf-saddles",
       "brand": "Top Flow",
@@ -5642,7 +4552,7 @@
     },
     {
       "sku": "WSGS150-040",
-      "name": "Fusible Golf Saddle",
+      "name": "Fusible Golf Saddle (1.5 in outlet x 4 in IPS)",
       "category": "pipes-fittings",
       "line": "fusible-golf-saddles",
       "brand": "Top Flow",
@@ -5666,7 +4576,7 @@
     },
     {
       "sku": "WSGS125-020",
-      "name": "Fusible Golf Saddle",
+      "name": "Fusible Golf Saddle (1.25 in outlet x 2 in IPS)",
       "category": "pipes-fittings",
       "line": "fusible-golf-saddles",
       "brand": "Top Flow",
@@ -5690,7 +4600,7 @@
     },
     {
       "sku": "WSGS125-030",
-      "name": "Fusible Golf Saddle",
+      "name": "Fusible Golf Saddle (1.25 in outlet x 3 in IPS)",
       "category": "pipes-fittings",
       "line": "fusible-golf-saddles",
       "brand": "Top Flow",
@@ -5714,7 +4624,7 @@
     },
     {
       "sku": "WSGS125-040",
-      "name": "Fusible Golf Saddle",
+      "name": "Fusible Golf Saddle (1.25 in outlet x 4 in IPS)",
       "category": "pipes-fittings",
       "line": "fusible-golf-saddles",
       "brand": "Top Flow",
@@ -5738,7 +4648,7 @@
     },
     {
       "sku": "WSGS100-020",
-      "name": "Fusible Golf Saddle",
+      "name": "Fusible Golf Saddle (1 in outlet x 2 in IPS)",
       "category": "pipes-fittings",
       "line": "fusible-golf-saddles",
       "brand": "Top Flow",
@@ -5762,7 +4672,7 @@
     },
     {
       "sku": "WSGS100-030",
-      "name": "Fusible Golf Saddle",
+      "name": "Fusible Golf Saddle (1 in outlet x 3 in IPS)",
       "category": "pipes-fittings",
       "line": "fusible-golf-saddles",
       "brand": "Top Flow",
@@ -5786,7 +4696,7 @@
     },
     {
       "sku": "WSGS100-040",
-      "name": "Fusible Golf Saddle",
+      "name": "Fusible Golf Saddle (1 in outlet x 4 in IPS)",
       "category": "pipes-fittings",
       "line": "fusible-golf-saddles",
       "brand": "Top Flow",
@@ -5810,7 +4720,7 @@
     },
     {
       "sku": "WSGS150-063",
-      "name": "Fusible Golf Saddle",
+      "name": "Fusible Golf Saddle (1.5 in outlet x 63 mm)",
       "category": "pipes-fittings",
       "line": "fusible-golf-saddles",
       "brand": "Top Flow",
@@ -5834,7 +4744,7 @@
     },
     {
       "sku": "WSGS150-075",
-      "name": "Fusible Golf Saddle",
+      "name": "Fusible Golf Saddle (1.5 in outlet x 75 mm)",
       "category": "pipes-fittings",
       "line": "fusible-golf-saddles",
       "brand": "Top Flow",
@@ -5858,7 +4768,7 @@
     },
     {
       "sku": "WSGS150-090",
-      "name": "Fusible Golf Saddle",
+      "name": "Fusible Golf Saddle (1.5 in outlet x 90 mm)",
       "category": "pipes-fittings",
       "line": "fusible-golf-saddles",
       "brand": "Top Flow",
@@ -5882,7 +4792,7 @@
     },
     {
       "sku": "WSGS125-063",
-      "name": "Fusible Golf Saddle",
+      "name": "Fusible Golf Saddle (1.25 in outlet x 63 mm)",
       "category": "pipes-fittings",
       "line": "fusible-golf-saddles",
       "brand": "Top Flow",
@@ -5906,7 +4816,7 @@
     },
     {
       "sku": "WSGS125-075",
-      "name": "Fusible Golf Saddle",
+      "name": "Fusible Golf Saddle (1.25 in outlet x 75 mm)",
       "category": "pipes-fittings",
       "line": "fusible-golf-saddles",
       "brand": "Top Flow",
@@ -5930,7 +4840,7 @@
     },
     {
       "sku": "WSGS125-090",
-      "name": "Fusible Golf Saddle",
+      "name": "Fusible Golf Saddle (1.25 in outlet x 90 mm)",
       "category": "pipes-fittings",
       "line": "fusible-golf-saddles",
       "brand": "Top Flow",
@@ -5954,7 +4864,7 @@
     },
     {
       "sku": "WSGS100-063",
-      "name": "Fusible Golf Saddle",
+      "name": "Fusible Golf Saddle (1 in outlet x 63 mm)",
       "category": "pipes-fittings",
       "line": "fusible-golf-saddles",
       "brand": "Top Flow",
@@ -5978,7 +4888,7 @@
     },
     {
       "sku": "WSGS100-075",
-      "name": "Fusible Golf Saddle",
+      "name": "Fusible Golf Saddle (1 in outlet x 75 mm)",
       "category": "pipes-fittings",
       "line": "fusible-golf-saddles",
       "brand": "Top Flow",
@@ -6002,7 +4912,7 @@
     },
     {
       "sku": "WSGS100-090",
-      "name": "Fusible Golf Saddle",
+      "name": "Fusible Golf Saddle (1 in outlet x 90 mm)",
       "category": "pipes-fittings",
       "line": "fusible-golf-saddles",
       "brand": "Top Flow",
@@ -6844,1003 +5754,6 @@
         "auto"
       ],
       "imageUrl": "/catalog/products/h-type-auto-disc-filtration-system.webp"
-    },
-    {
-      "sku": "WSI-LN-2",
-      "name": "Pop-Up Spray Sprinkler (Bodies & Nozzles)",
-      "category": "landscaping-hardscape",
-      "line": "landscape-irrigation-ranges",
-      "brand": "Top Flow",
-      "description": "Complete ranges of sprays, rotors, bubblers, dripline, valves and valve boxes, ready to specify as one landscape package.",
-      "specifications": {
-        "Size": "2 inch and 4 inch pop-up height, 1/2 inch inlet",
-        "Product line": "Landscape Irrigation Ranges",
-        "Details": "Adjustable arc nozzle 0-360deg, pressure 20-40 psi (optimum 30 psi), flow 0.13-0.87 m3/h (0.57-3.83 GPM), radius 8-17 ft, stainless steel radius adjustment screw, color-coded nozzles",
-        "Catalogue reference": "WSI-LN-2 / WSI-LN-4"
-      },
-      "priceMin": "9.00",
-      "priceMax": "14.00",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "tee",
-        "sprinkler",
-        "spray",
-        "nozzle"
-      ],
-      "imageUrl": "/catalog/products/wsi-ln-2-wsi-ln-4.webp"
-    },
-    {
-      "sku": "WS-1200-16",
-      "name": "Shrub Adapter & Check Valve",
-      "category": "landscaping-hardscape",
-      "line": "landscape-irrigation-ranges",
-      "brand": "Top Flow",
-      "description": "Complete ranges of sprays, rotors, bubblers, dripline, valves and valve boxes, ready to specify as one landscape package.",
-      "specifications": {
-        "Size": "1/2 inch",
-        "Product line": "Landscape Irrigation Ranges",
-        "Details": "Accessories for pop-up sprays; shrub adapter with 1/2in female inlet and check valve to prevent low-head drainage",
-        "Catalogue reference": "WS-1200-16 / WSI-PPCV"
-      },
-      "priceMin": "5.00",
-      "priceMax": "8.50",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "valve",
-        "spray",
-        "adapter"
-      ],
-      "imageUrl": "/catalog/products/ws-1200-16-wsi-ppcv.webp"
-    },
-    {
-      "sku": "WSIR45",
-      "name": "Gear-Drive Rotor Sprinkler (Residential & Commercial)",
-      "category": "landscaping-hardscape",
-      "line": "landscape-irrigation-ranges",
-      "brand": "Top Flow",
-      "description": "Complete ranges of sprays, rotors, bubblers, dripline, valves and valve boxes, ready to specify as one landscape package.",
-      "specifications": {
-        "Size": "Radius 22-51 ft, spacing 25-45 ft",
-        "Product line": "Landscape Irrigation Ranges",
-        "Details": "direct replacement for leading gear-drive rotors, arc adjustment 40-360deg, flow 0.75-8.2 GPM, pressure rating 30-70 PSI, 3/4in NPT inlet, riser height 4in, includes 8 standard + 4 low angle nozzles",
-        "Catalogue reference": "WSIR45 / WSIR75"
-      },
-      "priceMin": "35.00",
-      "priceMax": "60.00",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "riser",
-        "rotor",
-        "sprinkler",
-        "nozzle"
-      ],
-      "imageUrl": "/catalog/products/wsir45-wsir75.webp"
-    },
-    {
-      "sku": "WSI-R-SPORT-2",
-      "name": "Sport & Field Rotor (Stainless Steel Riser)",
-      "category": "landscaping-hardscape",
-      "line": "landscape-irrigation-ranges",
-      "brand": "Top Flow",
-      "description": "Complete ranges of sprays, rotors, bubblers, dripline, valves and valve boxes, ready to specify as one landscape package.",
-      "specifications": {
-        "Size": "Radius 45-75 ft, spacing 40-65 ft",
-        "Product line": "Landscape Irrigation Ranges",
-        "Details": "Triple nozzle configuration, arc 40 to continuous 360deg, pressure 39.16-89.92 PSI, 1in BSP inlet, 4in stainless steel riser, factory installed check valve, standard and high-speed models",
-        "Catalogue reference": "WSI-R Sport-2"
-      },
-      "priceMin": "220.00",
-      "priceMax": "350.00",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "tee",
-        "riser",
-        "valve",
-        "rotor",
-        "nozzle"
-      ],
-      "imageUrl": "/catalog/products/wsi-r-sport-2.webp"
-    },
-    {
-      "sku": "WS-1701-RANGE",
-      "name": "Pressure Compensating Bubbler",
-      "category": "landscaping-hardscape",
-      "line": "landscape-irrigation-ranges",
-      "brand": "Top Flow",
-      "description": "Complete ranges of sprays, rotors, bubblers, dripline, valves and valve boxes, ready to specify as one landscape package.",
-      "specifications": {
-        "Size": "0.25, 0.5, 1.0, 2.0 GPM flow options",
-        "Product line": "Landscape Irrigation Ranges",
-        "Details": "Non-adjustable constant flow regardless of pressure fluctuation, operating pressure 20-90 psi, 1/2in BSP female inlet",
-        "Catalogue reference": "WS-1701 / WS-1702 / WS-1703 / WS-1704"
-      },
-      "priceMin": "4.00",
-      "priceMax": "6.50",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "bubbler",
-        "landscape",
-        "irrigation"
-      ],
-      "imageUrl": "/catalog/products/ws-1701-ws-1702-ws-1703-ws-1704.webp"
-    },
-    {
-      "sku": "WS-1600-2",
-      "name": "Adjustable Flow Bubbler",
-      "category": "landscaping-hardscape",
-      "line": "landscape-irrigation-ranges",
-      "brand": "Top Flow",
-      "description": "Complete ranges of sprays, rotors, bubblers, dripline, valves and valve boxes, ready to specify as one landscape package.",
-      "specifications": {
-        "Size": "1/2 inch inlet",
-        "Product line": "Landscape Irrigation Ranges",
-        "Details": "Stainless steel screw for flow/radius adjustment, non-corrosive plastic body, spray radius 11-35in, flow 4-9 L/min, operating pressure 10.15-58 psi, 1/2in BSP female inlet"
-      },
-      "priceMin": "3.50",
-      "priceMax": "5.50",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "tee",
-        "bubbler",
-        "spray"
-      ],
-      "imageUrl": "/catalog/products/ws-1600-2.webp"
-    },
-    {
-      "sku": "WS-533-2",
-      "name": "Adjustable Flood Bubbler",
-      "category": "landscaping-hardscape",
-      "line": "landscape-irrigation-ranges",
-      "brand": "Top Flow",
-      "description": "Complete ranges of sprays, rotors, bubblers, dripline, valves and valve boxes, ready to specify as one landscape package.",
-      "specifications": {
-        "Size": "1/2 inch inlet",
-        "Product line": "Landscape Irrigation Ranges",
-        "Details": "Fully adjustable arc and flow with twist-top shutoff to zero, operating pressure 14.5-39.88 psi, flow 0-22 L/min, radius 0-24in, 1/2in BSP female inlet"
-      },
-      "priceMin": "4.00",
-      "priceMax": "6.50",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "bubbler",
-        "landscape",
-        "irrigation"
-      ],
-      "imageUrl": "/catalog/products/ws-533-2.webp"
-    },
-    {
-      "sku": "WS-SRB13-RANGE",
-      "name": "Bubbler Stakes",
-      "category": "landscaping-hardscape",
-      "line": "landscape-irrigation-ranges",
-      "brand": "Top Flow",
-      "description": "Complete ranges of sprays, rotors, bubblers, dripline, valves and valve boxes, ready to specify as one landscape package.",
-      "specifications": {
-        "Size": "13mm and 16mm barb inlet x 1/2 inch outlet",
-        "Product line": "Landscape Irrigation Ranges",
-        "Details": "Ground stakes for bubbler sprinklers, barb inlet to BSP or ST outlet",
-        "Catalogue reference": "WS-SRB13 / WS-SRB16 / WS-ST13"
-      },
-      "priceMin": "1.50",
-      "priceMax": "2.50",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "bubbler",
-        "stake",
-        "sprinkler"
-      ],
-      "imageUrl": "/catalog/products/ws-srb13-ws-srb16-ws-st13.webp"
-    },
-    {
-      "sku": "WS-THR-F-RANGE",
-      "name": "Thabit PC Dripline (Flat Internal Dripper)",
-      "category": "landscaping-hardscape",
-      "line": "landscape-irrigation-ranges",
-      "brand": "Top Flow",
-      "description": "Complete ranges of sprays, rotors, bubblers, dripline, valves and valve boxes, ready to specify as one landscape package.",
-      "specifications": {
-        "Size": "Round pipe 16-25mm OD; flat pipe 17mm and 22mm OD",
-        "Product line": "Landscape Irrigation Ranges",
-        "Details": "Pressure compensating, laser-welded emitter, drain/non-drain and anti-siphon options, flow rates 1.0-3.8 L/H, self-cleaning labyrinth, high UV resistance",
-        "Catalogue reference": "WS-THR/F series"
-      },
-      "priceMin": "1.00",
-      "priceMax": "2.00",
-      "uom": "METER",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "dripline",
-        "emitter",
-        "drip"
-      ],
-      "imageUrl": "/catalog/products/ws-thr-f-series.webp"
-    },
-    {
-      "sku": "WS-TECH-RANGE",
-      "name": "Techno PC Dripline (Round Internal Dripper)",
-      "category": "landscaping-hardscape",
-      "line": "landscape-irrigation-ranges",
-      "brand": "Top Flow",
-      "description": "Complete ranges of sprays, rotors, bubblers, dripline, valves and valve boxes, ready to specify as one landscape package.",
-      "specifications": {
-        "Size": "16mm and 17mm dripline diameter",
-        "Product line": "Landscape Irrigation Ranges",
-        "Details": "Pressure compensating cylindrical inline emitters molded into tubing wall, drain/non-drain and anti-siphon options, highly clog resistant, flow rates 2 and 4 L/H",
-        "Catalogue reference": "WS-TECH series"
-      },
-      "priceMin": "1.50",
-      "priceMax": "2.50",
-      "uom": "METER",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "dripline",
-        "emitter",
-        "drip"
-      ],
-      "imageUrl": "/catalog/products/ws-tech-series.webp"
-    },
-    {
-      "sku": "WS-HDPC-RANGE",
-      "name": "Hodhod PC Online Button Emitter",
-      "category": "landscaping-hardscape",
-      "line": "landscape-irrigation-ranges",
-      "brand": "Top Flow",
-      "description": "Complete ranges of sprays, rotors, bubblers, dripline, valves and valve boxes, ready to specify as one landscape package.",
-      "specifications": {
-        "Size": "For pipes 12-32mm, wall thickness 0.9-1.2mm",
-        "Product line": "Landscape Irrigation Ranges",
-        "Details": "Pressure compensating, ultrasonic welded body, drain/non-drain options, compact 28mm height, color-coded flow rates 2.0/4.0/8.0/24 L/H, cross-shaped water inlet",
-        "Catalogue reference": "WS-HDPC series"
-      },
-      "priceMin": "0.50",
-      "priceMax": "1.00",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "emitter",
-        "landscape",
-        "irrigation"
-      ],
-      "imageUrl": "/catalog/products/ws-hdpc-series.webp"
-    },
-    {
-      "sku": "WS-TL-RANGE",
-      "name": "Barbed Fittings (Adapters, Elbows, Tees, Connectors)",
-      "category": "landscaping-hardscape",
-      "line": "landscape-irrigation-ranges",
-      "brand": "Top Flow",
-      "description": "Complete ranges of sprays, rotors, bubblers, dripline, valves and valve boxes, ready to specify as one landscape package.",
-      "specifications": {
-        "Size": "For PE pipe 4-32mm dia; 17mm line x 1/2-1 inch BSP",
-        "Product line": "Landscape Irrigation Ranges",
-        "Details": "Virgin polypropylene injection molded, BSP threaded, 3 bar nominal working pressure; includes male adapters, threaded elbows/tees, connectors, elbows, tees and female-threaded drain valve",
-        "Catalogue reference": "WS-TL series"
-      },
-      "priceMin": "0.50",
-      "priceMax": "2.00",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "elbow",
-        "tee",
-        "valve",
-        "adapter",
-        "barbed",
-        "fitting"
-      ],
-      "imageUrl": "/catalog/products/ws-tl-series.webp"
-    },
-    {
-      "sku": "WSI-FV-34-RANGE",
-      "name": "Automatic Flush Valve",
-      "category": "landscaping-hardscape",
-      "line": "landscape-irrigation-ranges",
-      "brand": "Top Flow",
-      "description": "Complete ranges of sprays, rotors, bubblers, dripline, valves and valve boxes, ready to specify as one landscape package.",
-      "specifications": {
-        "Size": "3/4 inch and 2 inch",
-        "Product line": "Landscape Irrigation Ranges",
-        "Details": "Opens at approx 1-2 PSI, closes at 1-3 PSI, max operating pressure 60 PSI, recommended 15-35 PSI, UV-resistant high-impact plastic, no tools or glue required",
-        "Catalogue reference": "WSI-FV-34 / WSI-FV-20"
-      },
-      "priceMin": "5.00",
-      "priceMax": "9.50",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "flush valve",
-        "valve",
-        "landscape"
-      ],
-      "imageUrl": "/catalog/products/wsi-fv-34-wsi-fv-20.webp"
-    },
-    {
-      "sku": "210-000",
-      "name": "Electric Valves (Solenoid)",
-      "category": "landscaping-hardscape",
-      "line": "landscape-irrigation-ranges",
-      "brand": "Top Flow",
-      "description": "Complete ranges of sprays, rotors, bubblers, dripline, valves and valve boxes, ready to specify as one landscape package.",
-      "specifications": {
-        "Size": "1in (5-30 GPM), 1.5in (5-80 GPM), 2in (5-120 GPM)",
-        "Product line": "Landscape Irrigation Ranges",
-        "Details": "Virgin PVC (NSF approved), stainless steel fasteners, 24 VAC solenoid, heavy-duty diaphragm, female threaded or slip socket, with or without flow control, operating pressure 15-150 PSI",
-        "Catalogue reference": "210-000 / 210-050 / 215-050 / 220-050"
-      },
-      "priceMin": "80.00",
-      "priceMax": "330.00",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "tee",
-        "socket",
-        "solenoid",
-        "valve"
-      ],
-      "imageUrl": "/catalog/products/210-000-210-050-215-050-220-050.webp"
-    },
-    {
-      "sku": "WSI-AE-QCV34-RANGE",
-      "name": "Quick Coupling Valves & Accessories",
-      "category": "landscaping-hardscape",
-      "line": "landscape-irrigation-ranges",
-      "brand": "Top Flow",
-      "description": "Complete ranges of sprays, rotors, bubblers, dripline, valves and valve boxes, ready to specify as one landscape package.",
-      "specifications": {
-        "Size": "3/4 inch and 1 inch BSP",
-        "Product line": "Landscape Irrigation Ranges",
-        "Details": "Solid brass construction, stainless steel spring prevents leakage, auto-closing lid, 360deg rotation elbow, max working pressure 145 PSI; includes valve, elbow, and key",
-        "Catalogue reference": "WSI-AE-QCV34 / QCV10 / QCE34 / QCE10 / QCK34 / QCK10"
-      },
-      "priceMin": "40.00",
-      "priceMax": "185.00",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "elbow",
-        "tee",
-        "coupling",
-        "quick coupling",
-        "valve"
-      ],
-      "imageUrl": "/catalog/products/wsi-ae-qcv34-qcv10-qce34-qce10-qck34-qck10.webp"
-    },
-    {
-      "sku": "WSI-AV1-1",
-      "name": "Air Release and Vacuum Valves",
-      "category": "landscaping-hardscape",
-      "line": "landscape-irrigation-ranges",
-      "brand": "Top Flow",
-      "description": "Complete ranges of sprays, rotors, bubblers, dripline, valves and valve boxes, ready to specify as one landscape package.",
-      "specifications": {
-        "Size": "1 inch BSP and 2 inch BSP / BSP+",
-        "Product line": "Landscape Irrigation Ranges",
-        "Details": "Combination air valve, double action and continuous operation, max working pressure 225 PSI, sealing pressure 5 PSI, ISO PN10 rated, air outtake/intake up to 360 m3/h",
-        "Catalogue reference": "WSI-AV1-1 / WSI-AV2-2 / WSI-AV2Plus-2"
-      },
-      "priceMin": "100.00",
-      "priceMax": "440.00",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "air valve",
-        "valve",
-        "landscape"
-      ],
-      "imageUrl": "/catalog/products/wsi-av1-1-wsi-av2-2-wsi-av2plus-2.webp"
-    },
-    {
-      "sku": "WS-VB-610-RANGE",
-      "name": "Valve Boxes (HDPE, Round & Rectangular)",
-      "category": "landscaping-hardscape",
-      "line": "landscape-irrigation-ranges",
-      "brand": "Top Flow",
-      "description": "Complete ranges of sprays, rotors, bubblers, dripline, valves and valve boxes, ready to specify as one landscape package.",
-      "specifications": {
-        "Size": "6in, 9/10in, 11in round; 12in, 15in, 18in rectangular incl standard, jumbo, super jumbo and extension variants",
-        "Product line": "Landscape Irrigation Ranges",
-        "Details": "High-impact HDPE structure, UV inhibitors, reinforced ribs and covers, overlapping covers, max load sustained 12.03-49.82 KN depending on size, green color, body/cover/complete kits",
-        "Catalogue reference": "WS-VB 610 to WS-VB 1730"
-      },
-      "priceMin": "20.00",
-      "priceMax": "380.00",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "hdpe",
-        "valve box",
-        "valve"
-      ],
-      "imageUrl": "/catalog/products/ws-vb-610-to-ws-vb-1730.webp"
-    },
-    {
-      "sku": "WS-PEQ",
-      "name": "Edge-Queen",
-      "category": "landscaping-hardscape",
-      "line": "landscape-edging",
-      "brand": "Top Flow",
-      "description": "UV-stabilised polyethylene edging that keeps lawns, gravel and planting beds crisp and defined.",
-      "specifications": {
-        "Size": "10-pc x 5.5m per pack, height 124.2mm, black or brown",
-        "Product line": "Landscape Edging",
-        "Details": "Round top bead edging, pure polyethylene w/ 3.5-4% carbon black UV stabilization, 2mm wall thickness, 25.8mm round top bead, 4-groove horizontal wall anchor, heat-formable, weight approx 0.355 kg/m"
-      },
-      "priceMin": "290.00",
-      "priceMax": "460.00",
-      "uom": "SET",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "edging",
-        "landscape",
-        "products"
-      ],
-      "imageUrl": "/catalog/products/ws-peq.webp"
-    },
-    {
-      "sku": "WS-PEQ-YARD",
-      "name": "Edge-Yard",
-      "category": "landscaping-hardscape",
-      "line": "landscape-edging",
-      "brand": "Top Flow",
-      "description": "UV-stabilised polyethylene edging that keeps lawns, gravel and planting beds crisp and defined.",
-      "specifications": {
-        "Size": "10-pc x 5.5m per pack, height 132.08mm, black or brown",
-        "Product line": "Landscape Edging",
-        "Details": "Economical round top edging, pure polyethylene w/ UV stabilization, 1.5mm wall thickness, professional/contractor quality, heat-formable, weight approx 0.295 kg/m",
-        "Catalogue reference": "WS-PEQ-Yard"
-      },
-      "priceMin": "250.00",
-      "priceMax": "395.00",
-      "uom": "SET",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "edging",
-        "landscape",
-        "products"
-      ],
-      "imageUrl": "/catalog/products/ws-peq-yard.webp"
-    },
-    {
-      "sku": "WS-PEQ-FLAT",
-      "name": "Edge-Flat",
-      "category": "landscaping-hardscape",
-      "line": "landscape-edging",
-      "brand": "Top Flow",
-      "description": "UV-stabilised polyethylene edging that keeps lawns, gravel and planting beds crisp and defined.",
-      "specifications": {
-        "Size": "10-pc x 6m per pack, height 82.6mm",
-        "Product line": "Landscape Edging",
-        "Details": "One-inch circular bead flat edging, pure polyethylene w/ UV stabilization, 2mm wall thickness, no digging required, flexible for curves, includes six 9-inch heavy-duty poly anchor stakes, weight 0.26 kg/m",
-        "Catalogue reference": "WS-PEQ-Flat"
-      },
-      "priceMin": "260.00",
-      "priceMax": "410.00",
-      "uom": "SET",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "stake",
-        "edging",
-        "landscape"
-      ],
-      "imageUrl": "/catalog/products/ws-peq-flat.webp"
-    },
-    {
-      "sku": "WS-PEQ-FLEX",
-      "name": "Edge-Flex",
-      "category": "landscaping-hardscape",
-      "line": "landscape-edging",
-      "brand": "Top Flow",
-      "description": "UV-stabilised polyethylene edging that keeps lawns, gravel and planting beds crisp and defined.",
-      "specifications": {
-        "Size": "10-pc x 6m per pack, height 38.1x50.8mm",
-        "Product line": "Landscape Edging",
-        "Details": "Coiled no-dig edging, pure polyethylene w/ UV stabilization, 2mm wall thickness, keeps mulch/gravel contained, easy to bend into curves, includes 9-inch anchor nails, weight 0.16 kg/m",
-        "Catalogue reference": "WS-PEQ-Flex"
-      },
-      "priceMin": "180.00",
-      "priceMax": "285.00",
-      "uom": "SET",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "edging",
-        "landscape",
-        "products"
-      ],
-      "imageUrl": "/catalog/products/ws-peq-flex.webp"
-    },
-    {
-      "sku": "WS-PEQ-SMART",
-      "name": "Edge-Smart",
-      "category": "landscaping-hardscape",
-      "line": "landscape-edging",
-      "brand": "Top Flow",
-      "description": "UV-stabilised polyethylene edging that keeps lawns, gravel and planting beds crisp and defined.",
-      "specifications": {
-        "Size": "10-pc x 6m per pack, height 76.2x50.8mm, black or light brown",
-        "Product line": "Landscape Edging",
-        "Details": "3-inch wall edging, pure polyethylene w/ UV stabilization, 2mm wall thickness, strong enough for string trimmer use, contourable for curves or straight designs, weight 0.23 kg/m",
-        "Catalogue reference": "WS-PEQ-Smart"
-      },
-      "priceMin": "230.00",
-      "priceMax": "365.00",
-      "uom": "SET",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "edging",
-        "landscape",
-        "products"
-      ],
-      "imageUrl": "/catalog/products/ws-peq-smart.webp"
-    },
-    {
-      "sku": "WS-GRASSGRID",
-      "name": "Grass Grid Paver",
-      "category": "landscaping-hardscape",
-      "line": "grass-grid-pavers",
-      "brand": "Top Flow",
-      "description": "Recycled HDPE grass grid pavers for green parking bays, fire lanes and access paths.",
-      "specifications": {
-        "Size": "500 x 500 x 50mm, approx 962.5g/unit, green or black",
-        "Product line": "Grass Grid Pavers",
-        "Details": "Material HDPE (100% recycled PP/PE), thickness 2.5mm, axle load 140 KN, green area ratio 96%, classification 16/16 DIN1072, integrated reinforcement spikes, markers included, filled with soil or stones, fire-road rated"
-      },
-      "priceMin": "15.00",
-      "priceMax": "24.00",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "hdpe",
-        "grass grid",
-        "grass"
-      ],
-      "imageUrl": "/catalog/products/ws-grassgrid.webp"
-    },
-    {
-      "sku": "WS-CB-12",
-      "name": "12in Square Catch Basin",
-      "category": "landscaping-hardscape",
-      "line": "catch-basins",
-      "brand": "Top Flow",
-      "description": "HDPE catch basins, grates and kits that collect surface water from lawns, planters and paved areas.",
-      "specifications": {
-        "Size": "12 inch square",
-        "Product line": "Catch Basins",
-        "Details": "HDPE, UV stabilized, 2 outlets, accepts 12in square flat grate and 12in basin riser, fits basin plug and 3in/4in/6in adapters, capacity 5.10 gals, sump capacity 1.25 gals"
-      },
-      "priceMin": "85.00",
-      "priceMax": "135.00",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "hdpe",
-        "riser",
-        "adapter",
-        "catch basin"
-      ],
-      "imageUrl": "/catalog/products/catch-basin-square.webp"
-    },
-    {
-      "sku": "WS-CB-18",
-      "name": "18in Square Catch Basin",
-      "category": "landscaping-hardscape",
-      "line": "catch-basins",
-      "brand": "Top Flow",
-      "description": "HDPE catch basins, grates and kits that collect surface water from lawns, planters and paved areas.",
-      "specifications": {
-        "Size": "18 inch square",
-        "Product line": "Catch Basins",
-        "Details": "HDPE, UV stabilized, 2 outlets, accepts 18in square flat grate and 18in basin riser, fits basin plug and 3in/4in/6in adapters, capacity 5.10 gals, sump capacity 1.25 gals"
-      },
-      "priceMin": "450.00",
-      "priceMax": "720.00",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "hdpe",
-        "riser",
-        "adapter",
-        "catch basin"
-      ],
-      "imageUrl": "/catalog/products/catch-basin-square.webp"
-    },
-    {
-      "sku": "WS-CB-24",
-      "name": "24in Square Catch Basin",
-      "category": "landscaping-hardscape",
-      "line": "catch-basins",
-      "brand": "Top Flow",
-      "description": "HDPE catch basins, grates and kits that collect surface water from lawns, planters and paved areas.",
-      "specifications": {
-        "Size": "24 inch square",
-        "Product line": "Catch Basins",
-        "Details": "HDPE, UV stabilized, 2 outlets, accepts 24in square flat grate and 24in basin riser, fits basin plug and 3in/4in/6in adapters, capacity 5.10 gals, sump capacity 1.25 gals"
-      },
-      "priceMin": "950.00",
-      "priceMax": "1500.00",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "hdpe",
-        "riser",
-        "adapter",
-        "catch basin"
-      ],
-      "imageUrl": "/catalog/products/catch-basin-square.webp"
-    },
-    {
-      "sku": "WS-CBK-G-12",
-      "name": "12in Square Basin Kit",
-      "category": "landscaping-hardscape",
-      "line": "catch-basins",
-      "brand": "Top Flow",
-      "description": "HDPE catch basins, grates and kits that collect surface water from lawns, planters and paved areas.",
-      "specifications": {
-        "Size": "12 inch, grate in green (G) or black (B)",
-        "Product line": "Catch Basins",
-        "Details": "Kit includes 12in square basin with two outlets, two 3in and 4in adapters, basin plug, and 12in square flat grate",
-        "Catalogue reference": "WS-CBK-G-12 / WS-CBK-B-12"
-      },
-      "priceMin": "190.00",
-      "priceMax": "300.00",
-      "uom": "SET",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "adapter",
-        "catch basin",
-        "catch"
-      ],
-      "imageUrl": "/catalog/products/catch-basin-kit.webp"
-    },
-    {
-      "sku": "WS-CBK-G-18",
-      "name": "18in Square Basin Kit",
-      "category": "landscaping-hardscape",
-      "line": "catch-basins",
-      "brand": "Top Flow",
-      "description": "HDPE catch basins, grates and kits that collect surface water from lawns, planters and paved areas.",
-      "specifications": {
-        "Size": "18 inch, grate in green (G) or black (B)",
-        "Product line": "Catch Basins",
-        "Details": "Kit includes 18in square basin with two outlets, two 3in and 4in adapters, basin plug, and 18in square flat grate",
-        "Catalogue reference": "WS-CBK-G-18 / WS-CBK-B-18"
-      },
-      "priceMin": "720.00",
-      "priceMax": "1150.00",
-      "uom": "SET",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "adapter",
-        "catch basin",
-        "catch"
-      ],
-      "imageUrl": "/catalog/products/catch-basin-kit.webp"
-    },
-    {
-      "sku": "WS-CBK-G-24",
-      "name": "24in Square Basin Kit",
-      "category": "landscaping-hardscape",
-      "line": "catch-basins",
-      "brand": "Top Flow",
-      "description": "HDPE catch basins, grates and kits that collect surface water from lawns, planters and paved areas.",
-      "specifications": {
-        "Size": "24 inch, grate in green (G) or black (B)",
-        "Product line": "Catch Basins",
-        "Details": "Kit includes 24in square basin with two outlets, two 3in and 4in adapters, basin plug, and 24in square flat grate",
-        "Catalogue reference": "WS-CBK-G-24 / WS-CBK-B-24"
-      },
-      "priceMin": "1350.00",
-      "priceMax": "2150.00",
-      "uom": "SET",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "adapter",
-        "catch basin",
-        "catch"
-      ],
-      "imageUrl": "/catalog/products/catch-basin-kit.webp"
-    },
-    {
-      "sku": "WS-CBFG-G-12",
-      "name": "12in Square Flat Grate",
-      "category": "landscaping-hardscape",
-      "line": "catch-basins",
-      "brand": "Top Flow",
-      "description": "HDPE catch basins, grates and kits that collect surface water from lawns, planters and paved areas.",
-      "specifications": {
-        "Size": "12 inch square, green or black",
-        "Product line": "Catch Basins",
-        "Details": "Structurally foamed HDPE, UV stabilized, textured anti-skid surface, ADA compliant, open slot width 7/16in, open surface area 53 sq in, max flow 70 GPM, max load 3,000 lbs"
-      },
-      "priceMin": "75.00",
-      "priceMax": "120.00",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "hdpe",
-        "catch basin",
-        "catch"
-      ],
-      "imageUrl": "/catalog/products/catch-basin-flat-grate.webp"
-    },
-    {
-      "sku": "WS-CBFG-G-18",
-      "name": "18in Square Flat Grate",
-      "category": "landscaping-hardscape",
-      "line": "catch-basins",
-      "brand": "Top Flow",
-      "description": "HDPE catch basins, grates and kits that collect surface water from lawns, planters and paved areas.",
-      "specifications": {
-        "Size": "18 inch square, green or black",
-        "Product line": "Catch Basins",
-        "Details": "Structurally foamed HDPE, UV stabilized, textured anti-skid surface, ADA compliant, open slot width 7/16in, open surface area 53 sq in, max flow 70 GPM, max load 3,000 lbs"
-      },
-      "priceMin": "350.00",
-      "priceMax": "560.00",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "hdpe",
-        "catch basin",
-        "catch"
-      ],
-      "imageUrl": "/catalog/products/catch-basin-flat-grate.webp"
-    },
-    {
-      "sku": "WS-CBFG-G-24",
-      "name": "24in Square Flat Grate",
-      "category": "landscaping-hardscape",
-      "line": "catch-basins",
-      "brand": "Top Flow",
-      "description": "HDPE catch basins, grates and kits that collect surface water from lawns, planters and paved areas.",
-      "specifications": {
-        "Size": "24 inch square, green or black",
-        "Product line": "Catch Basins",
-        "Details": "Structurally foamed HDPE, UV stabilized, textured anti-skid surface, ADA compliant, open slot width 7/16in, open surface area 53 sq in, max flow 70 GPM, max load 3,000 lbs"
-      },
-      "priceMin": "650.00",
-      "priceMax": "1040.00",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "hdpe",
-        "catch basin",
-        "catch"
-      ],
-      "imageUrl": "/catalog/products/catch-basin-flat-grate.webp"
-    },
-    {
-      "sku": "GBURAC600A",
-      "name": "Space 600 Upright",
-      "category": "landscaping-hardscape",
-      "line": "soil-cells",
-      "brand": "Top Flow",
-      "description": "Modular soil cells that carry pavement loads while leaving loose soil for healthy tree roots and stormwater storage.",
-      "specifications": {
-        "Size": "Height 24in (600mm), Width 20in (500mm), Breadth 4in (90mm)",
-        "Product line": "Soil Cells",
-        "Details": "100% recycled PP structural upright panel for G2 600 soil cell system"
-      },
-      "priceMin": "32.00",
-      "priceMax": "50.00",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "soil cell",
-        "soil",
-        "cell"
-      ],
-      "imageUrl": "/catalog/products/soil-cell-g2-module.webp"
-    },
-    {
-      "sku": "GBURAC500A",
-      "name": "Space 600 Airflow Lid",
-      "category": "landscaping-hardscape",
-      "line": "soil-cells",
-      "brand": "Top Flow",
-      "description": "Modular soil cells that carry pavement loads while leaving loose soil for healthy tree roots and stormwater storage.",
-      "specifications": {
-        "Size": "Height 3in (75mm), Width 20in (500mm), Breadth 20in (500mm)",
-        "Product line": "Soil Cells",
-        "Details": "100% recycled PP airflow lid panel for G2 600 soil cell system"
-      },
-      "priceMin": "34.00",
-      "priceMax": "54.00",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "soil cell",
-        "soil",
-        "cell"
-      ],
-      "imageUrl": "/catalog/products/soil-cell-g2-module.webp"
-    },
-    {
-      "sku": "GBURSP65A",
-      "name": "Space 600 Infill",
-      "category": "landscaping-hardscape",
-      "line": "soil-cells",
-      "brand": "Top Flow",
-      "description": "Modular soil cells that carry pavement loads while leaving loose soil for healthy tree roots and stormwater storage.",
-      "specifications": {
-        "Size": "Height 21in (527mm), Width 13in (334mm), Breadth 2in (40mm)",
-        "Product line": "Soil Cells",
-        "Details": "100% recycled PP infill panel for G2 600 soil cell system"
-      },
-      "priceMin": "11.00",
-      "priceMax": "17.00",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "soil cell",
-        "soil",
-        "cell"
-      ],
-      "imageUrl": "/catalog/products/soil-cell-g2-module.webp"
-    },
-    {
-      "sku": "GBURAC400B",
-      "name": "Space 400 Upright",
-      "category": "landscaping-hardscape",
-      "line": "soil-cells",
-      "brand": "Top Flow",
-      "description": "Modular soil cells that carry pavement loads while leaving loose soil for healthy tree roots and stormwater storage.",
-      "specifications": {
-        "Size": "Height 16in (400mm), Width 20in (500mm), Breadth 3in (75mm)",
-        "Product line": "Soil Cells",
-        "Details": "100% recycled PP structural upright panel for G2 400 soil cell system"
-      },
-      "priceMin": "28.00",
-      "priceMax": "44.00",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "soil cell",
-        "soil",
-        "cell"
-      ],
-      "imageUrl": "/catalog/products/soil-cell-g2-module.webp"
-    },
-    {
-      "sku": "GBURAC500B",
-      "name": "Space 400 Airflow Lid",
-      "category": "landscaping-hardscape",
-      "line": "soil-cells",
-      "brand": "Top Flow",
-      "description": "Modular soil cells that carry pavement loads while leaving loose soil for healthy tree roots and stormwater storage.",
-      "specifications": {
-        "Size": "Height 3in (75mm), Width 20in (500mm), Breadth 20in (500mm)",
-        "Product line": "Soil Cells",
-        "Details": "100% recycled PP airflow lid panel for G2 400 soil cell system"
-      },
-      "priceMin": "34.00",
-      "priceMax": "54.00",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "soil cell",
-        "soil",
-        "cell"
-      ],
-      "imageUrl": "/catalog/products/soil-cell-g2-module.webp"
-    },
-    {
-      "sku": "GBURSP45PB",
-      "name": "Space 400 Infill",
-      "category": "landscaping-hardscape",
-      "line": "soil-cells",
-      "brand": "Top Flow",
-      "description": "Modular soil cells that carry pavement loads while leaving loose soil for healthy tree roots and stormwater storage.",
-      "specifications": {
-        "Size": "Height 13in (327mm), Width 13in (334mm), Breadth 2in (40mm)",
-        "Product line": "Soil Cells",
-        "Details": "100% recycled PP infill panel for G2 400 soil cell system"
-      },
-      "priceMin": "9.00",
-      "priceMax": "14.00",
-      "uom": "PIECE",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "soil cell",
-        "soil",
-        "cell"
-      ],
-      "imageUrl": "/catalog/products/soil-cell-g2-module.webp"
-    },
-    {
-      "sku": "G2-400",
-      "name": "Soil Cell G2 400 System",
-      "category": "landscaping-hardscape",
-      "line": "soil-cells",
-      "brand": "Top Flow",
-      "description": "Modular soil cells that carry pavement loads while leaving loose soil for healthy tree roots and stormwater storage.",
-      "specifications": {
-        "Size": "16in (400mm) module; configurations from 19in (475mm) single to 43in (1075mm) 400+600 combo",
-        "Product line": "Soil Cells",
-        "Details": "Over 97% open void space; vertical crushing load 434 kN/m2 (63psi/44.3 t/m2) single height, 297.7 kN/m2 (43psi/30.4 t/m2) double height; horizontal crushing load w/ side panels (double height) 139.4 kN/m2 (20 psi/14.2",
-        "Catalogue reference": "G2 400"
-      },
-      "priceMin": "120.00",
-      "priceMax": "260.00",
-      "uom": "SET",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "soil cell",
-        "soil",
-        "cell"
-      ],
-      "imageUrl": "/catalog/products/soil-cell-g2-module.webp"
-    },
-    {
-      "sku": "G2-600",
-      "name": "Soil Cell G2 600 System",
-      "category": "landscaping-hardscape",
-      "line": "soil-cells",
-      "brand": "Top Flow",
-      "description": "Modular soil cells that carry pavement loads while leaving loose soil for healthy tree roots and stormwater storage.",
-      "specifications": {
-        "Size": "24in (600mm) module; configurations from 27in (675mm) single to 51in (1275mm) double height",
-        "Product line": "Soil Cells",
-        "Details": "Over 97% open void space; vertical crushing load 308.0 kN/m2 (45psi/31.4 t/m2) single height, 285.7 kN/m2 (41psi/29.1 t/m2) double height; horizontal crushing load w/ side panels (double height) 56.5 kN/m2 (8 psi/5.8",
-        "Catalogue reference": "G2 600"
-      },
-      "priceMin": "130.00",
-      "priceMax": "290.00",
-      "uom": "SET",
-      "stockStatus": "ON_ORDER",
-      "stockQuantity": 0,
-      "tags": [
-        "soil cell",
-        "soil",
-        "cell"
-      ],
-      "imageUrl": "/catalog/products/soil-cell-g2-module.webp"
     },
     {
       "sku": "WS-CPS-2000-CONVEX",

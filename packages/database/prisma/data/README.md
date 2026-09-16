@@ -1,6 +1,6 @@
 # Catalogue data
 
-`topflow-catalogue.json` is the product range loaded by `prisma/seed.ts`: 9 categories, 41 product lines and 323 products.
+`topflow-catalogue.json` is the product range loaded by `prisma/seed.ts`: 7 categories, 31 product lines and 241 products — irrigation, water management and farm supplies only.
 
 ## Where it comes from
 
@@ -14,9 +14,23 @@
   - Descriptive identifiers become tidy codes: `TF-<LINE>-<NN>`, or the first code plus `-RANGE` for size series.
   - The original identifier is kept in the `Catalogue reference` specification.
 
+## Curation (2026-09-17)
+
+The imported range was narrowed to what fits the business, and its listings were cleaned:
+
+- **Removed categories:** Facilities & MEP (ventilation, bins, lighting, sanitary products) and Landscaping & Hardscape (edging, pavers, catch basins, soil cells, and range overviews that repeated products listed elsewhere).
+- **Removed products:** a sewage pipe (DIN 19537) and 33 electrofusion fittings listed more than once under different code series. Where copies existed, the `AX-EFS` code was kept.
+- **Unique names:** every product name is unique.
+  - Electrofusion fittings follow one scheme from their size: coupler, elbow, tee, reducer, reducing tee or reducing elbow.
+  - Compression and barbed fittings name their system.
+  - Variants that differ only by size carry the size.
+- **Corrected data:** a welding reducer listed as 36 × 32 mm is 63 × 32 mm, the standard size of its series.
+
 ## Updating
 
 Edit the JSON and re-run `npm run db:seed`:
 
 - Content and prices are refreshed, while live stock levels are kept.
-- Products missing from the file are unpublished (`isActive = false`), never deleted, unless `SEED_KEEP_UNLISTED=true`.
+- Products missing from the file are unpublished (`isActive = false`) by default.
+  - `SEED_KEEP_UNLISTED=true` leaves them untouched.
+  - `SEED_PRUNE_UNLISTED=true` deletes them, together with categories the file no longer lists. Order, quotation and request lines keep their own copy of each product.

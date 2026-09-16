@@ -1,4 +1,4 @@
-import { Cylinder, Droplet, Droplets, Funnel, Gauge, Package, PlugZap, Shapes, Trees, Wrench, type LucideIcon } from 'lucide-react';
+import { Cylinder, Droplet, Droplets, Funnel, Gauge, Package, PlugZap, Shapes, type LucideIcon } from 'lucide-react';
 import { createElement } from 'react';
 import type { MainCategorySlug } from '@/lib/company';
 
@@ -9,9 +9,7 @@ const CATEGORY_ICONS: Record<MainCategorySlug, LucideIcon> = {
   'pipes-fittings': Cylinder,
   'valves-control': Gauge,
   filtration: Funnel,
-  'landscaping-hardscape': Trees,
   specialty: Shapes,
-  'facilities-mep': Wrench,
 };
 
 /** Decorative icon for a top-level catalogue category (see MAIN_CATEGORIES); a box for anything else. */
