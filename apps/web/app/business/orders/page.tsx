@@ -1,6 +1,7 @@
 'use client';
 
 import { ORDER_STATUS_LABELS, OrderStatus, enumValues, type OrderSummaryDto, type Paginated } from '@topflow/shared';
+import { Package, SearchX } from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { LoadError } from '@/components/business/feedback';
@@ -38,6 +39,7 @@ function OrderList() {
       ) : data.items.length === 0 ? (
         list.filtered ? (
           <EmptyState
+            icon={<SearchX aria-hidden="true" />}
             title="No orders match your filters"
             description="Try another status or search term."
             action={
@@ -48,6 +50,7 @@ function OrderList() {
           />
         ) : (
           <EmptyState
+            icon={<Package aria-hidden="true" />}
             title="No orders yet"
             description="An order is created automatically when a quotation is accepted (and approved, if it needs sign-off)."
             action={
@@ -73,9 +76,12 @@ function OrderList() {
             </thead>
             <tbody>
               {data.items.map((order) => (
-                <tr key={order.id} className="hover:bg-slate-50/70">
+                <tr key={order.id} className="hover:bg-slate-50">
                   <Td>
-                    <Link href={`/business/orders/${order.id}`} className="whitespace-nowrap font-mono text-xs font-semibold text-brand-700 hover:underline">
+                    <Link
+                      href={`/business/orders/${order.id}`}
+                      className="whitespace-nowrap font-mono text-sm font-semibold text-brand-700 underline-offset-4 hover:underline"
+                    >
                       {order.orderNumber}
                     </Link>
                   </Td>

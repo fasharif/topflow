@@ -1,10 +1,13 @@
 'use client';
 
-import Link from 'next/link';
+import { RotateCcw, SearchX } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState, type ComponentProps, type ReactNode } from 'react';
 import { Alert, Button, EmptyState, LinkButton } from '@/components/ui';
 import type { ApiError } from '@/lib/api';
+
+// Kept here so existing trade-portal imports of `BackLink` resolve to the shared kit version.
+export { BackLink } from '@/components/ui';
 
 /** Error state for a failed query, with a friendly "not found" variant for detail pages. */
 export function LoadError({
@@ -20,6 +23,7 @@ export function LoadError({
   if (notFound && (error.status === 404 || error.status === 400)) {
     return (
       <EmptyState
+        icon={<SearchX aria-hidden="true" />}
         title={notFound.title}
         description={notFound.description}
         action={
@@ -33,9 +37,10 @@ export function LoadError({
   return (
     <Alert tone="danger" title="We couldn't load this page">
       <p>{error.message}</p>
-      <button type="button" onClick={onRetry} className="mt-2 font-medium underline underline-offset-2 hover:no-underline">
+      <Button variant="secondary" size="sm" onClick={onRetry} className="mt-3">
+        <RotateCcw aria-hidden="true" />
         Try again
-      </button>
+      </Button>
     </Alert>
   );
 }
@@ -68,14 +73,18 @@ export function FlagAlert({
   };
 
   return (
-    <div className="mb-6">
-      <Alert tone={tone} title={title}>
-        {children}
-        <button type="button" onClick={dismiss} className="mt-2 block text-xs font-medium underline underline-offset-2 hover:no-underline">
+    <Alert tone={tone} title={title} className="mb-6">
+      {children}
+      <div className="mt-2">
+        <button
+          type="button"
+          onClick={dismiss}
+          className="inline-flex min-h-6 cursor-pointer items-center font-medium underline underline-offset-4 hover:no-underline"
+        >
           Dismiss
         </button>
-      </Alert>
-    </div>
+      </div>
+    </Alert>
   );
 }
 
@@ -123,7 +132,7 @@ export function ConfirmAction({
 
   return (
     <span className="inline-flex flex-wrap items-center justify-end gap-2" role="group" aria-label={prompt ?? label}>
-      {prompt && <span className="text-sm text-slate-600">{prompt}</span>}
+      {prompt && <span className="text-sm font-medium text-ink-900">{prompt}</span>}
       <Button variant="danger" size={size} loading={busy} onClick={() => void confirm()}>
         {confirmLabel}
       </Button>
@@ -131,16 +140,5 @@ export function ConfirmAction({
         Cancel
       </Button>
     </span>
-  );
-}
-
-export function BackLink({ href, children }: { href: string; children: ReactNode }) {
-  return (
-    <Link href={href} className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-brand-700">
-      <svg viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-        <path d="M12 15l-5-5 5-5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      {children}
-    </Link>
   );
 }

@@ -1,21 +1,41 @@
-import { STOCK_LABELS, UOM_LABELS, type ProductDto } from './labels';
+import type { ProductDto } from '@topflow/shared';
+import { Clock, Droplet, PackageCheck } from 'lucide-react';
 import Link from 'next/link';
-import { aed, aedRange } from '@/lib/format';
-import { Badge, cx } from '../ui';
-import { AddToCartButton } from './add-to-cart-button';
+import { ApproxPrice, Badge, TradePrice, type PriceSize } from '../ui';
+import { STOCK_LABELS } from './labels';
+import { QuoteAction } from './quote-action';
 
-export function ProductImage({ product, className }: { product: Pick<ProductDto, 'imageUrl' | 'name'>; className?: string }) {
+export function ProductImage({
+  product,
+  className,
+  alt,
+  priority = false,
+}: {
+  product: Pick<ProductDto, 'imageUrl' | 'name'>;
+  className?: string;
+  /** Defaults to the product name; pass "" when a link or heading next to it already names the product. */
+  alt?: string;
+  /** Loads eagerly with high priority, for the main image above the fold. */
+  priority?: boolean;
+}) {
   if (product.imageUrl) {
     // Catalogue photos are pre-optimised WebP files, and admin-supplied URLs can point to any host,
     // so a plain <img> is used rather than turning the image optimiser into an open proxy.
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={product.imageUrl} alt={product.name} loading="lazy" decoding="async" className={className ?? 'size-full object-contain p-5'} />;
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={product.imageUrl}
+        alt={alt ?? product.name}
+        loading={priority ? 'eager' : 'lazy'}
+        fetchPriority={priority ? 'high' : undefined}
+        decoding="async"
+        className={className ?? 'size-full object-contain p-5'}
+      />
+    );
   }
   return (
-    <div className="grid size-full place-items-center bg-sand-100 text-brand-600/50" aria-hidden="true">
-      <svg viewBox="0 0 24 24" className="size-10" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M12 3c-3 4-6 7.5-6 11a6 6 0 0012 0c0-3.5-3-7-6-11z" strokeLinejoin="round" />
-      </svg>
+    <div className="grid size-full place-items-center bg-slate-50 text-slate-400" aria-hidden="true">
+      <Droplet className="size-10" />
     </div>
   );
 }
@@ -26,69 +46,82 @@ export function productSize(product: Pick<ProductDto, 'specifications'>): string
   return typeof size === 'string' && size.trim() ? size : null;
 }
 
-export function PriceBlock({ product, trade, size = 'md' }: { product: ProductDto; trade: boolean; size?: 'md' | 'lg' }) {
-  const unit = UOM_LABELS[product.uom];
-  const amountClass = cx('font-semibold tabular-nums text-ink-900', size === 'lg' ? 'text-3xl tracking-tight' : 'text-base');
+export function StockBadge({ status }: { status: ProductDto['stockStatus'] }) {
+  return status === 'IN_STOCK' ? (
+    <Badge tone="success">
+      <PackageCheck aria-hidden="true" />
+      {STOCK_LABELS.IN_STOCK}
+    </Badge>
+  ) : (
+    <Badge tone="neutral">
+      <Clock aria-hidden="true" />
+      {STOCK_LABELS.ON_ORDER}
+    </Badge>
+  );
+}
 
+/**
+ * The price shown for a product: exact trade prices for signed-in trade members, otherwise the
+ * approximate VAT-inclusive consumer range (a single "≈" price when the product has no range).
+ */
+export function ProductPrice({ product, trade, size = 'md', className }: { product: ProductDto; trade: boolean; size?: PriceSize; className?: string }) {
   if (trade) {
-    const discounted = product.tradePrice !== null && product.tradePrice !== product.unitPrice;
     return (
-      <div>
-        <p className={amountClass}>
-          {aed(product.tradePrice ?? product.unitPrice)}
-          <span className="ml-1 text-xs font-normal text-slate-500">/ {unit} excl. VAT</span>
-        </p>
-        {discounted && <p className="text-xs text-slate-500 line-through">List {aed(product.unitPrice)}</p>}
-      </div>
+      <TradePrice
+        price={product.tradePrice ?? product.unitPrice}
+        listPrice={product.tradePrice !== null ? product.unitPrice : null}
+        uom={product.uom}
+        size={size}
+        className={className}
+      />
     );
   }
-
-  if (product.priceRange) {
-    return (
-      <div>
-        <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-slate-500">Approx. price</p>
-        <p className={amountClass}>{aedRange(product.priceRange.retailMin, product.priceRange.retailMax)}</p>
-        <p className="text-xs text-slate-500">per {unit} · incl. VAT</p>
-      </div>
-    );
-  }
-
   return (
-    <p className={amountClass}>
-      {aed(product.retailPrice)}
-      <span className="ml-1 text-xs font-normal text-slate-500">/ {unit} incl. VAT</span>
-    </p>
+    <ApproxPrice
+      min={product.priceRange?.retailMin ?? product.retailPrice}
+      max={product.priceRange?.retailMax ?? product.retailPrice}
+      uom={product.uom}
+      size={size}
+      className={className}
+    />
   );
 }
 
 export function ProductCard({ product, trade }: { product: ProductDto; trade: boolean }) {
   const size = productSize(product);
+  const href = `/products/${product.slug}`;
   return (
-    <article className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_18px_40px_-24px_rgba(18,33,27,0.45)]">
-      <Link href={`/products/${product.slug}`} className="block aspect-square overflow-hidden border-b border-slate-100 bg-white" tabIndex={-1} aria-hidden="true">
-        <ProductImage product={product} className="size-full object-contain p-5 transition duration-300 group-hover:scale-[1.04]" />
+    <article className="group flex h-full flex-col rounded-xl border border-slate-200 bg-white shadow-xs transition-[border-color,box-shadow] hover:border-slate-300 hover:shadow-raised">
+      <Link href={href} tabIndex={-1} aria-hidden="true" className="block aspect-[4/3] overflow-hidden rounded-t-xl border-b border-slate-100 bg-white sm:aspect-square">
+        <ProductImage
+          product={product}
+          alt=""
+          className="size-full object-contain p-5 transition-transform duration-300 motion-safe:group-hover:scale-[1.03]"
+        />
       </Link>
       <div className="flex flex-1 flex-col p-4">
-        <div className="mb-3 flex flex-wrap items-center gap-1.5">
-          <span className="rounded-full border border-slate-300 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-slate-600">
-            {product.brand ?? 'Top Flow'}
-          </span>
-          <Badge tone={product.stockStatus === 'IN_STOCK' ? 'success' : 'neutral'}>{STOCK_LABELS[product.stockStatus]}</Badge>
-          {product.isTradeOnly && <Badge tone="brand">Trade only</Badge>}
-        </div>
-        <h3 className="line-clamp-2 font-semibold leading-snug text-ink-900">
-          <Link href={`/products/${product.slug}`} className="hover:text-brand-600">
+        <p className="flex min-w-0 items-center gap-1.5 font-mono text-xs text-slate-600">
+          <span className="truncate">{product.sku}</span>
+          {product.brand && (
+            <>
+              <span aria-hidden="true">·</span>
+              <span className="truncate">{product.brand}</span>
+            </>
+          )}
+        </p>
+        <h3 className="heading-4 mt-1.5 line-clamp-2">
+          <Link href={href} className="rounded-sm hover:text-brand-700">
             {product.name}
           </Link>
         </h3>
-        <p className="mt-1 truncate font-mono text-[11px] text-slate-500">
-          {product.sku}
-          {product.category ? ` · ${product.category.name}` : ''}
-        </p>
-        {size && <p className="mt-1.5 line-clamp-1 text-xs text-slate-600">{size}</p>}
-        <div className="mt-auto flex items-end justify-between gap-3 pt-5">
-          <PriceBlock product={product} trade={trade} />
-          <AddToCartButton product={product} compact />
+        {size && <p className="mt-1 line-clamp-1 text-sm text-slate-600">{size}</p>}
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          <StockBadge status={product.stockStatus} />
+          {product.isTradeOnly && <Badge tone="brand">Trade only</Badge>}
+        </div>
+        <div className="mt-auto pt-5">
+          <ProductPrice product={product} trade={trade} />
+          <QuoteAction product={product} trade={trade} className="mt-4" />
         </div>
       </div>
     </article>

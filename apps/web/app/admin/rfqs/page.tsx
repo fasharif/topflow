@@ -1,6 +1,7 @@
 'use client';
 
 import { Permission, RFQ_SOURCE_LABELS, RFQ_STATUS_LABELS, RfqSource, RfqStatus, enumValues, type Paginated, type RfqDto } from '@topflow/shared';
+import { ClipboardList, SearchX } from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { QueryError, RfqSourceBadge } from '@/components/admin/detail';
@@ -107,6 +108,7 @@ function RfqList() {
               ? 'Try a different source, status or search term.'
               : 'Requests from trade customers’ carts and quote requests from the website appear here.'
           }
+          icon={filtered ? <SearchX aria-hidden="true" /> : <ClipboardList aria-hidden="true" />}
           action={
             filtered ? (
               <Button variant="secondary" onClick={clear}>
@@ -116,7 +118,7 @@ function RfqList() {
           }
         />
       ) : (
-        <div className={cx('transition-opacity', loading && 'opacity-60')} aria-busy={loading}>
+        <div className={cx('motion-safe:transition-opacity', loading && 'opacity-60')} aria-busy={loading}>
           <p className="mb-2 text-sm text-slate-500">{pluralize(data.total, 'request')}</p>
           <Table>
             <thead>
@@ -145,7 +147,7 @@ function RfqList() {
                     <RfqSourceBadge source={rfq.source} />
                   </Td>
                   <CustomerCells rfq={rfq} />
-                  <Td className="text-slate-700">{rfq.projectReference ?? <span className="text-slate-400">—</span>}</Td>
+                  <Td className="text-slate-700">{rfq.projectReference ?? <span className="text-slate-500">—</span>}</Td>
                   <Td>
                     <RfqStatusBadge status={rfq.status} />
                   </Td>
@@ -153,9 +155,9 @@ function RfqList() {
                     {rfq.assignedTo ? (
                       <span className="text-ink-900">{rfq.assignedTo.fullName}</span>
                     ) : isOpen(rfq.status) ? (
-                      <span className="font-medium text-amber-700">Unassigned</span>
+                      <span className="font-medium text-warning-700">Unassigned</span>
                     ) : (
-                      <span className="text-slate-400">—</span>
+                      <span className="text-slate-500">—</span>
                     )}
                   </Td>
                   <Td className="text-right tabular-nums">{rfq.items.length}</Td>

@@ -13,6 +13,7 @@ import {
   type CategoryDto,
   type ProductDto,
 } from '@topflow/shared';
+import { TriangleAlert } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { STOCK_LABELS } from '@/components/catalog/labels';
@@ -120,7 +121,8 @@ function ImagePreview({ src, alt }: { src: string | null; alt: string }) {
         )}
       </div>
       {failed && (
-        <p className="mt-2 text-xs text-amber-700" role="status">
+        <p className="mt-2 flex items-start gap-1.5 text-xs font-medium text-warning-700" role="status">
+          <TriangleAlert aria-hidden="true" className="mt-px size-3.5 shrink-0" />
           No image could be loaded from this address. Check the URL or path.
         </p>
       )}
@@ -300,6 +302,7 @@ export function ProductForm({ product }: { product?: ProductDto }) {
     label: string,
     props: {
       hint?: string;
+      optional?: boolean;
       placeholder?: string;
       className?: string;
       maxLength?: number;
@@ -309,7 +312,7 @@ export function ProductForm({ product }: { product?: ProductDto }) {
       describedBy?: string;
     } = {},
   ) => (
-    <Field label={label} htmlFor={`product-${key}`} error={errors[key]} hint={props.hint} className={props.className}>
+    <Field label={label} htmlFor={`product-${key}`} error={errors[key]} hint={props.hint} optional={props.optional} className={props.className}>
       <Input
         id={`product-${key}`}
         type={props.type ?? 'text'}
@@ -335,9 +338,10 @@ export function ProductForm({ product }: { product?: ProductDto }) {
             <CardHeader title="Product details" />
             <div className="grid gap-4 p-5 sm:grid-cols-2">
               {text('sku', 'SKU', { maxLength: 40, mono: true, placeholder: 'RB-5004-PC', hint: 'Letters, numbers, dots, dashes or underscores. Saved in upper case.' })}
-              {text('brand', 'Brand (optional)', { maxLength: 60, placeholder: 'Rain Bird' })}
+              {text('brand', 'Brand', { optional: true, maxLength: 60, placeholder: 'Rain Bird' })}
               {text('name', 'Name', { maxLength: 160, className: 'sm:col-span-2', placeholder: '5004 Series rotor, 4 in pop-up' })}
-              {text('slug', editing ? 'Slug' : 'Slug (optional)', {
+              {text('slug', 'Slug', {
+                optional: !editing,
                 maxLength: 120,
                 mono: true,
                 className: 'sm:col-span-2',
@@ -355,7 +359,7 @@ export function ProductForm({ product }: { product?: ProductDto }) {
                   ))}
                 </Select>
               </Field>
-              <Field label="Description (optional)" htmlFor="product-description" error={errors.description} className="sm:col-span-2">
+              <Field label="Description" optional htmlFor="product-description" error={errors.description} className="sm:col-span-2">
                 <Textarea
                   id="product-description"
                   rows={5}
@@ -366,7 +370,8 @@ export function ProductForm({ product }: { product?: ProductDto }) {
                 />
               </Field>
               <Field
-                label="Tags (optional)"
+                label="Tags"
+                optional
                 htmlFor="product-tags"
                 error={errors.tags}
                 hint={`Comma-separated keywords, e.g. drip, pressure compensating. Saved in lower case without duplicates, up to ${MAX_TAGS}.`}
@@ -390,13 +395,13 @@ export function ProductForm({ product }: { product?: ProductDto }) {
             <CardHeader title="Pricing & ordering" description="Trade customers receive their organization's discount on the net price." />
             <div className="grid gap-4 p-5 sm:grid-cols-3">
               {text('unitPrice', 'Online list price, net (AED)', { inputMode: 'decimal', placeholder: '125.00', hint: priceHint, className: 'sm:col-span-3' })}
-              <fieldset className="min-w-0 rounded-xl bg-slate-50 p-4 sm:col-span-3">
+              <fieldset className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:col-span-3">
                 <legend className="float-left mb-3 w-full text-sm font-semibold text-ink-900">Indicative price range (AED, excl. VAT)</legend>
                 <div className="clear-left grid gap-3 sm:grid-cols-2">
                   {text('priceMin', 'Lowest', { inputMode: 'decimal', placeholder: '0.00', describedBy: RANGE_HINT_ID })}
                   {text('priceMax', 'Highest', { inputMode: 'decimal', placeholder: '0.00', describedBy: RANGE_HINT_ID })}
                 </div>
-                <p id={RANGE_HINT_ID} className="mt-2 text-xs text-slate-500">
+                <p id={RANGE_HINT_ID} className="mt-2 text-xs text-slate-600">
                   {rangeHint}
                 </p>
               </fieldset>
@@ -442,7 +447,7 @@ export function ProductForm({ product }: { product?: ProductDto }) {
           </Card>
         </div>
 
-        <div className="space-y-6 lg:sticky lg:top-6">
+        <div className="space-y-6 lg:sticky lg:top-30">
           <Card>
             <CardHeader title="Visibility" />
             <div className="space-y-4 p-5">
@@ -466,7 +471,8 @@ export function ProductForm({ product }: { product?: ProductDto }) {
           <Card>
             <CardHeader title="Image" />
             <div className="space-y-4 p-5">
-              {text('imageUrl', 'Image URL or site path (optional)', {
+              {text('imageUrl', 'Image URL or site path', {
+                optional: true,
                 inputMode: 'url',
                 maxLength: 500,
                 placeholder: 'https://… or /catalog/products/…',

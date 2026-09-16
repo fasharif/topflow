@@ -111,8 +111,8 @@ function ProfileForm({ organization, onSaved }: { organization: OrganizationDto;
     }
   };
 
-  const text = (key: TextKey, label: string, options: { hint?: string; type?: string; autoComplete?: string } = {}) => (
-    <Field label={label} htmlFor={`org-${key}`} error={errors[key]} hint={options.hint}>
+  const text = (key: TextKey, label: string, options: { hint?: string; type?: string; autoComplete?: string; optional?: boolean } = {}) => (
+    <Field label={label} htmlFor={`org-${key}`} error={errors[key]} hint={options.hint} optional={options.optional}>
       <Input
         id={`org-${key}`}
         type={options.type ?? 'text'}
@@ -130,7 +130,7 @@ function ProfileForm({ organization, onSaved }: { organization: OrganizationDto;
     <form onSubmit={submit} className="space-y-4 p-5" noValidate>
       <div className="grid gap-4 sm:grid-cols-2">
         {text('name', 'Company name', { autoComplete: 'organization' })}
-        {text('legalName', 'Legal name (optional)')}
+        {text('legalName', 'Legal name', { optional: true })}
         <Field label="Business type" htmlFor="org-type" error={errors.type}>
           <Select id="org-type" value={draft.type} onChange={(e) => setDraft({ ...draft, type: e.target.value as OrgType })}>
             {enumValues(OrgType).map((value) => (
@@ -141,9 +141,9 @@ function ProfileForm({ organization, onSaved }: { organization: OrganizationDto;
           </Select>
         </Field>
         {text('tradeLicenseNumber', 'Trade licence number', { hint: identifierHint })}
-        {text('trn', 'VAT TRN (optional)', { hint: identifierHint ?? '15 digits — printed on quotations and invoices' })}
-        {text('email', 'Company email (optional)', { type: 'email', autoComplete: 'email' })}
-        {text('phoneNumber', 'Company phone (optional)', { type: 'tel', autoComplete: 'tel' })}
+        {text('trn', 'VAT TRN', { hint: identifierHint ?? '15 digits — printed on quotations and invoices', optional: true })}
+        {text('email', 'Company email', { type: 'email', autoComplete: 'email', optional: true })}
+        {text('phoneNumber', 'Company phone', { type: 'tel', autoComplete: 'tel', optional: true })}
       </div>
 
       {verified && identifiersChanged && (
@@ -187,9 +187,9 @@ function CompanyView({ initial }: { initial: OrganizationDto }) {
       <PageHeader title="Company" description="Your trade account profile and the commercial terms agreed with Top Flow." />
 
       {notice && (
-        <div className="mb-6">
-          <Alert tone="success">{notice}</Alert>
-        </div>
+        <Alert tone="success" className="mb-6">
+          {notice}
+        </Alert>
       )}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -231,16 +231,16 @@ function CompanyView({ initial }: { initial: OrganizationDto }) {
             </DetailItem>
             <DetailItem stacked label="Payment terms">{PAYMENT_TERMS_LABELS[organization.paymentTerms]}</DetailItem>
             <DetailItem stacked label="Credit limit">
-              {prepaid ? <span className="text-slate-500">Not applicable — orders are paid in advance</span> : aed(organization.creditLimit)}
+              {prepaid ? <span className="text-slate-600">Not applicable — orders are paid in advance</span> : aed(organization.creditLimit)}
             </DetailItem>
             <DetailItem stacked label="Trade discount">{formatPercent(organization.discountRate)}</DetailItem>
             <DetailItem stacked label="Verified">
-              {organization.verifiedAt ? formatDate(organization.verifiedAt) : <span className="text-slate-500">Not yet verified</span>}
+              {organization.verifiedAt ? formatDate(organization.verifiedAt) : <span className="text-slate-600">Not yet verified</span>}
             </DetailItem>
             {organization.memberCount !== undefined && <DetailItem stacked label="Team members">{organization.memberCount}</DetailItem>}
             <DetailItem stacked label="Customer since">{formatDate(organization.createdAt)}</DetailItem>
           </DetailList>
-          <p className="border-t border-slate-100 px-5 py-3 text-xs text-slate-500">
+          <p className="border-t border-slate-200 px-5 py-3 text-xs text-slate-600">
             To review your terms or credit limit, contact your Top Flow account manager.
           </p>
         </Card>

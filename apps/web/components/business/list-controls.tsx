@@ -1,8 +1,9 @@
 'use client';
 
+import { X } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
-import { Button, Input, Select } from '@/components/ui';
+import { Button, SearchInput, Select } from '@/components/ui';
 
 interface ListPatch<S extends string> {
   status?: S | null;
@@ -56,11 +57,11 @@ function SearchForm({ initial, placeholder, onSearch }: { initial: string; place
     onSearch(value);
   };
   return (
-    <form role="search" onSubmit={submit} className="flex flex-1 gap-2">
+    <form role="search" onSubmit={submit} className="flex min-w-0 flex-1 gap-2">
       <label htmlFor="list-search" className="sr-only">
         Search
       </label>
-      <Input id="list-search" type="search" value={value} onChange={(event) => setValue(event.target.value)} placeholder={placeholder} />
+      <SearchInput id="list-search" value={value} onChange={(event) => setValue(event.target.value)} placeholder={placeholder} className="flex-1" />
       <Button type="submit" variant="secondary">
         Search
       </Button>
@@ -106,6 +107,7 @@ export function ListToolbar<S extends string>({
       </div>
       {(status !== null || search !== '') && (
         <Button variant="ghost" onClick={() => onChange({ status: null, search: '' })}>
+          <X aria-hidden="true" />
           Clear filters
         </Button>
       )}

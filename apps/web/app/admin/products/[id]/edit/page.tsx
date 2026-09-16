@@ -1,12 +1,12 @@
 'use client';
 
 import { Permission, type ProductDto } from '@topflow/shared';
-import Link from 'next/link';
+import { ArrowUpRight, PackageSearch } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { RequirePermission } from '@/components/admin-catalog/access';
 import { LoadError } from '@/components/admin-catalog/list-controls';
 import { ProductForm } from '@/components/admin-catalog/product-form';
-import { Badge, EmptyState, LinkButton, LoadingBlock, PageHeader } from '@/components/ui';
+import { BackLink, Badge, EmptyState, LinkButton, LoadingBlock, PageHeader } from '@/components/ui';
 import { formatDateTime } from '@/lib/format';
 import { useApiQuery } from '@/lib/use-api';
 
@@ -18,6 +18,7 @@ function EditProduct({ id }: { id: string }) {
     if (error?.status === 404) {
       return (
         <EmptyState
+          icon={<PackageSearch aria-hidden="true" />}
           title="Product not found"
           description="It may have been removed, or the link is incorrect."
           action={<LinkButton href="/admin/products">Back to products</LinkButton>}
@@ -30,12 +31,8 @@ function EditProduct({ id }: { id: string }) {
 
   return (
     <>
+      <BackLink href="/admin/products">Products</BackLink>
       <PageHeader
-        eyebrow={
-          <Link href="/admin/products" className="hover:underline">
-            ← Products
-          </Link>
-        }
         title={product.name}
         description={
           <span className="flex flex-wrap items-center gap-2">
@@ -49,6 +46,8 @@ function EditProduct({ id }: { id: string }) {
           product.isActive && !product.isTradeOnly ? (
             <LinkButton href={`/products/${product.slug}`} variant="secondary" target="_blank" rel="noopener noreferrer">
               View in storefront
+              <ArrowUpRight aria-hidden="true" />
+              <span className="sr-only"> (opens in a new tab)</span>
             </LinkButton>
           ) : undefined
         }

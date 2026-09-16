@@ -1,10 +1,11 @@
 'use client';
 
 import type { CategoryDto } from '@topflow/shared';
+import { ChevronLeft, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
-import { cx } from '../ui';
+import { Button, SearchInput, Select, cx } from '../ui';
 
 const SORTS = [
   { value: 'name', label: 'Name (A–Z)' },
@@ -48,15 +49,18 @@ export function CatalogFilters({ categories, brands }: { categories: CategoryDto
   const parents = categories.filter((category) => category.parentId === null && visible(category));
   const row = (active: boolean, nested = false) =>
     cx(
-      'flex w-full items-baseline justify-between gap-3 rounded-lg px-2.5 py-1.5 transition-colors',
-      nested ? 'text-[13px]' : 'text-sm',
-      active ? 'bg-brand-50 font-medium text-brand-700' : 'text-slate-700 hover:bg-slate-100 hover:text-ink-900',
+      'flex w-full items-baseline justify-between gap-3 rounded-lg px-3 text-sm transition-colors',
+      nested ? 'py-1.5' : 'py-2',
+      active ? 'bg-brand-50 font-medium text-brand-800' : 'text-slate-700 hover:bg-white hover:text-ink-900',
     );
+  const count = 'font-mono text-xs tabular-nums text-slate-500';
 
   return (
-    <aside className="hidden space-y-8 lg:block">
-      <nav aria-label="Categories">
-        <p className="eyebrow mb-3 px-2.5 text-slate-500">Categories</p>
+    <aside className="hidden lg:block" aria-label="Catalogue filters">
+      <nav aria-labelledby="category-filter-heading">
+        <h2 id="category-filter-heading" className="eyebrow mb-3 px-3 text-slate-600">
+          Categories
+        </h2>
         <ul className="space-y-0.5">
           <li>
             <Link href={hrefWith({ category: null })} className={row(!current)} aria-current={!current ? 'page' : undefined}>
@@ -67,17 +71,21 @@ export function CatalogFilters({ categories, brands }: { categories: CategoryDto
             <li key={parent.id}>
               <Link href={hrefWith({ category: parent.slug })} className={row(current === parent.slug)} aria-current={current === parent.slug ? 'page' : undefined}>
                 <span>{parent.name}</span>
-                <span className="font-mono text-[11px] tabular-nums text-slate-500">{parent.productCount}</span>
+                <span className={count}>{parent.productCount}</span>
               </Link>
               {openParentId === parent.id && (
-                <ul className="mb-2 ml-3 mt-1 space-y-0.5 border-l border-slate-200 pl-2">
+                <ul className="mt-1 mb-2 ml-3 space-y-0.5 border-l border-slate-200 pl-2">
                   {categories
                     .filter((line) => line.parentId === parent.id && visible(line))
                     .map((line) => (
                       <li key={line.id}>
-                        <Link href={hrefWith({ category: line.slug })} className={row(current === line.slug, true)} aria-current={current === line.slug ? 'page' : undefined}>
+                        <Link
+                          href={hrefWith({ category: line.slug })}
+                          className={row(current === line.slug, true)}
+                          aria-current={current === line.slug ? 'page' : undefined}
+                        >
                           <span>{line.name}</span>
-                          <span className="font-mono text-[11px] tabular-nums text-slate-500">{line.productCount}</span>
+                          <span className={count}>{line.productCount}</span>
                         </Link>
                       </li>
                     ))}
@@ -89,26 +97,28 @@ export function CatalogFilters({ categories, brands }: { categories: CategoryDto
       </nav>
 
       {brands.length > 1 && (
-        <div>
-          <p className="eyebrow mb-3 px-2.5 text-slate-500">Brand</p>
-          <div className="flex flex-wrap gap-2 px-2.5">
+        <div className="mt-8">
+          <h2 className="eyebrow mb-3 px-3 text-slate-600">Brand</h2>
+          <ul className="flex flex-wrap gap-2 px-3">
             {brands.map(({ brand, productCount }) => {
               const active = params.get('brand') === brand;
               return (
-                <Link
-                  key={brand}
-                  href={hrefWith({ brand: active ? null : brand })}
-                  aria-pressed={active}
-                  className={cx(
-                    'rounded-full border px-3 py-1 text-xs transition-colors',
-                    active ? 'border-ink-900 bg-ink-900 text-canvas' : 'border-slate-300 bg-white text-slate-700 hover:border-ink-900/40',
-                  )}
-                >
-                  {brand} <span className="text-[10px] opacity-70">{productCount}</span>
-                </Link>
+                <li key={brand}>
+                  <Link
+                    href={hrefWith({ brand: active ? null : brand })}
+                    aria-current={active ? 'true' : undefined}
+                    className={cx(
+                      'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors',
+                      active ? 'border-ink-900 bg-ink-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400',
+                    )}
+                  >
+                    {brand}
+                    <span className="text-xs tabular-nums opacity-80">{productCount}</span>
+                  </Link>
+                </li>
               );
             })}
-          </div>
+          </ul>
         </div>
       )}
     </aside>
@@ -141,27 +151,26 @@ export function CatalogToolbar({ categories, total }: { categories: CategoryDto[
   ].filter((filter): filter is { label: string; href: string } => Boolean(filter));
 
   return (
-    <div className="mb-8 space-y-4">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center">
-        <form role="search" onSubmit={submit} className="relative flex-1">
+    <div className="mb-6 space-y-4">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+        <form role="search" onSubmit={submit} className="flex min-w-0 flex-1 gap-2">
           <label htmlFor="catalog-search" className="sr-only">
             Search the catalogue
           </label>
-          <svg viewBox="0 0 24 24" className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-            <circle cx="11" cy="11" r="6.5" />
-            <path d="M16 16l4 4" strokeLinecap="round" />
-          </svg>
-          <input
+          <SearchInput
             id="catalog-search"
-            type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search name, code, size…"
-            className="h-11 w-full rounded-full border border-slate-300 bg-white pl-11 pr-4 text-sm text-ink-900 placeholder:text-slate-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+            placeholder="Search name, SKU or size…"
+            enterKeyHint="search"
+            className="flex-1"
           />
+          <Button type="submit" variant="secondary">
+            Search
+          </Button>
         </form>
         <div className="flex flex-wrap items-center gap-2">
-          <nav aria-label="Availability" className="flex rounded-full border border-slate-300 bg-white p-1">
+          <nav aria-label="Availability" className="flex rounded-full border border-slate-300 bg-white p-1 shadow-xs">
             {AVAILABILITY.map((option) => (
               <Link
                 key={option.label}
@@ -169,8 +178,8 @@ export function CatalogToolbar({ categories, total }: { categories: CategoryDto[
                 scroll={false}
                 aria-current={stockStatus === option.value ? 'true' : undefined}
                 className={cx(
-                  'rounded-full px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.1em] transition-colors',
-                  stockStatus === option.value ? 'bg-brand-600 text-white' : 'text-slate-600 hover:text-ink-900',
+                  'rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
+                  stockStatus === option.value ? 'bg-brand-600 text-white' : 'text-slate-700 hover:text-ink-900',
                 )}
               >
                 {option.label}
@@ -180,56 +189,63 @@ export function CatalogToolbar({ categories, total }: { categories: CategoryDto[
           <label htmlFor="catalog-sort" className="sr-only">
             Sort by
           </label>
-          <select
-            id="catalog-sort"
-            value={params.get('sort') ?? 'name'}
-            onChange={(event) => go({ sort: event.target.value === 'name' ? null : event.target.value })}
-            className="h-11 rounded-full border border-slate-300 bg-white px-4 text-sm text-ink-900 focus:border-brand-500 focus:outline-none"
-          >
-            {SORTS.map((sort) => (
-              <option key={sort.value} value={sort.value}>
-                {sort.label}
-              </option>
-            ))}
-          </select>
+          <div className="w-48">
+            <Select id="catalog-sort" value={params.get('sort') ?? 'name'} onChange={(event) => go({ sort: event.target.value === 'name' ? null : event.target.value })}>
+              {SORTS.map((sort) => (
+                <option key={sort.value} value={sort.value}>
+                  {sort.label}
+                </option>
+              ))}
+            </Select>
+          </div>
         </div>
       </div>
 
       {chips.length > 0 && (
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:hidden">
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6 lg:hidden">
           {parentId && (
-            <Link href={hrefWith({ category: null })} className="shrink-0 rounded-full border border-slate-300 bg-white px-3.5 py-1.5 text-xs text-slate-700">
-              ← All categories
+            <Link
+              href={hrefWith({ category: null })}
+              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-slate-300 bg-white py-1.5 pr-3.5 pl-2.5 text-sm text-slate-700"
+            >
+              <ChevronLeft aria-hidden="true" className="size-4" />
+              All categories
             </Link>
           )}
           {chips.map((category) => (
             <Link
               key={category.id}
               href={hrefWith({ category: category.slug })}
+              aria-current={current === category.slug ? 'page' : undefined}
               className={cx(
-                'shrink-0 rounded-full border px-3.5 py-1.5 text-xs',
+                'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm',
                 current === category.slug ? 'border-brand-600 bg-brand-600 text-white' : 'border-slate-300 bg-white text-slate-700',
               )}
             >
-              {category.name} <span className="opacity-70">{category.productCount}</span>
+              {category.name}
+              <span className="text-xs tabular-nums opacity-80">{category.productCount}</span>
             </Link>
           ))}
         </div>
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <p className="mr-2 font-mono text-[11px] uppercase tracking-[0.14em] text-slate-500">
-          Showing {total} {total === 1 ? 'item' : 'items'}
+        <p className="mr-2 text-sm text-slate-600">
+          Showing <span className="font-medium text-ink-900">{total.toLocaleString('en-AE')}</span> {total === 1 ? 'product' : 'products'}
         </p>
         {activeFilters.map((filter) => (
-          <Link key={filter.label} href={filter.href} className="inline-flex items-center gap-1.5 rounded-full bg-ink-900/5 px-3 py-1 text-xs text-ink-900 hover:bg-ink-900/10">
+          <Link
+            key={filter.label}
+            href={filter.href}
+            className="inline-flex items-center gap-1.5 rounded-full bg-slate-200/70 py-1 pr-2.5 pl-3 text-sm text-ink-900 transition-colors hover:bg-slate-200"
+          >
+            <span className="sr-only">Remove filter:</span>
             {filter.label}
-            <span aria-hidden="true">×</span>
-            <span className="sr-only">Remove filter</span>
+            <X aria-hidden="true" className="size-3.5" />
           </Link>
         ))}
         {activeFilters.length > 1 && (
-          <Link href="/products" className="text-xs font-medium text-brand-600 hover:underline">
+          <Link href="/products" className="text-sm font-medium text-brand-700 underline-offset-4 hover:underline">
             Clear all
           </Link>
         )}

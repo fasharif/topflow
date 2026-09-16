@@ -3,14 +3,14 @@ import { cx } from '@/components/ui';
 import { formatDateTime } from '@/lib/format';
 
 const LATEST_DOT_TONES: Partial<Record<OrderStatus, string>> = {
-  DELIVERED: 'bg-emerald-500',
-  CANCELLED: 'bg-red-500',
+  DELIVERED: 'bg-success-500',
+  CANCELLED: 'bg-danger-500',
 };
 
 /** Status history of an order, newest update first. */
 export function OrderTimeline({ events, currentUserId }: { events: OrderEventDto[]; currentUserId?: string }) {
   if (events.length === 0) {
-    return <p className="text-sm text-slate-500">No updates yet.</p>;
+    return <p className="text-sm text-slate-600">No updates yet.</p>;
   }
 
   const newestFirst = [...events].reverse();
@@ -35,7 +35,7 @@ export function OrderTimeline({ events, currentUserId }: { events: OrderEventDto
                 </time>
               </div>
               {event.note && <p className="mt-0.5 text-sm text-slate-600">{event.note}</p>}
-              {actor && <p className="mt-0.5 text-xs text-slate-400">by {actor}</p>}
+              {actor && <p className="mt-0.5 text-xs text-slate-500">by {actor}</p>}
             </div>
           </li>
         );

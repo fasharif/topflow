@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { BusinessShell } from '@/components/business/business-shell';
 import { SiteFooter } from '@/components/site-footer';
 import { SiteHeader } from '@/components/site-header';
+import { Container } from '@/components/ui';
 
 export const metadata: Metadata = {
   title: 'Trade portal',
@@ -13,8 +14,10 @@ export default function BusinessLayout({ children }: { children: ReactNode }) {
   return (
     <>
       <SiteHeader />
-      <main className="mx-auto min-h-[60vh] max-w-7xl px-4 py-8 sm:px-6">
-        <BusinessShell>{children}</BusinessShell>
+      <main id="main" className="min-h-[60vh] py-8 sm:py-10">
+        <Container>
+          <BusinessShell>{children}</BusinessShell>
+        </Container>
       </main>
       <SiteFooter />
     </>

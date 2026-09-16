@@ -124,7 +124,11 @@ export function CategoryForm({
           />
         </Field>
         {!editing && slugEdited && (
-          <button type="button" onClick={() => setSlugEdited(false)} className="-mt-2 text-xs font-medium text-brand-700 hover:underline">
+          <button
+            type="button"
+            onClick={() => setSlugEdited(false)}
+            className="-mt-2 flex min-h-6 w-fit cursor-pointer items-center text-xs font-medium text-brand-700 underline-offset-4 hover:underline"
+          >
             Use the slug suggested by the name
           </button>
         )}
@@ -160,7 +164,7 @@ export function CategoryForm({
           />
         </Field>
 
-        <Field label="Description (optional)" htmlFor="category-description" error={errors.description}>
+        <Field label="Description" optional htmlFor="category-description" error={errors.description}>
           <Textarea
             id="category-description"
             maxLength={1000}

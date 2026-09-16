@@ -1,83 +1,97 @@
+import { Check } from 'lucide-react';
 import Link from 'next/link';
+import type { ReactNode } from 'react';
+import { Logo } from '@/components/brand/logo';
+import { ContactOptions, ServiceArea } from '@/components/contact-options';
 import { COMPANY, MAIN_CATEGORIES } from '@/lib/company';
-import { Logo } from './site-header';
+import { FREE_DELIVERY_LABEL, VAT_LABEL } from '@/lib/format';
+import { Container } from './ui';
 
 const CUSTOMER_LINKS = [
-  { href: '/quote', label: 'Request a quotation' },
+  { href: '/quote', label: 'Request a quote' },
+  { href: '/contact', label: 'Contact' },
   { href: '/register?type=business', label: 'Open a trade account' },
-  { href: '/account/orders', label: 'Track your orders' },
+  { href: '/account/orders', label: 'Track orders' },
   { href: '/login', label: 'Sign in' },
 ];
 
+const FACTS = [
+  `Consumer prices include ${VAT_LABEL} VAT`,
+  `Free delivery on retail orders over ${FREE_DELIVERY_LABEL}`,
+  'Cash or card on delivery',
+  'Formal PDF quotations for projects',
+  'Trade accounts with purchase approvals and credit terms',
+];
+
+const linkClass = 'rounded-sm text-slate-300 transition-colors hover:text-white';
+
+function FooterColumn({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div>
+      <h2 className="eyebrow text-brand-200">{title}</h2>
+      <ul className="mt-4 space-y-2.5">{children}</ul>
+    </div>
+  );
+}
+
 export function SiteFooter() {
   return (
-    <footer className="mt-24 bg-ink-900 text-canvas/75">
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
+    <footer data-surface="dark" className="bg-ink-950 text-sm text-slate-300">
+      <Container className="grid gap-12 py-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-16">
         <div>
-          <Logo tone="paper" />
-          <p className="mt-5 max-w-sm text-sm leading-relaxed">
-            A UAE trading company run by people with decades in irrigation, supplying contractors, landscapers, facilities teams and homeowners from
-            one catalogue.
+          <Logo tone="inverse" />
+          <p className="mt-5 max-w-sm leading-relaxed">
+            {COMPANY.productName} is {COMPANY.name}’s supply platform for irrigation and flow-control products, for contractors, landscapers,
+            facilities teams and homeowners.
           </p>
-          <ul className="mt-6 space-y-2 text-sm">
-            <li>
-              <a href={COMPANY.phoneHref} className="text-canvas hover:underline">
-                {COMPANY.phone}
-              </a>
-            </li>
-            <li>
-              <a href={COMPANY.whatsappHref} target="_blank" rel="noopener noreferrer" className="text-canvas hover:underline">
-                Chat on WhatsApp
-              </a>
-            </li>
-            <li>
-              <a href={`mailto:${COMPANY.email}`} className="text-canvas hover:underline">
-                {COMPANY.email}
-              </a>
-            </li>
-          </ul>
+          <div className="mt-6 space-y-3">
+            <ContactOptions tone="dark" layout="column" />
+            <ServiceArea tone="dark" />
+          </div>
         </div>
 
-        <div>
-          <p className="eyebrow text-brand-200">Catalogue</p>
-          <ul className="mt-4 space-y-2 text-sm">
+        <div className="grid gap-10 sm:grid-cols-3">
+          <FooterColumn title="Catalogue">
             {MAIN_CATEGORIES.map((category) => (
               <li key={category.slug}>
-                <Link href={`/products?category=${category.slug}`} className="hover:text-canvas">
+                <Link href={`/products?category=${category.slug}`} className={linkClass}>
                   {category.name}
                 </Link>
               </li>
             ))}
-          </ul>
-        </div>
-
-        <div>
-          <p className="eyebrow text-brand-200">Customers</p>
-          <ul className="mt-4 space-y-2 text-sm">
+          </FooterColumn>
+          <FooterColumn title="Customers">
             {CUSTOMER_LINKS.map((link) => (
               <li key={link.href}>
-                <Link href={link.href} className="hover:text-canvas">
+                <Link href={link.href} className={linkClass}>
                   {link.label}
                 </Link>
               </li>
             ))}
-          </ul>
+          </FooterColumn>
+          <FooterColumn title="Good to know">
+            {FACTS.map((fact) => (
+              <li key={fact} className="flex gap-2.5">
+                <Check aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-brand-200" />
+                {fact}
+              </li>
+            ))}
+          </FooterColumn>
         </div>
+      </Container>
 
-        <div>
-          <p className="eyebrow text-brand-200">Good to know</p>
-          <ul className="mt-4 space-y-2 text-sm">
-            <li>Prices shown to consumers include 5% VAT</li>
-            <li>Free delivery on retail orders over AED 500</li>
-            <li>Cash or card on delivery</li>
-            <li>Formal PDF quotations for projects</li>
-          </ul>
-        </div>
-      </div>
       <div className="border-t border-white/10">
-        <p className="mx-auto max-w-7xl px-4 py-5 font-mono text-[11px] uppercase tracking-[0.14em] text-canvas/50 sm:px-6">
-          © {new Date().getFullYear()} Top Flow · Dubai, United Arab Emirates · {COMPANY.website}
-        </p>
+        <Container className="flex flex-col gap-2 py-5 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+          <p>
+            © {new Date().getFullYear()} {COMPANY.name} · {COMPANY.country}
+          </p>
+          <p>
+            <span className="font-medium text-slate-300">{COMPANY.productName}</span> ·{' '}
+            <a href={COMPANY.websiteUrl} className={linkClass}>
+              {COMPANY.website}
+            </a>
+          </p>
+        </Container>
       </div>
     </footer>
   );

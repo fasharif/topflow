@@ -1,8 +1,9 @@
 'use client';
 
+import { Building, LayoutDashboard, MapPin, Package, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { cx } from '@/components/ui';
+import { Card, Skeleton, cx } from '@/components/ui';
 import { useSession } from '@/lib/session';
 
 interface NavItem {
@@ -10,27 +11,17 @@ interface NavItem {
   label: string;
   /** Only highlight on an exact match (the overview would otherwise match every sub-page). */
   exact?: boolean;
-  icon: string;
+  icon: LucideIcon;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  {
-    href: '/account',
-    label: 'Overview',
-    exact: true,
-    icon: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9.5z',
-  },
-  {
-    href: '/account/orders',
-    label: 'Orders',
-    icon: 'M21 7.5 12 3 3 7.5m18 0-9 4.5m9-4.5v9L12 21m0-9L3 7.5m9 4.5v9m-9-13.5v9L12 21',
-  },
-  {
-    href: '/account/addresses',
-    label: 'Addresses',
-    icon: 'M12 21s-7-6.1-7-11.5a7 7 0 1 1 14 0C19 14.9 12 21 12 21zm0-9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
-  },
+  { href: '/account', label: 'Overview', exact: true, icon: LayoutDashboard },
+  { href: '/account/orders', label: 'Orders', icon: Package },
+  { href: '/account/addresses', label: 'Addresses', icon: MapPin },
 ];
+
+/** Offered until the customer belongs to a company; members work in the trade portal instead. */
+const TRADE_ACCOUNT_ITEM: NavItem = { href: '/account/trade-account', label: 'Trade account', icon: Building };
 
 function isActive(pathname: string, item: NavItem): boolean {
   return item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -51,11 +42,12 @@ function SignedInAs() {
   if (!user) {
     return (
       <div className="flex items-center gap-3" aria-hidden="true">
-        <span className="size-10 animate-pulse rounded-full bg-slate-200" />
-        <span className="space-y-1.5">
-          <span className="block h-3 w-24 animate-pulse rounded bg-slate-200" />
-          <span className="block h-2.5 w-32 animate-pulse rounded bg-slate-100" />
-        </span>
+        {/* Drawn by hand: Skeleton's built-in radius would win over rounded-full. */}
+        <span className="size-10 shrink-0 rounded-full bg-slate-200/80 motion-safe:animate-pulse" />
+        <div className="space-y-1.5">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-2.5 w-32" />
+        </div>
       </div>
     );
   }
@@ -67,53 +59,47 @@ function SignedInAs() {
       </span>
       <span className="min-w-0">
         <span className="block truncate text-sm font-semibold text-ink-900">{user.fullName}</span>
-        <span className="block truncate text-xs text-slate-500">{user.email}</span>
+        <span className="block truncate text-xs text-slate-600">{user.email}</span>
       </span>
     </div>
   );
 }
 
-/** Account sub-navigation: a horizontal tab strip on small screens, a sticky sidebar on large ones. */
+/** Account sub-navigation: a horizontal tab strip on small screens, a sticky sidebar (below the sticky site header) on large ones. */
 export function AccountNav() {
   const pathname = usePathname();
+  const { user } = useSession();
+  const items = user && user.memberships.length === 0 ? [...NAV_ITEMS, TRADE_ACCOUNT_ITEM] : NAV_ITEMS;
 
   return (
-    <aside className="lg:sticky lg:top-24 lg:self-start">
+    <aside className="lg:sticky lg:top-32 lg:self-start">
       <div className="mb-5 hidden lg:block">
         <SignedInAs />
       </div>
       <nav aria-label="Account">
-        <ul className="flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xs lg:flex-col lg:p-2">
-          {NAV_ITEMS.map((item) => {
-            const active = isActive(pathname, item);
-            return (
-              <li key={item.href} className="shrink-0">
-                <Link
-                  href={item.href}
-                  aria-current={active ? 'page' : undefined}
-                  className={cx(
-                    'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition',
-                    active ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-50 hover:text-ink-900',
-                  )}
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className={cx('size-4.5 shrink-0', active ? 'text-brand-600' : 'text-slate-400')}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
+        <Card>
+          {/* The padding sits on the scrolling list so link focus outlines are not clipped. */}
+          <ul className="flex gap-1 overflow-x-auto p-1 lg:flex-col lg:p-2">
+            {items.map((item) => {
+              const active = isActive(pathname, item);
+              return (
+                <li key={item.href} className="shrink-0">
+                  <Link
+                    href={item.href}
+                    aria-current={active ? 'page' : undefined}
+                    className={cx(
+                      'group flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                      active ? 'bg-brand-50 text-brand-800' : 'text-slate-600 hover:bg-slate-100 hover:text-ink-900',
+                    )}
                   >
-                    <path d={item.icon} />
-                  </svg>
-                  {item.label}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+                    <item.icon aria-hidden="true" className={cx('size-4.5 shrink-0', active ? 'text-brand-600' : 'text-slate-500 group-hover:text-ink-900')} />
+                    {item.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
       </nav>
     </aside>
   );

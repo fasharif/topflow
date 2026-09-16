@@ -102,10 +102,10 @@ export function OrganizationReviewForm({ organization, onSaved }: { organization
           </Select>
         </Field>
 
-        <ul className="space-y-1.5 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
+        <ul className="space-y-1.5 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
           {Object.values(OrgStatus).map((value) => (
             <li key={value} className={cx('flex gap-2', value === draft.status && 'font-medium text-ink-900')}>
-              <span aria-hidden="true" className={cx('mt-1 size-1.5 shrink-0 rounded-full', value === draft.status ? 'bg-brand-600' : 'bg-slate-300')} />
+              <span aria-hidden="true" className={cx('mt-1 size-1.5 shrink-0 rounded-full', value === draft.status ? 'bg-brand-600' : 'bg-slate-400')} />
               <span>
                 <span className="font-semibold">{ORG_STATUS_LABELS[value]}:</span> {STATUS_EXPLANATIONS[value]}
               </span>
@@ -157,7 +157,7 @@ export function OrganizationReviewForm({ organization, onSaved }: { organization
         )}
         {error && <Alert tone="danger">{error}</Alert>}
 
-        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 pt-4">
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 pt-4">
           {!dirty && <span className="text-xs text-slate-500">No unsaved changes</span>}
           <Button type="submit" loading={saving} disabled={!dirty} variant={suspending ? 'danger' : 'primary'}>
             {suspending ? 'Suspend & save terms' : 'Save decision'}

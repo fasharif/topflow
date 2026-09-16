@@ -66,8 +66,12 @@ export function SiteForm({ site, onSaved, onCancel }: { site?: AddressDto; onSav
     }
   };
 
-  const text = (key: TextKey, label: string, options: { placeholder?: string; className?: string; autoComplete?: string; type?: string } = {}) => (
-    <Field label={label} htmlFor={`${uid}-${key}`} error={errors[key]} className={options.className}>
+  const text = (
+    key: TextKey,
+    label: string,
+    options: { placeholder?: string; className?: string; autoComplete?: string; type?: string; optional?: boolean } = {},
+  ) => (
+    <Field label={label} htmlFor={`${uid}-${key}`} error={errors[key]} optional={options.optional} className={options.className}>
       <Input
         id={`${uid}-${key}`}
         type={options.type ?? 'text'}
@@ -87,7 +91,7 @@ export function SiteForm({ site, onSaved, onCancel }: { site?: AddressDto; onSav
         {text('contactName', 'Site contact', { autoComplete: 'name' })}
         {text('phoneNumber', 'Contact mobile', { placeholder: '+971 50 123 4567', autoComplete: 'tel', type: 'tel' })}
         {text('line1', 'Street, building or plot', { className: 'sm:col-span-2' })}
-        {text('line2', 'Gate / landmark (optional)', { className: 'sm:col-span-2' })}
+        {text('line2', 'Gate / landmark', { className: 'sm:col-span-2', optional: true })}
         {text('area', 'Area / community')}
         {text('city', 'City')}
         <Field label="Emirate" htmlFor={`${uid}-emirate`} error={errors.emirate}>
@@ -99,14 +103,14 @@ export function SiteForm({ site, onSaved, onCancel }: { site?: AddressDto; onSav
             ))}
           </Select>
         </Field>
-        <div className="flex items-end pb-2">
-          <label className="flex items-center gap-2 text-sm text-slate-700">
+        <div className="flex items-end">
+          <label className="flex min-h-10 items-center gap-2.5 text-sm text-slate-700">
             <input
               type="checkbox"
               checked={draft.isDefault}
               disabled={site?.isDefault}
               onChange={(e) => setDraft({ ...draft, isDefault: e.target.checked })}
-              className="size-4 accent-brand-600"
+              className="size-4 shrink-0"
             />
             {site?.isDefault ? 'This is the default delivery site' : 'Use as the default delivery site'}
           </label>

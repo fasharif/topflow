@@ -1,29 +1,26 @@
 'use client';
 
+import type { AuthUser, MembershipSummary } from '@topflow/shared';
 import { useSyncExternalStore } from 'react';
-import type { AuthSession, AuthUser, MembershipSummary } from '@topflow/shared';
+import { signOut as endSupabaseSession } from '@/lib/auth/actions';
 
 /**
- * Client session store.
+ * Client view of the signed-in user.
  *
- * Security model: the access token lives only in memory (never localStorage), so an XSS
- * payload cannot read a long-lived credential. The refresh token is an httpOnly cookie set
- * by the API and sent automatically to /api/auth/refresh. On page load we exchange that
- * cookie for a fresh access token. (The previous version stored the JWT in localStorage.)
+ * Security model: the Supabase session lives in httpOnly cookies that only this app's server can
+ * read. Browser code never holds an access or refresh token. It asks /api/auth/me who the user is
+ * (the request is forwarded with the session), and the API authorises every call on its own.
  */
 export type SessionStatus = 'loading' | 'authenticated' | 'anonymous';
 
 export interface SessionState {
   status: SessionStatus;
   user: AuthUser | null;
-  accessToken: string | null;
   activeOrganizationId: string | null;
 }
 
 const ACTIVE_ORG_KEY = 'topflow.activeOrganization';
-/** Non-sensitive hint that a refresh cookie probably exists, so anonymous visitors skip a guaranteed 401. */
-const SESSION_HINT_KEY = 'topflow.hasSession';
-const SERVER_STATE: SessionState = { status: 'loading', user: null, accessToken: null, activeOrganizationId: null };
+const SERVER_STATE: SessionState = { status: 'loading', user: null, activeOrganizationId: null };
 
 let state: SessionState = SERVER_STATE;
 const listeners = new Set<() => void>();
@@ -50,80 +47,80 @@ function readActiveOrganization(): string | null {
   }
 }
 
-function writeSessionHint(present: boolean): void {
+function writeActiveOrganization(organizationId: string | null): void {
   try {
-    if (present) window.localStorage.setItem(SESSION_HINT_KEY, '1');
-    else window.localStorage.removeItem(SESSION_HINT_KEY);
+    if (organizationId) window.localStorage.setItem(ACTIVE_ORG_KEY, organizationId);
+    else window.localStorage.removeItem(ACTIVE_ORG_KEY);
   } catch {
-    // Storage unavailable — we simply always attempt a refresh.
+    // Storage unavailable (private mode): the choice simply won't persist.
   }
 }
 
-export function applySession(session: AuthSession | null): void {
-  writeSessionHint(session !== null);
-  if (!session) {
-    setState({ status: 'anonymous', user: null, accessToken: null, activeOrganizationId: null });
+/** Applies the platform user from GET /auth/me, or null when nobody is signed in. */
+export function applyUser(user: AuthUser | null): void {
+  if (!user) {
+    setState({ status: 'anonymous', user: null, activeOrganizationId: null });
     return;
   }
   const preferred = readActiveOrganization();
-  const memberships = session.user.memberships;
-  const activeOrganizationId = memberships.some((m) => m.organizationId === preferred)
+  const activeOrganizationId = user.memberships.some((m) => m.organizationId === preferred)
     ? preferred
-    : (memberships[0]?.organizationId ?? null);
-  setState({ status: 'authenticated', user: session.user, accessToken: session.accessToken, activeOrganizationId });
+    : (user.memberships[0]?.organizationId ?? null);
+  setState({ status: 'authenticated', user, activeOrganizationId });
 }
 
+/** Replaces the user after a profile change (PATCH /me returns the refreshed AuthUser). */
 export function updateUser(user: AuthUser): void {
-  setState({ user });
+  applyUser(user);
 }
 
 export function setActiveOrganization(organizationId: string): void {
-  try {
-    window.localStorage.setItem(ACTIVE_ORG_KEY, organizationId);
-  } catch {
-    // Storage unavailable (private mode) — the choice simply won't persist.
-  }
+  writeActiveOrganization(organizationId);
   setState({ activeOrganizationId: organizationId });
 }
 
-/** Called once per page load: restore the session only when the browser has signed in before. */
-export function bootstrapSession(): void {
-  let hinted = true;
-  try {
-    hinted = window.localStorage.getItem(SESSION_HINT_KEY) === '1';
-  } catch {
-    hinted = true;
-  }
-  if (hinted) void refreshSession();
-  else applySession(null);
-}
+let loadInFlight: Promise<boolean> | null = null;
 
-let refreshInFlight: Promise<boolean> | null = null;
-
-/** Exchanges the refresh cookie for a new session. Concurrent callers share one request. */
+/** Loads the signed-in user (memberships, permissions, MFA state). Concurrent callers share one request. */
 export function refreshSession(): Promise<boolean> {
-  refreshInFlight ??= fetch('/api/auth/refresh', {
-    method: 'POST',
+  loadInFlight ??= fetch('/api/auth/me', {
+    headers: { accept: 'application/json' },
     credentials: 'same-origin',
-    headers: { 'content-type': 'application/json' },
-    body: '{}',
+    cache: 'no-store',
   })
     .then(async (response) => {
       if (!response.ok) {
-        applySession(null);
+        applyUser(null);
         return false;
       }
-      applySession((await response.json()) as AuthSession);
+      applyUser((await response.json()) as AuthUser);
       return true;
     })
     .catch(() => {
-      applySession(null);
-      return false;
+      // A network failure is not a sign-out: keep a known user, otherwise show signed-out UI.
+      if (state.status !== 'authenticated') applyUser(null);
+      return state.status === 'authenticated';
     })
     .finally(() => {
-      refreshInFlight = null;
+      loadInFlight = null;
     });
-  return refreshInFlight;
+  return loadInFlight;
+}
+
+/** Called once per page load. */
+export function bootstrapSession(): void {
+  void refreshSession();
+}
+
+/** Ends the session on this device, or on every device with scope 'global'. */
+export async function signOut(scope: 'local' | 'global' = 'local'): Promise<void> {
+  try {
+    await endSupabaseSession(scope);
+  } catch {
+    // The local state is cleared regardless; the session cookie expires on its own.
+  }
+  writeActiveOrganization(null);
+  applyUser(null);
 }
 
 export function useSession(): SessionState & {

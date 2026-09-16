@@ -1,6 +1,7 @@
 'use client';
 
 import { Permission, QUOTATION_STATUS_LABELS, QuotationStatus, enumValues, hasPermission, type Paginated, type QuotationSummaryDto } from '@topflow/shared';
+import { FileText, SearchX } from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { QueryError } from '@/components/admin/detail';
@@ -70,6 +71,7 @@ function QuotationList() {
         <EmptyState
           title={filtered ? 'No quotations match these filters' : 'No quotations yet'}
           description={filtered ? 'Try a different status or search term.' : 'Open an RFQ and choose “Create quotation” to draft the first one.'}
+          icon={filtered ? <SearchX aria-hidden="true" /> : <FileText aria-hidden="true" />}
           action={
             filtered ? (
               <Button variant="secondary" onClick={clear}>
@@ -79,7 +81,7 @@ function QuotationList() {
           }
         />
       ) : (
-        <div className={cx('transition-opacity', loading && 'opacity-60')} aria-busy={loading}>
+        <div className={cx('motion-safe:transition-opacity', loading && 'opacity-60')} aria-busy={loading}>
           <p className="mb-2 text-sm text-slate-500">{pluralize(data.total, 'quotation')}</p>
           <Table>
             <thead>
@@ -101,7 +103,7 @@ function QuotationList() {
                       {quotation.displayNumber}
                     </Link>
                   </Td>
-                  <Td className="font-medium text-ink-900">{quotation.organization?.name ?? <span className="font-normal text-slate-400">—</span>}</Td>
+                  <Td className="font-medium text-ink-900">{quotation.organization?.name ?? <span className="font-normal text-slate-500">—</span>}</Td>
                   <Td>
                     <p className="text-ink-900">{quotation.customer?.fullName ?? '—'}</p>
                     {quotation.customer?.email && <p className="text-xs text-slate-500">{quotation.customer.email}</p>}
@@ -110,7 +112,7 @@ function QuotationList() {
                     <QuotationStatusBadge status={quotation.status} expired={quotation.isExpired} />
                   </Td>
                   <Td className="whitespace-nowrap text-right font-medium tabular-nums text-ink-900">{aed(quotation.total)}</Td>
-                  <Td className={cx('whitespace-nowrap', quotation.isExpired ? 'text-red-700' : 'text-slate-500')}>{formatDate(quotation.validUntil)}</Td>
+                  <Td className={cx('whitespace-nowrap', quotation.isExpired ? 'text-danger-700' : 'text-slate-500')}>{formatDate(quotation.validUntil)}</Td>
                   <Td className="whitespace-nowrap text-slate-500">{formatDate(quotation.createdAt)}</Td>
                 </tr>
               ))}

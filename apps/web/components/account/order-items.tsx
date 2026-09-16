@@ -6,7 +6,7 @@ function TotalRow({ label, value, strong = false }: { label: string; value: stri
   return (
     <div className={cx('flex justify-between gap-4', strong && 'border-t border-slate-200 pt-3 text-base')}>
       <dt className={strong ? 'font-semibold text-ink-900' : 'text-slate-600'}>{label}</dt>
-      <dd className={cx('tabular-nums text-ink-900', strong ? 'font-bold' : 'font-medium')}>{value}</dd>
+      <dd className={cx('tabular-nums text-ink-900', strong ? 'font-semibold' : 'font-medium')}>{value}</dd>
     </div>
   );
 }
@@ -37,7 +37,7 @@ export function OrderItemsCard({ order }: { order: ItemsOrder }) {
               <tr key={item.id}>
                 <Td>
                   <p className="font-medium text-ink-900">{item.productName}</p>
-                  <p className="font-mono text-xs text-slate-400">{item.sku}</p>
+                  <p className="font-mono text-xs text-slate-500">{item.sku}</p>
                 </Td>
                 <Td className="whitespace-nowrap text-right tabular-nums">
                   {item.quantity} {UOM_LABELS[item.uom]}
@@ -51,7 +51,7 @@ export function OrderItemsCard({ order }: { order: ItemsOrder }) {
           </tbody>
         </table>
       </div>
-      <div className="border-t border-slate-100 px-5 py-4">
+      <div className="border-t border-slate-200 px-5 py-4">
         <dl className="ml-auto max-w-xs space-y-2 text-sm">
           <TotalRow label="Subtotal (excl. VAT)" value={aed(order.subtotal)} />
           <TotalRow label="Delivery" value={freeDelivery ? 'Free' : aed(order.deliveryFee)} />

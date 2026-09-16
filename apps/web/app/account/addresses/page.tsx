@@ -1,6 +1,7 @@
 'use client';
 
 import { EMIRATE_LABELS, type AddressDto } from '@topflow/shared';
+import { MapPin, Pencil, Plus, Trash } from 'lucide-react';
 import { useState } from 'react';
 import { AddressForm } from '@/components/account/address-form';
 import { Alert, Badge, Button, Card, CardHeader, EmptyState, LoadingBlock, PageHeader, cx } from '@/components/ui';
@@ -31,10 +32,10 @@ function AddressCard({
   onConfirmDelete: () => void;
 }) {
   return (
-    <Card className={cx('flex flex-col', address.isDefault && 'border-brand-200')}>
+    <Card tone={address.isDefault ? 'brand' : 'default'} className="flex flex-col">
       <div className="flex-1 space-y-3 p-5">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="truncate font-semibold text-ink-900">{address.label}</h2>
+          <h2 className="heading-4 truncate text-ink-900">{address.label}</h2>
           {address.isDefault && <Badge tone="brand">Default</Badge>}
         </div>
         <address className="text-sm not-italic leading-relaxed text-slate-600">
@@ -49,10 +50,10 @@ function AddressCard({
         </address>
       </div>
 
-      <div className="border-t border-slate-100 px-5 py-3">
+      <div className={cx('border-t px-5 py-3', address.isDefault ? 'border-brand-200' : 'border-slate-200')}>
         {confirmingDelete ? (
           <div className="space-y-2">
-            <p className="text-sm text-red-800">
+            <p className="text-sm text-danger-800">
               Delete this address?{address.isDefault && ' Your next saved address will become the default.'}
             </p>
             <div className="flex justify-end gap-2">
@@ -67,6 +68,7 @@ function AddressCard({
         ) : (
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="secondary" size="sm" onClick={onEdit} disabled={busy !== null}>
+              <Pencil aria-hidden="true" />
               Edit<span className="sr-only"> {address.label}</span>
             </Button>
             {!address.isDefault && (
@@ -74,7 +76,8 @@ function AddressCard({
                 Make default
               </Button>
             )}
-            <Button variant="ghost" size="sm" className="ml-auto text-red-600 hover:bg-red-50 hover:text-red-700" onClick={onRequestDelete} disabled={busy !== null}>
+            <Button variant="ghost" size="sm" className="ml-auto" onClick={onRequestDelete} disabled={busy !== null}>
+              <Trash aria-hidden="true" />
               Delete<span className="sr-only"> {address.label}</span>
             </Button>
           </div>
@@ -151,7 +154,12 @@ export default function AddressesPage() {
         title="Addresses"
         description="Save the places you get deliveries to and pick one in a click at checkout."
         actions={
-          data && addresses.length > 0 && editor?.mode !== 'create' ? <Button onClick={() => openEditor({ mode: 'create' })}>Add address</Button> : undefined
+          data && addresses.length > 0 && editor?.mode !== 'create' ? (
+            <Button onClick={() => openEditor({ mode: 'create' })}>
+              <Plus aria-hidden="true" />
+              Add address
+            </Button>
+          ) : undefined
         }
       />
 
@@ -170,9 +178,15 @@ export default function AddressesPage() {
           <LoadingBlock label="Loading your addresses…" />
         ) : firstAddress && editor === null ? (
           <EmptyState
+            icon={<MapPin aria-hidden="true" />}
             title="No saved addresses yet"
             description="Add your home, office or project site once, then choose it at checkout."
-            action={<Button onClick={() => openEditor({ mode: 'create' })}>Add an address</Button>}
+            action={
+              <Button onClick={() => openEditor({ mode: 'create' })}>
+                <Plus aria-hidden="true" />
+                Add an address
+              </Button>
+            }
           />
         ) : (
           <div aria-busy={loading} className={cx('grid gap-4 transition-opacity md:grid-cols-2', loading && 'opacity-70')}>

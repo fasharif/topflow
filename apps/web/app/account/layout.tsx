@@ -4,6 +4,7 @@ import { AccountNav } from '@/components/account/account-nav';
 import { RequireAuth } from '@/components/require-auth';
 import { SiteFooter } from '@/components/site-footer';
 import { SiteHeader } from '@/components/site-header';
+import { Container } from '@/components/ui';
 
 export const metadata: Metadata = { title: 'My account' };
 
@@ -13,17 +14,17 @@ export const metadata: Metadata = { title: 'My account' };
  */
 export default function AccountLayout({ children }: { children: ReactNode }) {
   return (
-    <>
+    <div className="flex min-h-screen flex-col">
       <SiteHeader />
-      <main className="mx-auto min-h-[60vh] max-w-7xl px-4 py-8 sm:px-6">
-        <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-10">
+      <main id="main" className="flex-1 py-8 sm:py-10">
+        <Container className="grid gap-6 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-10">
           <AccountNav />
           <div className="min-w-0">
             <RequireAuth>{children}</RequireAuth>
           </div>
-        </div>
+        </Container>
       </main>
       <SiteFooter />
-    </>
+    </div>
   );
 }

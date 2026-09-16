@@ -11,13 +11,14 @@ import {
   type RfqDto,
   type UpdateRfqInput,
 } from '@topflow/shared';
+import { FileText, Mail, Phone, UserRound } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 import { AddressBlock, DetailList, QueryError, RfqSourceBadge, SectionLabel, telHref } from '@/components/admin/detail';
 import { RequireAuth } from '@/components/require-auth';
 import { QuotationStatusBadge, RfqStatusBadge } from '@/components/status-badge';
-import { Alert, Button, Card, CardHeader, EmptyState, LinkButton, LoadingBlock, PageHeader, Table, Td, Th, buttonClass } from '@/components/ui';
+import { Alert, BackLink, Button, Card, CardHeader, EmptyState, LinkButton, LoadingBlock, PageHeader, Table, Td, Th, buttonClass } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { aed, formatDate, formatDateTime, pluralize } from '@/lib/format';
 import { useSession } from '@/lib/session';
@@ -59,7 +60,7 @@ function requesterSummary(rfq: RfqDto): string {
 }
 
 function NotGiven() {
-  return <span className="font-normal text-slate-400">Not given</span>;
+  return <span className="font-normal text-slate-500">Not given</span>;
 }
 
 function ContactItem({ label, wide, children }: { label: string; wide?: boolean; children: ReactNode }) {
@@ -104,10 +105,12 @@ function WebsiteEnquiryCard({ rfq }: { rfq: RfqDto }) {
         action={
           <div className="flex flex-wrap gap-2">
             <a href={replyHref} className={buttonClass('primary', 'sm')}>
+              <Mail aria-hidden="true" />
               Reply by email<span className="sr-only"> to {contact.name || contact.email}</span>
             </a>
             {contact.phone && (
               <a href={telHref(contact.phone)} className={buttonClass('secondary', 'sm')}>
+                <Phone aria-hidden="true" />
                 Call
                 <span className="sr-only">
                   {' '}
@@ -201,6 +204,7 @@ function RfqDetail({ id }: { id: string }) {
             ? 'This request came from the website, and a formal quotation needs a customer account. Reply by email or phone with prices, or ask the customer to register for a trade account and send the request from the trade portal.'
             : 'The account that sent this request no longer exists, so a formal quotation can’t be issued for it.'
         }
+        icon={<UserRound aria-hidden="true" />}
       />
     );
   } else if (canQuote) {
@@ -208,6 +212,7 @@ function RfqDetail({ id }: { id: string }) {
       <EmptyState
         title="No quotation yet"
         description="Price the requested items — the organization’s trade discount is applied automatically — then send it to the customer."
+        icon={<FileText aria-hidden="true" />}
         action={<LinkButton href={createHref}>Create quotation</LinkButton>}
       />
     );
@@ -217,13 +222,9 @@ function RfqDetail({ id }: { id: string }) {
 
   return (
     <>
+      <BackLink href="/admin/rfqs">RFQs</BackLink>
       <PageHeader
-        eyebrow={
-          <Link href="/admin/rfqs" className="hover:underline">
-            ← RFQs
-          </Link>
-        }
-        title={rfq.number}
+        title={<span className="font-mono">{rfq.number}</span>}
         description={
           <>
             {requesterSummary(rfq)} · submitted {formatDateTime(rfq.createdAt)}
@@ -256,7 +257,7 @@ function RfqDetail({ id }: { id: string }) {
                     {assignedToMe && <span className="font-normal text-slate-500"> (you)</span>}
                   </p>
                 ) : (
-                  <p className="text-sm font-medium text-amber-700">Unassigned</p>
+                  <p className="text-sm font-medium text-warning-700">Unassigned</p>
                 )}
                 {user && !assignedToMe && !terminal && (
                   <Button
@@ -355,7 +356,7 @@ function RfqDetail({ id }: { id: string }) {
             {rfq.quotations.length === 0 ? (
               <div className="p-5">{noQuotation}</div>
             ) : (
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-slate-200">
                 {rfq.quotations.map((quotation) => (
                   <li key={quotation.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
                     <div>
@@ -388,7 +389,7 @@ function RfqDetail({ id }: { id: string }) {
           )}
 
           <section>
-            <h2 className="mb-3 text-base font-semibold text-ink-900">
+            <h2 className="heading-4 mb-3 text-ink-900">
               Requested items <span className="font-normal text-slate-500">· {pluralize(rfq.items.length, 'line')}</span>
             </h2>
             <Table>
@@ -404,13 +405,13 @@ function RfqDetail({ id }: { id: string }) {
                   <tr key={item.id}>
                     <Td>
                       <p className="font-medium text-ink-900">{item.productName}</p>
-                      <p className="font-mono text-xs text-slate-400">
+                      <p className="font-mono text-xs text-slate-500">
                         {item.sku}
-                        {!item.productId && <span className="ml-2 font-sans text-amber-700">No longer in the catalog</span>}
+                        {!item.productId && <span className="ml-2 font-sans text-warning-700">No longer in the catalogue</span>}
                       </p>
                     </Td>
                     <Td className="text-right tabular-nums">{item.quantity}</Td>
-                    <Td className="text-slate-600">{item.notes ?? <span className="text-slate-400">—</span>}</Td>
+                    <Td className="text-slate-600">{item.notes ?? <span className="text-slate-500">—</span>}</Td>
                   </tr>
                 ))}
               </tbody>

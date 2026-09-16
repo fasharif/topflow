@@ -25,10 +25,10 @@ export function DocumentLinesTable({ lines, showListPrice = false }: { lines: Do
           <tr key={line.id}>
             <Td>
               <p className="font-medium text-ink-900">{line.productName}</p>
-              <p className="font-mono text-xs text-slate-400">{line.sku}</p>
+              <p className="font-mono text-xs text-slate-500">{line.sku}</p>
             </Td>
             <Td className="whitespace-nowrap text-right tabular-nums">
-              {line.quantity} <span className="text-slate-400">{UOM_LABELS[line.uom]}</span>
+              {line.quantity} <span className="text-slate-500">{UOM_LABELS[line.uom]}</span>
             </Td>
             {showListPrice && <Td className="whitespace-nowrap text-right tabular-nums text-slate-600">{line.listPrice ? aed(line.listPrice) : '—'}</Td>}
             {hasDiscount && (
@@ -72,13 +72,17 @@ export function DocumentTotals({
 }) {
   return (
     <dl className="space-y-2 text-sm">
-      <TotalRow label="Subtotal (excl. VAT)" value={aed(subtotal)} />
-      {discountTotal !== '0.00' && <p className="-mt-1 text-xs text-emerald-700">Includes {aed(discountTotal)} of line discounts</p>}
+      {/* The discount note is a second <dd> of the subtotal group, so the list only contains valid dt/dd groups. */}
+      <div className="flex flex-wrap justify-between gap-x-4">
+        <dt className="text-slate-600">Subtotal (excl. VAT)</dt>
+        <dd className="font-medium tabular-nums text-ink-900">{aed(subtotal)}</dd>
+        {discountTotal !== '0.00' && <dd className="mt-1 w-full text-xs text-success-700">Includes {aed(discountTotal)} of line discounts</dd>}
+      </div>
       <TotalRow label="Delivery" value={aed(deliveryFee)} />
       <TotalRow label={`VAT (${formatPercent(bpsToPercent(vatRateBps))})`} value={aed(vatAmount)} />
       <div className="flex justify-between gap-4 border-t border-slate-200 pt-3 text-base">
         <dt className="font-semibold text-ink-900">Total</dt>
-        <dd className="font-bold tabular-nums text-ink-900">{aed(total)}</dd>
+        <dd className="font-semibold tabular-nums text-ink-900">{aed(total)}</dd>
       </div>
     </dl>
   );

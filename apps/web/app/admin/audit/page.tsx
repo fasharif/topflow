@@ -1,6 +1,7 @@
 'use client';
 
 import { Permission, type AuditLogDto, type Paginated } from '@topflow/shared';
+import { ChevronDown, RotateCcwClock, ScrollText, SearchX } from 'lucide-react';
 import Link from 'next/link';
 import { Fragment, Suspense, useState, type FormEvent } from 'react';
 import { RequirePermission } from '@/components/admin-catalog/access';
@@ -133,6 +134,7 @@ function AuditLog() {
   } else if (data.items.length === 0) {
     content = (
       <EmptyState
+        icon={filtered ? <SearchX aria-hidden="true" /> : <ScrollText aria-hidden="true" />}
         title={data.total > 0 ? 'This page is empty' : filtered ? 'No audit entries match these filters' : 'No audit entries yet'}
         description={filtered ? 'Action filters match the start of the action name, e.g. "catalog." or "orders.status".' : undefined}
         action={
@@ -192,8 +194,9 @@ function AuditLog() {
                             <button
                               type="button"
                               onClick={() => update({ entityType: log.entityType, entityId: log.entityId, action: null, userId: null })}
-                              className="text-slate-500 hover:text-brand-700 hover:underline"
+                              className="inline-flex min-h-6 cursor-pointer items-center gap-1 text-slate-600 hover:text-brand-700 hover:underline"
                             >
+                              <RotateCcwClock aria-hidden="true" className="size-3.5 shrink-0" />
                               History<span className="sr-only"> of this {log.entityType}</span>
                             </button>
                           </div>
@@ -205,7 +208,7 @@ function AuditLog() {
                             <button
                               type="button"
                               onClick={() => update({ userId: log.user?.id })}
-                              className="text-left text-ink-900 hover:text-brand-700 hover:underline"
+                              className="min-h-6 cursor-pointer text-left text-ink-900 hover:text-brand-700 hover:underline"
                               title="Show this user's activity"
                             >
                               {log.user.fullName}
@@ -216,13 +219,14 @@ function AuditLog() {
                           <Badge>System</Badge>
                         )}
                       </Td>
-                      <Td className="font-mono text-xs whitespace-nowrap text-slate-600">{log.ipAddress ?? <span className="text-slate-400">—</span>}</Td>
+                      <Td className="font-mono text-xs whitespace-nowrap text-slate-600">{log.ipAddress ?? <span className="text-slate-500">—</span>}</Td>
                       <Td className="text-right whitespace-nowrap">
                         {log.details === null || log.details === undefined ? (
-                          <span className="text-xs text-slate-400">No details</span>
+                          <span className="text-xs text-slate-500">No details</span>
                         ) : (
                           <Button variant="ghost" size="sm" aria-expanded={open} aria-controls={detailsId} onClick={() => toggle(log.id)}>
                             {open ? 'Hide details' : 'Details'}
+                            <ChevronDown aria-hidden="true" className={cx('motion-safe:transition-transform', open && 'rotate-180')} />
                           </Button>
                         )}
                       </Td>
@@ -272,7 +276,7 @@ export default function AdminAuditPage() {
       <PageHeader
         eyebrow="Administration"
         title="Audit trail"
-        description="Sign-ins, account and KYC decisions, catalog, stock, quotation and order changes: who did what, when and from where. Newest first."
+        description="Sign-ins, account and KYC decisions, catalogue, stock, quotation and order changes: who did what, when and from where. Newest first."
       />
       <Suspense fallback={<LoadingBlock label="Loading audit trail…" />}>
         <AuditLog />

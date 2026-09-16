@@ -89,19 +89,19 @@ function OrderView({ initial }: { initial: OrderDto }) {
       <BackLink href="/business/orders">All orders</BackLink>
 
       <div className="mb-6">
-        <p className="text-xs font-medium uppercase tracking-wide text-brand-700">Sales order</p>
-        <div className="mt-1 flex flex-wrap items-center gap-3">
-          <h1 className="font-mono text-2xl font-bold tracking-tight text-ink-900">{order.orderNumber}</h1>
+        <p className="eyebrow text-brand-700">Sales order</p>
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <h1 className="heading-1 font-mono text-ink-900">{order.orderNumber}</h1>
           <OrderStatusBadge status={order.status} />
           <PaymentStatusBadge status={order.paymentStatus} />
         </div>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-2 text-sm text-slate-600">
           Placed {formatDateTime(order.createdAt)}
           {order.customer && ` by ${order.customer.fullName}`} · {aed(order.totalAmount)} incl. VAT
         </p>
       </div>
 
-      <div className="mb-6 space-y-3">
+      <div className="mb-6 space-y-3 empty:hidden">
         {notice && <Alert tone="success">{notice}</Alert>}
         {cancelled ? (
           <Alert tone="warning" title={`Cancelled ${formatDateTime(order.cancelledAt)}`}>
@@ -132,7 +132,7 @@ function OrderView({ initial }: { initial: OrderDto }) {
           <Card className="overflow-hidden">
             <CardHeader title="Items" description={pluralize(order.items.length, 'line')} />
             <DocumentLines items={order.items} />
-            <div className="border-t border-slate-100 bg-slate-50/50 px-5 py-4">
+            <div className="border-t border-slate-200 bg-slate-50 px-5 py-4">
               <div className="sm:ml-auto sm:max-w-sm">
                 <DocumentTotals
                   subtotal={order.subtotal}
@@ -171,7 +171,10 @@ function OrderView({ initial }: { initial: OrderDto }) {
               <DetailItem stacked label="Project reference">{order.projectReference}</DetailItem>
               <DetailItem stacked label="Quotation">
                 {order.quotation && (
-                  <Link href={`/business/quotations/${order.quotation.id}`} className="font-mono text-brand-700 hover:underline">
+                  <Link
+                    href={`/business/quotations/${order.quotation.id}`}
+                    className="font-mono font-medium text-brand-700 underline-offset-4 hover:underline"
+                  >
                     {quotationDisplayNumber(order.quotation.number, order.quotation.revision)}
                   </Link>
                 )}

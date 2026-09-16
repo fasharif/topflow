@@ -8,7 +8,7 @@ import { AddressBlock, DetailItem, DetailList, Prose } from '@/components/busine
 import { BackLink, ConfirmAction, FlagAlert, LoadError } from '@/components/business/feedback';
 import { useOrg } from '@/components/business/use-org';
 import { QuotationStatusBadge, RfqStatusBadge } from '@/components/status-badge';
-import { Alert, Badge, Card, CardHeader, LinkButton, LoadingBlock } from '@/components/ui';
+import { Alert, Badge, Card, CardHeader, LinkButton, LoadingBlock, Th } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { aed, formatDate, formatDateTime, pluralize } from '@/lib/format';
 import { useApiQuery } from '@/lib/use-api';
@@ -66,13 +66,13 @@ function RfqView({ initial }: { initial: RfqDto }) {
       </Suspense>
 
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-brand-700">Request for quotation</p>
-          <div className="mt-1 flex flex-wrap items-center gap-3">
-            <h1 className="font-mono text-2xl font-bold tracking-tight text-ink-900">{rfq.number}</h1>
+        <div className="min-w-0">
+          <p className="eyebrow text-brand-700">Request for quotation</p>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <h1 className="heading-1 font-mono text-ink-900">{rfq.number}</h1>
             <RfqStatusBadge status={rfq.status} />
           </div>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-2 text-sm text-slate-600">
             Submitted {formatDateTime(rfq.createdAt)}
             {rfq.requestedBy && ` by ${rfq.requestedBy.fullName}`}
           </p>
@@ -97,20 +97,23 @@ function RfqView({ initial }: { initial: RfqDto }) {
           <Card>
             <CardHeader title="Quotations" description={rfq.quotations.length > 1 ? 'Latest revision first' : undefined} />
             {rfq.quotations.length === 0 ? (
-              <p className="px-5 py-8 text-center text-sm text-slate-500">
+              <p className="px-5 py-8 text-center text-sm text-slate-600">
                 {rfq.status === RfqStatus.CANCELLED
                   ? 'This request was cancelled before it was quoted.'
                   : 'No quotation yet — you will receive an email as soon as it is ready.'}
               </p>
             ) : (
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-slate-200">
                 {rfq.quotations.map((quotation, index) => {
                   const action = quotationAction(quotation);
                   return (
                     <li key={quotation.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-4">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Link href={`/business/quotations/${quotation.id}`} className="font-mono text-sm font-semibold text-brand-700 hover:underline">
+                          <Link
+                            href={`/business/quotations/${quotation.id}`}
+                            className="font-mono text-sm font-semibold text-brand-700 underline-offset-4 hover:underline"
+                          >
                             {quotation.displayNumber}
                           </Link>
                           <QuotationStatusBadge status={quotation.status} expired={quotation.isExpired} />
@@ -136,21 +139,21 @@ function RfqView({ initial }: { initial: RfqDto }) {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[520px] text-left text-sm">
                 <thead>
-                  <tr className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    <th scope="col" className="px-5 py-2.5">Product</th>
-                    <th scope="col" className="px-5 py-2.5 text-right">Quantity</th>
-                    <th scope="col" className="px-5 py-2.5">Notes</th>
+                  <tr className="border-b border-slate-200">
+                    <Th>Product</Th>
+                    <Th className="text-right">Quantity</Th>
+                    <Th>Notes</Th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-200">
                   {rfq.items.map((item) => (
                     <tr key={item.id} className="align-top">
-                      <td className="px-5 py-3">
+                      <td className="px-4 py-3">
                         <p className="font-medium text-ink-900">{item.productName}</p>
-                        <p className="font-mono text-xs text-slate-400">{item.sku}</p>
+                        <p className="font-mono text-xs text-slate-500">{item.sku}</p>
                       </td>
-                      <td className="px-5 py-3 text-right tabular-nums">{item.quantity.toLocaleString('en-AE')}</td>
-                      <td className="px-5 py-3 text-slate-600">{item.notes ?? <span className="text-slate-400">—</span>}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{item.quantity.toLocaleString('en-AE')}</td>
+                      <td className="px-4 py-3 text-slate-600">{item.notes ?? <span className="text-slate-500">—</span>}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -175,7 +178,7 @@ function RfqView({ initial }: { initial: RfqDto }) {
                 </>
               )}
             </DetailItem>
-            <DetailItem stacked label="Top Flow contact">{rfq.assignedTo?.fullName ?? <span className="text-slate-500">Not assigned yet</span>}</DetailItem>
+            <DetailItem stacked label="Top Flow contact">{rfq.assignedTo?.fullName ?? <span className="text-slate-600">Not assigned yet</span>}</DetailItem>
             <DetailItem stacked label="Last updated">{formatDateTime(rfq.updatedAt)}</DetailItem>
             {rfq.notes && (
               <DetailItem stacked label="Notes for Top Flow">

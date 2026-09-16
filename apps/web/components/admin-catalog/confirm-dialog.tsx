@@ -1,7 +1,8 @@
 'use client';
 
+import { CircleQuestionMark, TriangleAlert } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ComponentProps, type ReactNode } from 'react';
-import { Alert, Button } from '@/components/ui';
+import { Alert, Button, cx } from '@/components/ui';
 import { errorMessage } from '@/lib/api';
 
 type ButtonProps = ComponentProps<typeof Button>;
@@ -62,18 +63,25 @@ export function ConfirmDialog({ title, description, confirmLabel, tone = 'danger
       // Reset text styles inherited from the trigger's context (dialogs often live inside table cells).
       className="m-auto w-[calc(100%-2rem)] max-w-md rounded-xl border border-slate-200 bg-white p-0 text-left text-sm font-normal tracking-normal whitespace-normal text-slate-700 normal-case shadow-xl backdrop:bg-ink-950/40"
     >
-      <div className="px-5 pt-5 pb-4">
-        <h2 id={titleId} className="text-base font-semibold text-ink-900">
-          {title}
-        </h2>
-        {description && <div className="mt-2 space-y-2 leading-relaxed text-slate-600">{description}</div>}
-        {error && (
-          <div className="mt-4">
-            <Alert tone="danger">{error}</Alert>
-          </div>
-        )}
+      <div className="flex gap-4 px-5 pt-5 pb-4">
+        <span
+          className={cx('grid size-10 shrink-0 place-items-center rounded-full', tone === 'danger' ? 'bg-danger-50 text-danger-600' : 'bg-flow-50 text-flow-600')}
+        >
+          {tone === 'danger' ? <TriangleAlert aria-hidden="true" className="size-5" /> : <CircleQuestionMark aria-hidden="true" className="size-5" />}
+        </span>
+        <div className="min-w-0 flex-1 pt-2">
+          <h2 id={titleId} className="heading-4 text-ink-900">
+            {title}
+          </h2>
+          {description && <div className="mt-2 space-y-2 leading-relaxed text-slate-600">{description}</div>}
+          {error && (
+            <div className="mt-4">
+              <Alert tone="danger">{error}</Alert>
+            </div>
+          )}
+        </div>
       </div>
-      <div className="flex flex-wrap justify-end gap-2 rounded-b-xl border-t border-slate-100 bg-slate-50 px-5 py-3">
+      <div className="flex flex-wrap justify-end gap-2 rounded-b-xl border-t border-slate-200 bg-slate-50 px-5 py-3">
         <Button variant="secondary" onClick={dismiss} disabled={busy}>
           Cancel
         </Button>

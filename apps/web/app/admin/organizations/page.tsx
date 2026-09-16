@@ -9,6 +9,7 @@ import {
   type OrganizationDto,
   type Paginated,
 } from '@topflow/shared';
+import { Building, SearchX } from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { RequirePermission } from '@/components/admin-catalog/access';
@@ -25,7 +26,7 @@ type StatusFilter = OrgStatus | 'ALL';
 const STATUS_VALUES: readonly string[] = Object.values(OrgStatus);
 
 function Muted({ children }: { children?: string | null }) {
-  return children ? <>{children}</> : <span className="text-slate-400">—</span>;
+  return children ? <>{children}</> : <span className="text-slate-500">—</span>;
 }
 
 function OrganizationsList() {
@@ -70,6 +71,7 @@ function OrganizationsList() {
   } else if (data.items.length === 0) {
     content = filtered ? (
       <EmptyState
+        icon={<SearchX aria-hidden="true" />}
         title="No organizations match these filters"
         description="Try another name, TRN or trade licence number, or a different status."
         action={
@@ -79,7 +81,11 @@ function OrganizationsList() {
         }
       />
     ) : (
-      <EmptyState title="No trade accounts yet" description="Organizations appear here as soon as a business applies for a trade account." />
+      <EmptyState
+        icon={<Building aria-hidden="true" />}
+        title="No trade accounts yet"
+        description="Organizations appear here as soon as a business applies for a trade account."
+      />
     );
   } else {
     content = (

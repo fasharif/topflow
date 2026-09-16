@@ -1,6 +1,7 @@
 'use client';
 
 import { ORDER_STATUS_LABELS, OrderChannel, OrderStatus, Permission, enumValues, type OrderSummaryDto, type Paginated } from '@topflow/shared';
+import { Package, SearchX } from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { CHANNEL_LABELS, ChannelBadge, QueryError } from '@/components/admin/detail';
@@ -68,6 +69,7 @@ function OrdersList() {
         <EmptyState
           title={filtered ? 'No orders match these filters' : 'No orders yet'}
           description={filtered ? 'Try a different status, channel or search term.' : 'Orders placed online or accepted from quotations appear here.'}
+          icon={filtered ? <SearchX aria-hidden="true" /> : <Package aria-hidden="true" />}
           action={
             filtered ? (
               <Button variant="secondary" onClick={clear}>
@@ -77,7 +79,7 @@ function OrdersList() {
           }
         />
       ) : (
-        <div className={cx('transition-opacity', loading && 'opacity-60')} aria-busy={loading}>
+        <div className={cx('motion-safe:transition-opacity', loading && 'opacity-60')} aria-busy={loading}>
           <p className="mb-2 text-sm text-slate-500">{pluralize(data.total, 'order')}</p>
           <Table>
             <thead>
@@ -107,7 +109,7 @@ function OrdersList() {
                     <p className="font-medium text-ink-900">{order.customer?.fullName ?? '—'}</p>
                     {order.customer?.email && <p className="text-xs text-slate-500">{order.customer.email}</p>}
                   </Td>
-                  <Td className="text-slate-700">{order.organization?.name ?? <span className="text-slate-400">—</span>}</Td>
+                  <Td className="text-slate-700">{order.organization?.name ?? <span className="text-slate-500">—</span>}</Td>
                   <Td className="whitespace-nowrap text-right font-medium tabular-nums text-ink-900">{aed(order.totalAmount)}</Td>
                   <Td>
                     <div className="flex flex-wrap gap-1">

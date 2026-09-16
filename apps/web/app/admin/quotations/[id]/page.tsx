@@ -11,6 +11,7 @@ import {
   type OrganizationDto,
   type QuotationDto,
 } from '@topflow/shared';
+import { Download } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -27,7 +28,7 @@ import {
 } from '@/components/admin/quotation-line-editor';
 import { RequireAuth } from '@/components/require-auth';
 import { QuotationStatusBadge } from '@/components/status-badge';
-import { Alert, Button, Card, CardHeader, LoadingBlock, PageHeader } from '@/components/ui';
+import { Alert, BackLink, Button, Card, CardHeader, LoadingBlock, PageHeader } from '@/components/ui';
 import { api, downloadFile, errorMessage } from '@/lib/api';
 import { formatDate, formatDateTime, pluralize } from '@/lib/format';
 import { apiFieldErrors, zodFieldErrors, type FieldErrors } from '@/lib/forms';
@@ -157,7 +158,7 @@ function DraftQuotationForm({
   return (
     <div className="space-y-6">
       {orphaned.length > 0 && (
-        <Alert tone="warning" title={`${pluralize(orphaned.length, 'line')} no longer in the catalog`}>
+        <Alert tone="warning" title={`${pluralize(orphaned.length, 'line')} no longer in the catalogue`}>
           {orphaned.map((line) => `${line.productName} (${line.sku})`).join(', ')} will be removed the next time the draft is saved.
         </Alert>
       )}
@@ -168,7 +169,7 @@ function DraftQuotationForm({
         <QuotationTermsCard values={values} onChange={setValues} errors={errors} disabled={busy !== null} />
         <Card className="h-fit space-y-5 p-5">
           <QuotationSettingsFields values={values} onChange={setValues} errors={errors} disabled={busy !== null} />
-          <div className="border-t border-slate-100 pt-5">
+          <div className="border-t border-slate-200 pt-5">
             <QuotationTotalsPreview values={values} defaultDiscount={defaultDiscount} />
           </div>
           {error && <Alert tone="danger">{error}</Alert>}
@@ -179,16 +180,17 @@ function DraftQuotationForm({
             <Button className="w-full" variant="secondary" loading={busy === 'save'} disabled={busy !== null || !dirty} onClick={save}>
               {dirty ? 'Save draft' : 'All changes saved'}
             </Button>
-            <button
-              type="button"
-              onClick={discard}
+            <Button
+              variant="danger-ghost"
+              className="w-full"
+              loading={busy === 'discard'}
               disabled={busy !== null}
-              className="inline-flex h-10 w-full items-center justify-center rounded-lg text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={discard}
             >
               Discard draft
-            </button>
+            </Button>
           </div>
-          {dirty && <p className="text-center text-xs text-amber-700">You have unsaved changes.</p>}
+          {dirty && <p className="text-center text-xs text-warning-700">You have unsaved changes.</p>}
         </Card>
       </div>
     </div>
@@ -230,7 +232,7 @@ function StatusCallout({ quotation }: { quotation: QuotationDto }) {
             <>
               {' '}
               Order{' '}
-              <Link href={`/admin/orders/${quotation.orderId}`} className="font-semibold underline">
+              <Link href={`/admin/orders/${quotation.orderId}`} className="font-semibold underline underline-offset-2">
                 {quotation.orderNumber}
               </Link>{' '}
               was created.
@@ -243,7 +245,7 @@ function StatusCallout({ quotation }: { quotation: QuotationDto }) {
       return (
         <Alert tone="info" title="Superseded">
           A newer revision replaced this quotation.{' '}
-          <Link href={`/admin/quotations?search=${encodeURIComponent(quotation.number)}`} className="font-semibold underline">
+          <Link href={`/admin/quotations?search=${encodeURIComponent(quotation.number)}`} className="font-semibold underline underline-offset-2">
             See all revisions
           </Link>
         </Alert>
@@ -344,7 +346,7 @@ function IssuedQuotation({ quotation, canSeeRfqs, canReviewOrganizations }: { qu
 
         <div className="min-w-0 space-y-6">
           <section>
-            <h2 className="mb-3 text-base font-semibold text-ink-900">
+            <h2 className="heading-4 mb-3 text-ink-900">
               Line items <span className="font-normal text-slate-500">· {pluralize(quotation.items.length, 'line')}</span>
             </h2>
             <DocumentLinesTable lines={quotation.items} showListPrice />
@@ -380,10 +382,10 @@ function IssuedQuotation({ quotation, canSeeRfqs, canReviewOrganizations }: { qu
           )}
 
           {quotation.internalNotes && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-5">
+            <Card tone="warning" className="p-5">
               <SectionLabel>Internal notes · staff only</SectionLabel>
               <p className="whitespace-pre-line text-sm text-slate-800">{quotation.internalNotes}</p>
-            </div>
+            </Card>
           )}
         </div>
       </div>
@@ -454,13 +456,9 @@ function QuotationDetail({ id }: { id: string }) {
 
   return (
     <>
+      <BackLink href="/admin/quotations">Quotations</BackLink>
       <PageHeader
-        eyebrow={
-          <Link href="/admin/quotations" className="hover:underline">
-            ← Quotations
-          </Link>
-        }
-        title={quotation.displayNumber}
+        title={<span className="font-mono">{quotation.displayNumber}</span>}
         description={
           <>
             {quotation.organization?.name ?? quotation.customer?.fullName ?? '—'}
@@ -483,6 +481,7 @@ function QuotationDetail({ id }: { id: string }) {
           <>
             <QuotationStatusBadge status={quotation.status} expired={quotation.isExpired} />
             <Button variant="secondary" size="sm" loading={busy === 'pdf'} disabled={busy !== null} onClick={downloadPdf}>
+              {busy !== 'pdf' && <Download aria-hidden="true" />}
               Download PDF
             </Button>
             {canRevise && (

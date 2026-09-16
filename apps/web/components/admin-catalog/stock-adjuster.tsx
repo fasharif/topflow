@@ -67,7 +67,7 @@ export function StockAdjuster({ product, onSaved, onCancel }: { product: Product
             aria-invalid={Boolean(errors.stockQuantity)}
           />
         </Field>
-        <Field label="Note (optional)" htmlFor={`${baseId}-note`} error={errors.note} className="min-w-56 flex-1">
+        <Field label="Note" optional htmlFor={`${baseId}-note`} error={errors.note} className="min-w-56 flex-1">
           <Input
             id={`${baseId}-note`}
             maxLength={200}
@@ -77,7 +77,7 @@ export function StockAdjuster({ product, onSaved, onCancel }: { product: Product
             aria-invalid={Boolean(errors.note)}
           />
         </Field>
-        <div className="flex gap-2 sm:pt-7">
+        <div className="flex gap-2 sm:pt-6.5">
           <Button type="submit" loading={saving}>
             Save count
           </Button>
@@ -86,10 +86,10 @@ export function StockAdjuster({ product, onSaved, onCancel }: { product: Product
           </Button>
         </div>
       </div>
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-slate-600">
         Currently {product.stockQuantity} {unit}
         {count !== null && delta !== 0 && (
-          <span className={delta > 0 ? 'font-medium text-emerald-700' : 'font-medium text-amber-700'}>
+          <span className={delta > 0 ? 'font-medium text-success-700' : 'font-medium text-warning-700'}>
             {' '}
             ({delta > 0 ? '+' : ''}
             {delta})
