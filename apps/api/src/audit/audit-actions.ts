@@ -8,6 +8,8 @@ export const AuditAction = {
 
   USER_UPDATED: 'users.updated',
   STAFF_CREATED: 'users.staff_created',
+  /** Sales created an account for a website contact so a quotation can be addressed to them. */
+  CUSTOMER_INVITED: 'users.customer_invited',
 
   ORGANIZATION_UPDATED: 'organizations.updated',
   ORGANIZATION_REVIEWED: 'organizations.reviewed',
@@ -25,6 +27,7 @@ export const AuditAction = {
 
   RFQ_SUBMITTED: 'procurement.rfq_submitted',
   RFQ_UPDATED: 'procurement.rfq_updated',
+  RFQ_CUSTOMER_ASSIGNED: 'procurement.rfq_customer_assigned',
   QUOTATION_CREATED: 'procurement.quotation_created',
   QUOTATION_UPDATED: 'procurement.quotation_updated',
   QUOTATION_SENT: 'procurement.quotation_sent',

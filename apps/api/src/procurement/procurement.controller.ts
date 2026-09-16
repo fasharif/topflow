@@ -42,9 +42,11 @@ import type {
 } from '../common/request-context';
 import {
   ApprovalDecisionDto,
+  AssignRfqCustomerDto,
   CreateQuotationDto,
   CreateRfqDto,
   QuotationQueryDto,
+  RespondPersonalQuotationDto,
   RespondQuotationDto,
   RfqQueryDto,
   UpdateQuotationDto,
@@ -146,7 +148,11 @@ export class OrgProcurementController {
     @CurrentOrganization() org: OrganizationContext,
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<StreamableFile> {
-    return pdfFile(await this.quotations.renderPdf(id, org.organizationId));
+    return pdfFile(
+      await this.quotations.renderPdf(id, {
+        organizationId: org.organizationId,
+      }),
+    );
   }
 
   @Post('quotations/:id/respond')
@@ -184,6 +190,56 @@ export class OrgProcurementController {
   }
 }
 
+/** Quotations addressed to a customer personally, typically answering a website quote request. */
+@ApiTags('Quotations')
+@ApiBearerAuth()
+@Controller('me/quotations')
+export class MyQuotationsController {
+  constructor(private readonly quotations: QuotationsService) {}
+
+  @Get()
+  list(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: QuotationQueryDto,
+  ): Promise<Paginated<QuotationSummaryDto>> {
+    return this.quotations.personalList(user, query);
+  }
+
+  @Get(':id')
+  get(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<QuotationDto> {
+    return this.quotations.personalGet(user, id);
+  }
+
+  @Get(':id/pdf')
+  @ApiProduces('application/pdf')
+  async pdf(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<StreamableFile> {
+    return pdfFile(
+      await this.quotations.renderPdf(id, { customerId: user.id }),
+    );
+  }
+
+  @Post(':id/respond')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Accept (choosing a delivery address), reject or request a revision',
+  })
+  respond(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: RespondPersonalQuotationDto,
+    @Meta() meta: RequestMeta,
+  ): Promise<QuotationDto> {
+    return this.quotations.personalRespond(user, id, dto, meta);
+  }
+}
+
 @ApiTags('Admin · Procurement')
 @ApiBearerAuth()
 @Controller('admin')
@@ -214,6 +270,22 @@ export class AdminProcurementController {
     @Meta() meta: RequestMeta,
   ): Promise<RfqDto> {
     return this.rfqs.adminUpdate(id, dto, user, meta);
+  }
+
+  @Post('rfqs/:id/customer')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(Permission.RFQS_MANAGE)
+  @ApiOperation({
+    summary:
+      'Link a website request to an existing customer, or invite its contact to create an account',
+  })
+  assignRfqCustomer(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AssignRfqCustomerDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @Meta() meta: RequestMeta,
+  ): Promise<RfqDto> {
+    return this.rfqs.assignCustomer(id, dto, user, meta);
   }
 
   @Get('quotations')

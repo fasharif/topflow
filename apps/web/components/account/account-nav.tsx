@@ -1,6 +1,6 @@
 'use client';
 
-import { Building, LayoutDashboard, MapPin, Package, type LucideIcon } from 'lucide-react';
+import { Building, FileText, LayoutDashboard, MapPin, Package, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Card, Skeleton, cx } from '@/components/ui';
@@ -17,6 +17,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { href: '/account', label: 'Overview', exact: true, icon: LayoutDashboard },
   { href: '/account/orders', label: 'Orders', icon: Package },
+  { href: '/account/quotations', label: 'Quotations', icon: FileText },
   { href: '/account/addresses', label: 'Addresses', icon: MapPin },
 ];
 

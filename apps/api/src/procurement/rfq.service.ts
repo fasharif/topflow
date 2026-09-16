@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
@@ -12,11 +13,14 @@ import {
   RFQ_TRANSITIONS,
   RfqSource,
   RfqStatus,
+  Role,
   assertTransition,
   hasPermission,
+  type AssignRfqCustomerInput,
   type CreateRfqInput,
   type CreateWebsiteQuoteRequestInput,
   type Paginated,
+  type RfqContactAccountDto,
   type RfqDto,
   type RfqQuery,
   type UpdateRfqInput,
@@ -24,6 +28,7 @@ import {
 } from '@topflow/shared';
 import { AuditAction } from '../audit/audit-actions';
 import { AuditService } from '../audit/audit.service';
+import { IdentityAdminService } from '../auth/identity-admin.service';
 import { todayInUae, uaeDate } from '../common/dates';
 import { NumberingService } from '../common/numbering.service';
 import type {
@@ -70,6 +75,7 @@ export class RfqService {
     private readonly addressBook: AddressBookService,
     private readonly audit: AuditService,
     private readonly mail: MailService,
+    private readonly identities: IdentityAdminService,
     @InjectConfig() private readonly config: AppConfig,
   ) {}
 
@@ -132,9 +138,9 @@ export class RfqService {
   }
 
   /**
-   * A visitor on the public website asks for a quotation. There is no account or organization:
-   * sales replies to the contact details, and a formal quotation can follow once the customer
-   * has an account. Visitors may send basket items, or only describe a project.
+   * A visitor on the public website asks for a quotation. There is no account or organization
+   * yet: sales link the request to a customer account — inviting the contact when they have none —
+   * before a formal quotation follows. Visitors may send basket items, or only describe a project.
    */
   async createFromWebsite(
     input: CreateWebsiteQuoteRequestInput,
@@ -274,7 +280,7 @@ export class RfqService {
       include: rfqInclude(true),
     });
     if (!rfq) throw new NotFoundException('RFQ not found');
-    return toRfqDto(rfq);
+    return { ...toRfqDto(rfq), contactAccount: await this.contactAccount(rfq) };
   }
 
   /** Sales triage: assign an owner and/or move the RFQ along its lifecycle. */
@@ -303,10 +309,9 @@ export class RfqService {
         );
       }
     }
-    const updated = await this.prisma.quoteRequest.update({
+    await this.prisma.quoteRequest.update({
       where: { id },
       data: { status: input.status, assignedToId: input.assignedToId },
-      include: rfqInclude(true),
     });
     await this.audit.record({
       action: AuditAction.RFQ_UPDATED,
@@ -317,7 +322,187 @@ export class RfqService {
       ipAddress: meta.ipAddress,
       details: { ...input },
     });
-    return toRfqDto(updated);
+    return this.adminGet(id);
+  }
+
+  /**
+   * Links a website request to the account its quotation will be addressed to. Staff pick an
+   * existing customer (optionally one of their organizations), or invite the contact: the account
+   * is created from the request's details and Supabase emails a link to choose a password.
+   */
+  async assignCustomer(
+    id: string,
+    input: AssignRfqCustomerInput,
+    actor: AuthenticatedUser,
+    meta: RequestMeta,
+  ): Promise<RfqDto> {
+    const rfq = await this.prisma.quoteRequest.findUnique({
+      where: { id },
+      include: { quotations: { select: { id: true } } },
+    });
+    if (!rfq) throw new NotFoundException('RFQ not found');
+    if (rfq.source !== RfqSource.WEBSITE) {
+      throw new ConflictException(
+        'Only website requests are linked to a customer here; trade RFQs already have one',
+      );
+    }
+    if (rfq.status === RfqStatus.CLOSED || rfq.status === RfqStatus.CANCELLED) {
+      throw new ConflictException(
+        `Request ${rfq.number} is ${rfq.status.toLowerCase()} and can no longer change customer`,
+      );
+    }
+    if (rfq.quotations.length > 0) {
+      throw new ConflictException(
+        'This request already has a quotation, so its customer can no longer change',
+      );
+    }
+
+    let customerId: string;
+    let organizationId: string | null = null;
+    let invited = false;
+    if (input.customerId) {
+      const customer = await this.prisma.user.findUnique({
+        where: { id: input.customerId },
+        select: { id: true, role: true, isActive: true },
+      });
+      if (!customer) throw new NotFoundException('Customer not found');
+      if (customer.role !== Role.CUSTOMER || !customer.isActive) {
+        throw new BadRequestException(
+          'Quotations can only be addressed to active customer accounts',
+        );
+      }
+      if (input.organizationId) {
+        const membership = await this.prisma.organizationMember.findUnique({
+          where: {
+            organizationId_userId: {
+              organizationId: input.organizationId,
+              userId: customer.id,
+            },
+          },
+        });
+        if (!membership) {
+          throw new BadRequestException(
+            'The customer is not a member of this organization',
+          );
+        }
+        organizationId = input.organizationId;
+      }
+      customerId = customer.id;
+    } else {
+      customerId = await this.inviteContact(rfq);
+      invited = true;
+    }
+
+    await this.prisma.quoteRequest.update({
+      where: { id },
+      data: { requestedById: customerId, organizationId },
+    });
+    await this.audit.record({
+      action: AuditAction.RFQ_CUSTOMER_ASSIGNED,
+      entityType: 'QuoteRequest',
+      entityId: id,
+      organizationId,
+      userId: actor.id,
+      ipAddress: meta.ipAddress,
+      details: { customerId, organizationId, invited },
+    });
+    if (invited) {
+      await this.audit.record({
+        action: AuditAction.CUSTOMER_INVITED,
+        entityType: 'User',
+        entityId: customerId,
+        userId: actor.id,
+        ipAddress: meta.ipAddress,
+        details: { quoteRequest: rfq.number },
+      });
+    }
+    return this.adminGet(id);
+  }
+
+  /** Creates a customer account for a website contact and emails them an invitation. */
+  private async inviteContact(rfq: {
+    number: string;
+    contactEmail: string | null;
+    contactName: string | null;
+    contactPhone: string | null;
+  }): Promise<string> {
+    const email = rfq.contactEmail?.toLowerCase();
+    if (!email) {
+      throw new ConflictException(
+        `Request ${rfq.number} has no contact email to invite`,
+      );
+    }
+    if (
+      await this.prisma.user.findFirst({
+        where: { email: { equals: email, mode: 'insensitive' } },
+        select: { id: true },
+      })
+    ) {
+      throw new ConflictException(
+        'An account already uses this email address — link it instead of sending an invitation',
+      );
+    }
+    const fullName = rfq.contactName?.trim() || email;
+    const id = await this.identities.inviteCustomer({
+      email,
+      fullName,
+      phoneNumber: rfq.contactPhone ?? undefined,
+      redirectTo: `${this.config.app.publicUrl}/auth/set-password`,
+    });
+    try {
+      await this.prisma.user.create({
+        data: {
+          id,
+          email,
+          fullName,
+          phoneNumber: rfq.contactPhone,
+          role: Role.CUSTOMER,
+        },
+      });
+    } catch (error) {
+      await this.identities.deleteIdentity(id);
+      throw error;
+    }
+    return id;
+  }
+
+  /** The account already using a website contact's email, until the request is linked to a customer. */
+  private async contactAccount(rfq: {
+    source: string;
+    requestedById: string | null;
+    contactEmail: string | null;
+  }): Promise<RfqContactAccountDto | null> {
+    if (
+      rfq.source !== RfqSource.WEBSITE ||
+      rfq.requestedById ||
+      !rfq.contactEmail
+    ) {
+      return null;
+    }
+    const account = await this.prisma.user.findFirst({
+      where: { email: { equals: rfq.contactEmail, mode: 'insensitive' } },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        role: true,
+        isActive: true,
+        memberships: {
+          select: { organization: { select: { id: true, name: true } } },
+        },
+      },
+    });
+    if (!account) return null;
+    return {
+      id: account.id,
+      fullName: account.fullName,
+      email: account.email,
+      role: account.role,
+      isActive: account.isActive,
+      organizations: account.memberships.map(
+        (membership) => membership.organization,
+      ),
+    };
   }
 
   private filters(query: RfqQuery): Prisma.QuoteRequestWhereInput {
