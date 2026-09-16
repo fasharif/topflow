@@ -35,10 +35,10 @@
     "prisma": "^7.9.1"
   },
   "devDependencies": {
+    "@supabase/supabase-js": "^2.116.0",
     "@topflow/shared": "*",
     "@types/node": "^22.20.2",
     "@types/pg": "^8.23.1",
-    "bcryptjs": "^3.0.3",
     "tsx": "^4.23.13"
   }
 }

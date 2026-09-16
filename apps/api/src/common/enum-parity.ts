@@ -19,7 +19,7 @@ export type EnumParity = [
   Assert<Equals<Db.OrgType, Shared.OrgType>>,
   Assert<Equals<Db.PaymentTerms, Shared.PaymentTerms>>,
   Assert<Equals<Db.Emirate, Shared.Emirate>>,
-  Assert<Equals<Db.TokenPurpose, Shared.TokenPurpose>>,
+  Assert<Equals<Db.ContactChannel, Shared.ContactChannel>>,
   Assert<Equals<Db.StockStatus, Shared.StockStatus>>,
   Assert<Equals<Db.UnitOfMeasure, Shared.UnitOfMeasure>>,
   Assert<Equals<Db.RfqStatus, Shared.RfqStatus>>,

@@ -2,14 +2,39 @@ import {
   BadRequestException,
   ExecutionContext,
   ForbiddenException,
+  HttpException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { OrgPermission, Permission } from '@topflow/shared';
-import { ORG_PERMISSION_KEY, PERMISSIONS_KEY } from '../common/decorators';
-import { OrganizationGuard, PermissionsGuard } from './guards';
+import {
+  IS_PUBLIC_KEY,
+  ORG_PERMISSION_KEY,
+  PERMISSIONS_KEY,
+} from '../common/decorators';
+import { loadConfig } from '../config/env';
+import type {
+  AccessTokenClaims,
+  AccessTokenVerifier,
+} from './access-token.verifier';
+import type {
+  AccountProvisioningService,
+  PlatformAccount,
+} from './account-provisioning.service';
+import {
+  AuthenticationGuard,
+  OrganizationGuard,
+  PermissionsGuard,
+} from './guards';
 
 const ORG_ID = '7a1d1c6e-6f7b-4f8e-9b62-3e1a2b3c4d5e';
+
+const config = (staffMfaRequired = false) =>
+  loadConfig({
+    NODE_ENV: 'test',
+    DATABASE_URL: 'postgres://test',
+    STAFF_MFA_REQUIRED: String(staffMfaRequired),
+  });
 
 function httpContext(
   request: Record<string, unknown>,
@@ -34,35 +59,163 @@ function request(user: unknown, headers: Record<string, string> = {}) {
   >;
 }
 
+function responseOf(action: () => unknown): unknown {
+  try {
+    action();
+  } catch (error) {
+    return (error as HttpException).getResponse();
+  }
+  throw new Error('Expected the guard to throw');
+}
+
+describe('AuthenticationGuard', () => {
+  const claims: AccessTokenClaims = {
+    userId: 'user-1',
+    email: 'jane@oasis.ae',
+    assuranceLevel: 'aal1',
+    sessionId: 'session-1',
+    userMetadata: {},
+  };
+  const account: PlatformAccount = {
+    id: 'user-1',
+    email: 'jane@oasis.ae',
+    fullName: 'Jane Doe',
+    role: 'CUSTOMER',
+    isActive: true,
+    emailVerifiedAt: null,
+    lastSessionId: 'session-1',
+  };
+
+  function guardWith(options: {
+    headers?: Record<string, string>;
+    isPublic?: boolean;
+    verify?: () => Promise<AccessTokenClaims>;
+    resolve?: () => Promise<PlatformAccount>;
+  }) {
+    const verifier = {
+      verify: jest.fn(options.verify ?? (() => Promise.resolve(claims))),
+    } as unknown as AccessTokenVerifier;
+    const accounts = {
+      resolve: jest.fn(options.resolve ?? (() => Promise.resolve(account))),
+    } as unknown as AccountProvisioningService;
+    const req = request(
+      undefined,
+      options.headers ?? { authorization: 'Bearer token' },
+    );
+    const { reflector, context } = httpContext(req, {
+      [IS_PUBLIC_KEY]: options.isPublic ?? false,
+    });
+    return {
+      guard: new AuthenticationGuard(reflector, verifier, accounts),
+      context,
+      req,
+    };
+  }
+
+  it('requires a bearer token on protected routes', async () => {
+    const { guard, context } = guardWith({ headers: {} });
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      UnauthorizedException,
+    );
+  });
+
+  it('lets anonymous visitors through public routes', async () => {
+    const { guard, context, req } = guardWith({ headers: {}, isPublic: true });
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(req.user).toBeUndefined();
+  });
+
+  it('attaches the platform account with the session assurance level', async () => {
+    const { guard, context, req } = guardWith({});
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(req.user).toEqual({
+      id: 'user-1',
+      email: 'jane@oasis.ae',
+      fullName: 'Jane Doe',
+      role: 'CUSTOMER',
+      assuranceLevel: 'aal1',
+      sessionId: 'session-1',
+    });
+  });
+
+  it('rejects suspended accounts with a machine-readable code', async () => {
+    const { guard, context } = guardWith({
+      resolve: () => Promise.resolve({ ...account, isActive: false }),
+    });
+    await expect(guard.canActivate(context)).rejects.toMatchObject({
+      response: { code: 'ACCOUNT_DISABLED' },
+    });
+  });
+
+  it('treats an unusable token on a public route as anonymous', async () => {
+    const { guard, context, req } = guardWith({
+      isPublic: true,
+      verify: () => Promise.reject(new UnauthorizedException()),
+    });
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(req.user).toBeUndefined();
+  });
+});
+
 describe('PermissionsGuard', () => {
   it('allows routes without permission metadata', () => {
     const { reflector, context } = httpContext(request(undefined), {});
-    expect(new PermissionsGuard(reflector).canActivate(context)).toBe(true);
+    expect(new PermissionsGuard(reflector, config()).canActivate(context)).toBe(
+      true,
+    );
   });
 
   it('allows a role that holds every required permission', () => {
-    const { reflector, context } = httpContext(request({ role: 'SALES' }), {
-      [PERMISSIONS_KEY]: [Permission.QUOTATIONS_MANAGE],
-    });
-    expect(new PermissionsGuard(reflector).canActivate(context)).toBe(true);
+    const { reflector, context } = httpContext(
+      request({ role: 'SALES', assuranceLevel: 'aal1' }),
+      { [PERMISSIONS_KEY]: [Permission.QUOTATIONS_MANAGE] },
+    );
+    expect(new PermissionsGuard(reflector, config()).canActivate(context)).toBe(
+      true,
+    );
   });
 
   it('forbids a role that lacks a permission', () => {
-    const { reflector, context } = httpContext(request({ role: 'WAREHOUSE' }), {
-      [PERMISSIONS_KEY]: [Permission.QUOTATIONS_MANAGE],
-    });
-    expect(() => new PermissionsGuard(reflector).canActivate(context)).toThrow(
-      ForbiddenException,
+    const { reflector, context } = httpContext(
+      request({ role: 'WAREHOUSE', assuranceLevel: 'aal2' }),
+      { [PERMISSIONS_KEY]: [Permission.QUOTATIONS_MANAGE] },
     );
+    expect(() =>
+      new PermissionsGuard(reflector, config()).canActivate(context),
+    ).toThrow(ForbiddenException);
   });
 
   it('requires authentication for protected routes', () => {
     const { reflector, context } = httpContext(request(undefined), {
       [PERMISSIONS_KEY]: [Permission.DASHBOARD_VIEW],
     });
-    expect(() => new PermissionsGuard(reflector).canActivate(context)).toThrow(
-      UnauthorizedException,
+    expect(() =>
+      new PermissionsGuard(reflector, config()).canActivate(context),
+    ).toThrow(UnauthorizedException);
+  });
+
+  it('requires a verified second factor for staff when MFA is enforced', () => {
+    const unverified = httpContext(
+      request({ role: 'SALES', assuranceLevel: 'aal1' }),
+      { [PERMISSIONS_KEY]: [Permission.QUOTATIONS_MANAGE] },
     );
+    expect(
+      responseOf(() =>
+        new PermissionsGuard(unverified.reflector, config(true)).canActivate(
+          unverified.context,
+        ),
+      ),
+    ).toMatchObject({ code: 'MFA_REQUIRED' });
+
+    const verified = httpContext(
+      request({ role: 'SALES', assuranceLevel: 'aal2' }),
+      { [PERMISSIONS_KEY]: [Permission.QUOTATIONS_MANAGE] },
+    );
+    expect(
+      new PermissionsGuard(verified.reflector, config(true)).canActivate(
+        verified.context,
+      ),
+    ).toBe(true);
   });
 });
 

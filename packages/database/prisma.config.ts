@@ -1,8 +1,9 @@
 import 'dotenv/config';
 import { defineConfig } from 'prisma/config';
 
-// `prisma generate` must work without a database (CI, Docker build stage), so the
-// URL is read leniently here; commands that need a connection will fail loudly.
+// `prisma generate` must work without a database (CI, build steps), so the URL is read
+// leniently here; commands that need a connection will fail loudly. Migrations prefer
+// DIRECT_URL: Supabase's transaction pooler (DATABASE_URL at runtime) cannot run them.
 export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
@@ -10,7 +11,7 @@ export default defineConfig({
     seed: 'tsx prisma/seed.ts',
   },
   datasource: {
-    url: process.env.DATABASE_URL ?? '',
+    url: process.env.DIRECT_URL ?? process.env.DATABASE_URL ?? '',
     shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL,
   },
 });

@@ -2,7 +2,9 @@
  * Response shapes returned by the REST API. Decimal amounts are strings ("1234.50") so no
  * precision is lost in JSON; timestamps are ISO-8601 strings.
  */
+import type { AssuranceLevel } from './constants';
 import type {
+  ContactChannel,
   Emirate,
   OrderChannel,
   OrderStatus,
@@ -33,6 +35,8 @@ export interface ApiErrorBody {
   statusCode: number;
   error: string;
   message: string;
+  /** Machine-readable reason (see `ErrorCode`), when the client can act on it. */
+  code?: string;
   details?: Array<{ path: string; message: string }>;
   requestId?: string;
 }
@@ -58,6 +62,7 @@ export interface MembershipSummary {
   approvalLimit: string | null;
 }
 
+/** The signed-in user as the platform sees them (GET /auth/me). Credentials live in Supabase Auth. */
 export interface AuthUser {
   id: string;
   email: string;
@@ -67,14 +72,10 @@ export interface AuthUser {
   emailVerified: boolean;
   permissions: Permission[];
   memberships: MembershipSummary[];
-}
-
-export interface AuthSession {
-  user: AuthUser;
-  accessToken: string;
-  accessTokenExpiresAt: string;
-  /** Only returned to native clients; browsers receive an httpOnly cookie instead. */
-  refreshToken?: string;
+  /** Assurance level of the current session: aal2 once a second factor was verified. */
+  assuranceLevel: AssuranceLevel;
+  /** True when this account must verify a second factor before using the back office. */
+  mfaRequired: boolean;
 }
 
 export interface UserAdminDto {
@@ -252,6 +253,8 @@ export interface RfqContactDto {
   email: string;
   phone: string | null;
   companyName: string | null;
+  /** How the visitor prefers to be contacted. */
+  preferredContact: ContactChannel | null;
 }
 
 export interface RfqDto {

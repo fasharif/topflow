@@ -3,26 +3,11 @@ import type { MailMessage } from './mail.service';
 
 type Template = Omit<MailMessage, 'to'>;
 
+// Account emails (sign-up confirmation, password recovery, staff invitations, email changes)
+// are sent by Supabase Auth with the branded templates in supabase/templates.
+
 const signature =
   '\n\n— Top Flow · Irrigation & Flow Control Supplies\nwww.topflow.ae';
-
-export function verificationEmail(name: string, url: string): Template {
-  return {
-    subject: 'Confirm your Top Flow email address',
-    text: `Hello ${name},\n\nPlease confirm your email address to finish setting up your account:\n${url}\n\nThis link is valid for 24 hours.${signature}`,
-  };
-}
-
-export function passwordResetEmail(
-  name: string,
-  url: string,
-  ttlMinutes: number,
-): Template {
-  return {
-    subject: 'Reset your Top Flow password',
-    text: `Hello ${name},\n\nWe received a request to reset your password. Use the link below within ${ttlMinutes} minutes:\n${url}\n\nIf you did not request this, you can safely ignore this email — your password will not change.${signature}`,
-  };
-}
 
 export function invitationEmail(
   organizationName: string,
@@ -32,7 +17,7 @@ export function invitationEmail(
 ): Template {
   return {
     subject: `${inviterName} invited you to ${organizationName} on Top Flow`,
-    text: `Hello,\n\n${inviterName} has invited you to join ${organizationName} as ${roleLabel} on the Top Flow trade portal.\n\nAccept the invitation:\n${url}\n\nThe invitation expires in 7 days.${signature}`,
+    text: `Hello,\n\n${inviterName} has invited you to join ${organizationName} as ${roleLabel} on the Top Flow trade portal.\n\nAccept the invitation (sign in or create your account with this email address first):\n${url}\n\nThe invitation expires in 7 days.${signature}`,
   };
 }
 
@@ -41,9 +26,13 @@ export function quoteRequestReceivedEmail(
   requestNumber: string,
   lineCount: number,
 ): Template {
+  const scope =
+    lineCount === 0
+      ? 'your project enquiry'
+      : `your quote request (${lineCount} item${lineCount === 1 ? '' : 's'})`;
   return {
     subject: `We received your quote request ${requestNumber}`,
-    text: `Hello ${name},\n\nThank you for your quote request ${requestNumber} (${lineCount} item${lineCount === 1 ? '' : 's'}). Our sales team will review it and get back to you with a formal quotation.\n\nPlease quote ${requestNumber} if you contact us about this request.${signature}`,
+    text: `Hello ${name},\n\nThank you for ${scope}, reference ${requestNumber}. Our sales team will review it and get back to you with a formal quotation.\n\nPlease quote ${requestNumber} if you contact us about this request.${signature}`,
   };
 }
 

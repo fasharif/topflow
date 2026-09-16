@@ -1,0 +1,239 @@
+# TopFlow Hub — Supabase configuration (local stack and `supabase config push`).
+# Reference: https://supabase.com/docs/guides/local-development/cli/config
+#
+# Supabase provides authentication (email + password, email confirmation, recovery, TOTP MFA),
+# the PostgreSQL database and file storage. The database schema is owned by Prisma
+# (packages/database/prisma/migrations), so Supabase migrations and seeds are disabled here.
+project_id = "topflow-hub"
+
+[api]
+enabled = true
+port = 54321
+# Platform tables are private to the NestJS API: the Data API exposes no application schema.
+schemas = ["graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+# New tables are never reachable through the Data API roles without an explicit GRANT.
+auto_expose_new_tables = false
+
+[api.tls]
+enabled = false
+
+[db]
+port = 54322
+shadow_port = 54320
+health_timeout = "2m"
+major_version = 17
+
+[db.pooler]
+enabled = false
+port = 54329
+pool_mode = "transaction"
+default_pool_size = 20
+max_client_conn = 100
+
+[db.migrations]
+# Prisma owns the schema: `npm run db:deploy` applies packages/database/prisma/migrations.
+enabled = false
+schema_paths = []
+
+[db.seed]
+# Demo data is loaded with `npm run db:seed` (it also creates the demo sign-in identities).
+enabled = false
+sql_paths = []
+
+[db.network_restrictions]
+enabled = false
+allowed_cidrs = ["0.0.0.0/0"]
+allowed_cidrs_v6 = ["::/0"]
+
+[realtime]
+enabled = false
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1"
+openai_api_key = "env(OPENAI_API_KEY)"
+
+# Local email testing (Mailpit): http://127.0.0.1:54324 shows every email the stack sends.
+[local_smtp]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+file_size_limit = "20MiB"
+
+# Product photography uploaded from the back office (public, served from the CDN).
+[storage.buckets.product-images]
+public = true
+file_size_limit = "5MiB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/webp"]
+
+# Private business documents: quotation PDFs, trade licences, bills of quantities.
+[storage.buckets.documents]
+public = false
+file_size_limit = "20MiB"
+allowed_mime_types = ["application/pdf", "image/png", "image/jpeg"]
+
+[storage.s3_protocol]
+enabled = false
+
+[storage.analytics]
+enabled = false
+max_namespaces = 5
+max_tables = 10
+max_catalogs = 2
+
+[storage.vector]
+enabled = false
+max_buckets = 10
+max_indexes = 5
+
+[auth]
+enabled = true
+# The web app (apps/web). Links in emails are built from it.
+site_url = "http://localhost:3002"
+additional_redirect_urls = ["http://localhost:3002/**", "http://127.0.0.1:3002/**"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+enable_anonymous_sign_ins = false
+enable_manual_linking = false
+# Mirrors the platform password policy (@topflow/shared passwordSchema).
+minimum_password_length = 8
+password_requirements = "letters_digits"
+
+[auth.rate_limit]
+email_sent = 30
+sms_sent = 30
+anonymous_users = 30
+token_refresh = 150
+sign_in_sign_ups = 30
+token_verifications = 30
+web3 = 30
+
+[auth.email]
+enable_signup = true
+# Email changes are confirmed from both the old and the new address.
+double_confirm_changes = true
+enable_confirmations = true
+secure_password_change = false
+max_frequency = "1s"
+otp_length = 6
+otp_expiry = 3600
+
+# Branded templates. Links go to the web app's /auth/confirm route (token hash + type), which
+# works in any browser the email is opened in.
+[auth.email.template.confirmation]
+subject = "Confirm your Top Flow account"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Reset your Top Flow password"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.email.template.invite]
+subject = "You're invited to Top Flow Hub"
+content_path = "./supabase/templates/invite.html"
+
+[auth.email.template.magic_link]
+subject = "Your Top Flow sign-in link"
+content_path = "./supabase/templates/magic_link.html"
+
+[auth.email.template.email_change]
+subject = "Confirm your new email address"
+content_path = "./supabase/templates/email_change.html"
+
+[auth.email.template.reauthentication]
+subject = "Your Top Flow verification code"
+content_path = "./supabase/templates/reauthentication.html"
+
+[auth.email.notification.password_changed]
+enabled = true
+subject = "Your Top Flow password was changed"
+content_path = "./supabase/templates/password_changed_notification.html"
+
+[auth.email.notification.mfa_factor_enrolled]
+enabled = true
+subject = "Two-factor authentication is on for your Top Flow account"
+content_path = "./supabase/templates/mfa_factor_enrolled_notification.html"
+
+[auth.sms]
+enable_signup = false
+enable_confirmations = false
+template = "Your code is {{ .Code }}"
+max_frequency = "5s"
+
+[auth.sms.twilio]
+enabled = false
+account_sid = ""
+message_service_sid = ""
+auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
+
+[auth.mfa]
+max_enrolled_factors = 10
+
+# Authenticator apps (TOTP). Required for staff when the API runs with STAFF_MFA_REQUIRED=true.
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[auth.mfa.phone]
+enroll_enabled = false
+verify_enabled = false
+otp_length = 6
+template = "Your code is {{ .Code }}"
+max_frequency = "5s"
+
+[auth.external.apple]
+enabled = false
+client_id = ""
+secret = "env(SUPABASE_AUTH_EXTERNAL_APPLE_SECRET)"
+redirect_uri = ""
+url = ""
+skip_nonce_check = false
+email_optional = false
+
+[auth.web3.solana]
+enabled = false
+
+[auth.third_party.firebase]
+enabled = false
+
+[auth.third_party.auth0]
+enabled = false
+
+[auth.third_party.aws_cognito]
+enabled = false
+
+[auth.third_party.clerk]
+enabled = false
+
+[auth.oauth_server]
+enabled = false
+authorization_url_path = "/oauth/consent"
+allow_dynamic_registration = false
+
+[edge_runtime]
+enabled = false
+policy = "per_worker"
+inspector_port = 8083
+deno_version = 2
+
+[analytics]
+enabled = false
+port = 54327
+backend = "postgres"
+
+[experimental]
+orioledb_version = ""
+s3_host = "env(S3_HOST)"
+s3_region = "env(S3_REGION)"
+s3_access_key = "env(S3_ACCESS_KEY)"
+s3_secret_key = "env(S3_SECRET_KEY)"
+
+[experimental.pgdelta]
+enabled = true

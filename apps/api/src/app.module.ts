@@ -1,18 +1,19 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { AuditController } from './audit/audit.controller';
 import { AuditModule } from './audit/audit.service';
 import { AuthModule } from './auth/auth.module';
 import {
-  JwtAuthGuard,
+  AuthenticationGuard,
   OrganizationGuard,
   PermissionsGuard,
 } from './auth/guards';
 import { CatalogModule } from './catalog/catalog.module';
 import { HttpExceptionFilter } from './common/http-exception.filter';
 import { NumberingModule } from './common/numbering.service';
+import { ClientThrottlerGuard } from './common/throttle';
 import { APP_CONFIG, ConfigModule } from './config/config.module';
 import type { AppConfig } from './config/env';
 import { DashboardModule } from './dashboard/dashboard.module';
@@ -59,8 +60,8 @@ import { UsersModule } from './users/users.module';
     { provide: APP_PIPE, useClass: ZodValidationPipe },
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
     // Guards run in registration order: rate limit → authenticate → authorise → tenant.
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
-    { provide: APP_GUARD, useExisting: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: ClientThrottlerGuard },
+    { provide: APP_GUARD, useExisting: AuthenticationGuard },
     { provide: APP_GUARD, useExisting: PermissionsGuard },
     { provide: APP_GUARD, useExisting: OrganizationGuard },
   ],

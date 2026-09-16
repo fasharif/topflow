@@ -12,6 +12,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import {
   Permission,
   type AddressDto,
@@ -21,12 +22,14 @@ import {
 } from '@topflow/shared';
 import { CurrentUser, Meta, RequirePermissions } from '../common/decorators';
 import type { AuthenticatedUser, RequestMeta } from '../common/request-context';
+import { strictThrottle } from '../common/throttle';
 import { AddressBookService } from './address-book.service';
 import {
   AdminUpdateUserDto,
   AdminUserQueryDto,
   CreateAddressDto,
   CreateStaffUserDto,
+  RegisterOrganizationDto,
   UpdateAddressDto,
   UpdateProfileDto,
 } from './users.dto';
@@ -47,7 +50,21 @@ export class AccountController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: UpdateProfileDto,
   ): Promise<AuthUser> {
-    return this.users.updateProfile(user.id, dto);
+    return this.users.updateProfile(user, dto);
+  }
+
+  @Post('organizations')
+  @Throttle(strictThrottle)
+  @ApiOperation({
+    summary:
+      'Open a trade account: an organization, pending verification, owned by the signed-in user',
+  })
+  openTradeAccount(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: RegisterOrganizationDto,
+    @Meta() meta: RequestMeta,
+  ): Promise<AuthUser> {
+    return this.users.openTradeAccount(user, dto, meta);
   }
 
   @Get('addresses')
@@ -96,7 +113,8 @@ export class AdminUsersController {
 
   @Post()
   @ApiOperation({
-    summary: 'Create a staff account (sales, warehouse or administrator)',
+    summary:
+      'Invite a staff member (sales, warehouse or administrator) by email through Supabase Auth',
   })
   createStaff(
     @Body() dto: CreateStaffUserDto,
@@ -108,7 +126,8 @@ export class AdminUsersController {
 
   @Patch(':id')
   @ApiOperation({
-    summary: 'Change a user role or activate/deactivate an account',
+    summary:
+      'Change a user role or suspend/restore an account (suspension also blocks sign-in in Supabase)',
   })
   update(
     @Param('id', ParseUUIDPipe) id: string,

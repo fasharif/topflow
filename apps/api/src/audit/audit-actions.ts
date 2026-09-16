@@ -1,14 +1,10 @@
 /** Stable identifiers for the audit trail (grouped by bounded context). */
 export const AuditAction = {
+  // Credential events (failed sign-ins, password changes, MFA) are recorded by Supabase Auth.
   USER_REGISTERED: 'auth.user_registered',
   ORGANIZATION_REGISTERED: 'auth.organization_registered',
+  /** A new Supabase session was first used against the API. */
   LOGIN: 'auth.login',
-  LOGIN_FAILED: 'auth.login_failed',
-  LOGOUT_ALL: 'auth.logout_all',
-  EMAIL_VERIFIED: 'auth.email_verified',
-  PASSWORD_RESET_REQUESTED: 'auth.password_reset_requested',
-  PASSWORD_RESET: 'auth.password_reset',
-  PASSWORD_CHANGED: 'auth.password_changed',
 
   USER_UPDATED: 'users.updated',
   STAFF_CREATED: 'users.staff_created',

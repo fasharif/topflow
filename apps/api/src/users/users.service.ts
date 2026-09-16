@@ -10,16 +10,19 @@ import type {
   AuthUser,
   CreateStaffUserInput,
   Paginated,
+  RegisterOrganizationInput,
   UpdateProfileInput,
   UserAdminDto,
 } from '@topflow/shared';
 import { AuditAction } from '../audit/audit-actions';
 import { AuditService } from '../audit/audit.service';
+import { AccountProvisioningService } from '../auth/account-provisioning.service';
 import { AuthService } from '../auth/auth.service';
-import { PasswordService } from '../auth/password.service';
-import { TokenService } from '../auth/token.service';
+import { IdentityAdminService } from '../auth/identity-admin.service';
 import type { AuthenticatedUser, RequestMeta } from '../common/request-context';
 import { isoOrNull, pageArgs, paginated } from '../common/serialization';
+import { InjectConfig } from '../config/config.module';
+import type { AppConfig } from '../config/env';
 import { PrismaService } from '../prisma/prisma.service';
 
 const userAdminInclude = {
@@ -56,27 +59,38 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auth: AuthService,
-    private readonly passwords: PasswordService,
-    private readonly tokens: TokenService,
+    private readonly identities: IdentityAdminService,
+    private readonly accounts: AccountProvisioningService,
     private readonly audit: AuditService,
+    @InjectConfig() private readonly config: AppConfig,
   ) {}
 
   async updateProfile(
-    userId: string,
+    user: AuthenticatedUser,
     input: UpdateProfileInput,
   ): Promise<AuthUser> {
     await this.prisma.user.update({
-      where: { id: userId },
+      where: { id: user.id },
       data: { fullName: input.fullName, phoneNumber: input.phoneNumber },
     });
     await this.audit.record({
       action: AuditAction.USER_UPDATED,
       entityType: 'User',
-      entityId: userId,
-      userId,
+      entityId: user.id,
+      userId: user.id,
       details: { fields: Object.keys(input) },
     });
-    return this.auth.getAuthUser(userId);
+    return this.auth.getAuthUser(user);
+  }
+
+  /** Opens a trade account (an organization pending KYC review) for the signed-in user. */
+  async openTradeAccount(
+    user: AuthenticatedUser,
+    input: RegisterOrganizationInput,
+    meta: RequestMeta,
+  ): Promise<AuthUser> {
+    await this.accounts.openTradeAccount(user, input, meta);
+    return this.auth.getAuthUser(user);
   }
 
   async list(query: AdminUserQuery): Promise<Paginated<UserAdminDto>> {
@@ -101,6 +115,10 @@ export class UsersService {
     return paginated(users.map(toUserAdminDto), total, query);
   }
 
+  /**
+   * Invites a colleague through Supabase Auth. They receive an email, choose their own password
+   * and land in the back office with the assigned role; no administrator handles a password.
+   */
   async createStaff(
     input: CreateStaffUserInput,
     actor: AuthenticatedUser,
@@ -113,27 +131,41 @@ export class UsersService {
       })
     ) {
       throw new ConflictException(
-        'An account with this email address already exists',
+        'An account with this email address already exists. Change its role from the user list instead.',
       );
     }
-    const user = await this.prisma.user.create({
-      data: {
-        email: input.email,
-        fullName: input.fullName,
-        phoneNumber: input.phoneNumber,
-        role: input.role,
-        passwordHash: await this.passwords.hash(input.password),
-        emailVerifiedAt: new Date(),
-      },
-      include: userAdminInclude,
+
+    const id = await this.identities.inviteStaff({
+      email: input.email,
+      fullName: input.fullName,
+      phoneNumber: input.phoneNumber,
+      redirectTo: `${this.config.app.publicUrl}/auth/set-password`,
     });
+
+    let user: UserWithMemberships;
+    try {
+      user = await this.prisma.user.create({
+        data: {
+          id,
+          email: input.email,
+          fullName: input.fullName,
+          phoneNumber: input.phoneNumber,
+          role: input.role,
+        },
+        include: userAdminInclude,
+      });
+    } catch (error) {
+      await this.identities.deleteIdentity(id);
+      throw error;
+    }
+
     await this.audit.record({
       action: AuditAction.STAFF_CREATED,
       entityType: 'User',
       entityId: user.id,
       userId: actor.id,
       ipAddress: meta.ipAddress,
-      details: { role: user.role },
+      details: { role: user.role, invited: true },
     });
     return toUserAdminDto(user);
   }
@@ -153,15 +185,16 @@ export class UsersService {
         'You cannot change your own role or deactivate your own account',
       );
     }
+    // Suspend or restore sign-in in Supabase first, so a failure leaves the account unchanged.
+    // Role changes need no sign-out: the API reloads the role on every request.
+    if (input.isActive !== undefined) {
+      await this.identities.setSuspended(id, !input.isActive);
+    }
     const user = await this.prisma.user.update({
       where: { id },
       data: { role: input.role, isActive: input.isActive },
       include: userAdminInclude,
     });
-    if (input.isActive === false || input.role !== undefined) {
-      // Force re-authentication so the new role / suspension applies to every device.
-      await this.tokens.revokeAllForUser(id);
-    }
     await this.audit.record({
       action: AuditAction.USER_UPDATED,
       entityType: 'User',

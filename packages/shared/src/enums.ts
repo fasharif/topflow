@@ -58,12 +58,6 @@ export const Emirate = {
 } as const;
 export type Emirate = ValueOf<typeof Emirate>;
 
-export const TokenPurpose = {
-  EMAIL_VERIFICATION: 'EMAIL_VERIFICATION',
-  PASSWORD_RESET: 'PASSWORD_RESET',
-} as const;
-export type TokenPurpose = ValueOf<typeof TokenPurpose>;
-
 export const StockStatus = {
   IN_STOCK: 'IN_STOCK',
   ON_ORDER: 'ON_ORDER',
@@ -94,6 +88,14 @@ export const RfqSource = {
   WEBSITE: 'WEBSITE',
 } as const;
 export type RfqSource = ValueOf<typeof RfqSource>;
+
+/** How a website visitor prefers to be contacted about their quote request. */
+export const ContactChannel = {
+  PHONE: 'PHONE',
+  WHATSAPP: 'WHATSAPP',
+  EMAIL: 'EMAIL',
+} as const;
+export type ContactChannel = ValueOf<typeof ContactChannel>;
 
 export const QuotationStatus = {
   DRAFT: 'DRAFT',
@@ -205,6 +207,12 @@ export const RFQ_STATUS_LABELS: Record<RfqStatus, string> = {
 export const RFQ_SOURCE_LABELS: Record<RfqSource, string> = {
   TRADE_PORTAL: 'Trade portal',
   WEBSITE: 'Website',
+};
+
+export const CONTACT_CHANNEL_LABELS: Record<ContactChannel, string> = {
+  PHONE: 'Phone call',
+  WHATSAPP: 'WhatsApp',
+  EMAIL: 'Email',
 };
 
 export const QUOTATION_STATUS_LABELS: Record<QuotationStatus, string> = {

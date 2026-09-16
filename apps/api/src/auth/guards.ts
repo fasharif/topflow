@@ -8,10 +8,12 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import {
+  ErrorCode,
   ORGANIZATION_HEADER,
   OrgStatus,
   hasAllPermissions,
   hasOrgPermission,
+  isStaffRole,
   type OrgPermission,
   type Permission,
 } from '@topflow/shared';
@@ -20,13 +22,16 @@ import {
   ORG_PERMISSION_KEY,
   PERMISSIONS_KEY,
 } from '../common/decorators';
-import type { AppRequest } from '../common/request-context';
+import { requestMeta, type AppRequest } from '../common/request-context';
+import { InjectConfig } from '../config/config.module';
+import type { AppConfig } from '../config/env';
 import {
   UUID_PATTERN,
   resolveOrganizationContext,
 } from '../organizations/organization-context';
 import { PrismaService } from '../prisma/prisma.service';
-import { TokenService } from './token.service';
+import { AccessTokenVerifier } from './access-token.verifier';
+import { AccountProvisioningService } from './account-provisioning.service';
 
 function bearerToken(request: AppRequest): string | null {
   const header = request.get('authorization');
@@ -36,16 +41,16 @@ function bearerToken(request: AppRequest): string | null {
 }
 
 /**
- * Global guard #1 — authentication. Every route requires a valid access token unless it
- * is marked @Public(). The user is re-read from the database on each request so that
- * deactivation and password changes take effect immediately.
+ * Global guard #1 — authentication. Every route requires a Supabase access token unless it is
+ * marked @Public() (a valid token on a public route still identifies the caller). The platform
+ * account is re-read on every request, so role changes and suspensions apply immediately.
  */
 @Injectable()
-export class JwtAuthGuard implements CanActivate {
+export class AuthenticationGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
-    private readonly tokens: TokenService,
-    private readonly prisma: PrismaService,
+    private readonly verifier: AccessTokenVerifier,
+    private readonly accounts: AccountProvisioningService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -62,51 +67,41 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     try {
-      const payload = await this.tokens.verifyAccessToken(token);
-      const user = await this.prisma.user.findUnique({
-        where: { id: payload.sub },
-        select: {
-          id: true,
-          email: true,
-          fullName: true,
-          role: true,
-          isActive: true,
-          passwordChangedAt: true,
-        },
-      });
-      if (!user || !user.isActive) {
-        throw new UnauthorizedException(
-          'This account is disabled or no longer exists',
-        );
-      }
-      if (
-        user.passwordChangedAt &&
-        Math.floor(user.passwordChangedAt.getTime() / 1000) > payload.iat
-      ) {
-        throw new UnauthorizedException(
-          'Your password was changed. Please sign in again.',
-        );
+      const claims = await this.verifier.verify(token);
+      const account = await this.accounts.resolve(claims, requestMeta(request));
+      if (!account.isActive) {
+        throw new UnauthorizedException({
+          message: 'This account has been disabled. Please contact Top Flow.',
+          code: ErrorCode.ACCOUNT_DISABLED,
+        });
       }
       request.user = {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role,
+        id: account.id,
+        email: account.email,
+        fullName: account.fullName,
+        role: account.role,
+        assuranceLevel: claims.assuranceLevel,
+        sessionId: claims.sessionId,
       };
       return true;
     } catch (error) {
+      // Public routes stay available to callers whose token cannot be used.
       if (isPublic) return true;
-      throw error instanceof UnauthorizedException
-        ? error
-        : new UnauthorizedException('Invalid or expired access token');
+      throw error;
     }
   }
 }
 
-/** Global guard #2 — platform RBAC via @RequirePermissions(). */
+/**
+ * Global guard #2 — platform RBAC via @RequirePermissions(). When STAFF_MFA_REQUIRED is on,
+ * back-office permissions also need a session verified with a second factor (aal2).
+ */
 @Injectable()
 export class PermissionsGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) {}
+  constructor(
+    private readonly reflector: Reflector,
+    @InjectConfig() private readonly config: AppConfig,
+  ) {}
 
   canActivate(context: ExecutionContext): boolean {
     const required = this.reflector.getAllAndOverride<Permission[] | undefined>(
@@ -121,6 +116,17 @@ export class PermissionsGuard implements CanActivate {
       throw new ForbiddenException(
         'You do not have permission to perform this action',
       );
+    }
+    if (
+      this.config.auth.staffMfaRequired &&
+      isStaffRole(user.role) &&
+      user.assuranceLevel !== 'aal2'
+    ) {
+      throw new ForbiddenException({
+        message:
+          'Verify your identity with two-factor authentication to use the back office.',
+        code: ErrorCode.MFA_REQUIRED,
+      });
     }
     return true;
   }

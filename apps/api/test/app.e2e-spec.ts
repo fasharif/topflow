@@ -6,45 +6,72 @@ import {
   retailDeliveryFeeFils,
   toFils,
   type AddressDto,
-  type AuthSession,
+  type AuthUser,
   type CategoryDto,
   type OrderDto,
   type Paginated,
   type ProductDto,
   type QuotationDto,
   type RfqDto,
+  type UserAdminDto,
   type WebsiteQuoteReceiptDto,
 } from '@topflow/shared';
+import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
+import { IdentityAdminService } from '../src/auth/identity-admin.service';
 import { configureApp } from '../src/bootstrap';
 import { APP_CONFIG } from '../src/config/config.module';
 import type { AppConfig } from '../src/config/env';
 import { MailService } from '../src/mail/mail.service';
+import { PrismaService } from '../src/prisma/prisma.service';
+import {
+  FakeIdentityAdmin,
+  signAccessToken,
+  type TestIdentity,
+} from './support/supabase';
 
-const PASSWORD = 'TopFlow2026!';
+interface TestSession {
+  accessToken: string;
+  user: AuthUser;
+}
+
 const unique = (prefix: string) =>
   `${prefix}.${Date.now()}.${Math.floor(Math.random() * 1e6)}@e2e.topflow.test`;
+const daysFromNow = (days: number) =>
+  new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
 
-describe('Top Flow API (e2e)', () => {
+describe('TopFlow Hub API (e2e)', () => {
   let app: INestApplication;
   let mail: MailService;
+  let prisma: PrismaService;
+  const identities = new FakeIdentityAdmin();
 
   const http = () => request(app.getHttpServer());
-  const login = async (
-    email: string,
-    password = PASSWORD,
-  ): Promise<AuthSession> =>
-    (
-      await http()
-        .post('/auth/login')
-        .set('x-client-platform', 'mobile')
-        .send({ email, password })
-        .expect(200)
-    ).body as AuthSession;
-  const bearer = (session: AuthSession) => ({
-    authorization: `Bearer ${session.accessToken}`,
+  const authorization = (accessToken: string) => ({
+    authorization: `Bearer ${accessToken}`,
   });
+  const bearer = (session: TestSession) => authorization(session.accessToken);
+
+  /** Signs in the way the web and mobile apps do: a Supabase access token, then GET /auth/me. */
+  const sessionWith = async (identity: TestIdentity): Promise<TestSession> => {
+    const accessToken = await signAccessToken(identity);
+    const user = (
+      await http().get('/auth/me').set(authorization(accessToken)).expect(200)
+    ).body as AuthUser;
+    return { accessToken, user };
+  };
+  /** Session for a seeded account. Staff sessions are MFA-verified (aal2) unless stated. */
+  const sessionFor = async (
+    email: string,
+    aal: 'aal1' | 'aal2' = 'aal2',
+  ): Promise<TestSession> => {
+    const account = await prisma.user.findUniqueOrThrow({
+      where: { email },
+      select: { id: true },
+    });
+    return sessionWith({ id: account.id, email, aal });
+  };
   const tokenFromMail = (email: string, path: string): string => {
     const text = mail.lastMessageTo(email)?.text ?? '';
     const match = new RegExp(`${path}\\?token=([\\w-]+)`).exec(text);
@@ -53,7 +80,7 @@ describe('Top Flow API (e2e)', () => {
   };
   const product = async (
     sku: string,
-    session?: AuthSession,
+    session?: TestSession,
   ): Promise<ProductDto> => {
     const req = http().get('/catalog/products').query({ search: sku });
     if (session) void req.set(bearer(session));
@@ -67,11 +94,15 @@ describe('Top Flow API (e2e)', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(IdentityAdminService)
+      .useValue(identities)
+      .compile();
     app = moduleRef.createNestApplication();
     configureApp(app, app.get<AppConfig>(APP_CONFIG));
     await app.init();
     mail = app.get(MailService);
+    prisma = app.get(PrismaService);
   });
 
   afterAll(async () => {
@@ -87,108 +118,243 @@ describe('Top Flow API (e2e)', () => {
 
     it('returns a consistent error envelope with a request id', async () => {
       const res = await http()
-        .post('/auth/login')
+        .post('/quote-requests')
         .send({ email: 'not-an-email' })
         .expect(400);
       expect(res.body).toMatchObject({ statusCode: 400, error: 'Bad Request' });
       expect(res.body.details.map((d: { path: string }) => d.path)).toEqual(
-        expect.arrayContaining(['email', 'password']),
+        expect.arrayContaining(['name', 'email', 'phone']),
       );
       expect(res.headers['x-request-id']).toBe(res.body.requestId);
     });
+
+    it('keeps every table private to the API with row level security', async () => {
+      const exposed = await prisma.$queryRaw<Array<{ tablename: string }>>`
+        SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND NOT rowsecurity`;
+      expect(exposed).toEqual([]);
+    });
+
+    it('trusts a forwarded client address only from the web app', async () => {
+      const item = await product('AX-EFS-002');
+      const auditedAddress = async (headers: Record<string, string>) => {
+        const receipt = (
+          await http()
+            .post('/quote-requests')
+            .set(headers)
+            .send({
+              name: 'Proxy Check',
+              email: unique('proxy'),
+              phone: '+971 50 555 0100',
+              items: [{ productId: item.id, quantity: 1 }],
+            })
+            .expect(201)
+        ).body as WebsiteQuoteReceiptDto;
+        const entry = await prisma.auditLog.findFirstOrThrow({
+          where: {
+            entityType: 'QuoteRequest',
+            details: { path: ['number'], equals: receipt.number },
+          },
+        });
+        return entry.ipAddress;
+      };
+
+      expect(
+        await auditedAddress({
+          'x-topflow-client-ip': '203.0.113.7',
+          'x-topflow-internal-auth': process.env.INTERNAL_API_SECRET ?? '',
+        }),
+      ).toBe('203.0.113.7');
+      expect(
+        await auditedAddress({
+          'x-topflow-client-ip': '203.0.113.7',
+          'x-topflow-internal-auth':
+            'not-the-internal-secret-not-the-internal-secret',
+        }),
+      ).not.toBe('203.0.113.7');
+    });
   });
 
-  describe('authentication', () => {
-    it('registers, verifies email, rotates refresh tokens and revokes sessions on logout', async () => {
+  describe('authentication with Supabase Auth', () => {
+    it('provisions a platform account from a verified identity on first use', async () => {
+      const id = randomUUID();
       const email = unique('retail');
-      const registered = await http()
-        .post('/auth/register')
-        .set('x-client-platform', 'mobile')
-        .send({ email, password: PASSWORD, fullName: 'E2E Retail Customer' })
-        .expect(201);
-      const session = registered.body as AuthSession;
-      expect(session.user).toMatchObject({
+      const identity: TestIdentity = {
+        id,
         email,
+        userMetadata: {
+          full_name: 'E2E Retail Customer',
+          phone_number: '+971 50 555 0101',
+          email_verified: true,
+        },
+      };
+      const { accessToken, user } = await sessionWith(identity);
+      expect(user).toMatchObject({
+        id,
+        email,
+        fullName: 'E2E Retail Customer',
+        phoneNumber: '+971 50 555 0101',
         role: 'CUSTOMER',
+        emailVerified: true,
+        memberships: [],
+        assuranceLevel: 'aal1',
+        mfaRequired: false,
+      });
+
+      // The same session again neither duplicates the account nor the sign-in record.
+      await http().get('/auth/me').set(authorization(accessToken)).expect(200);
+      expect(
+        await prisma.auditLog.count({
+          where: { userId: id, action: 'auth.login' },
+        }),
+      ).toBe(1);
+    });
+
+    it('rejects missing, forged, expired and foreign tokens', async () => {
+      const identity = { id: randomUUID(), email: unique('intruder') };
+      await http().get('/auth/me').expect(401);
+      await http()
+        .get('/auth/me')
+        .set(
+          authorization(
+            await signAccessToken({
+              ...identity,
+              secret: 'not-the-project-secret-not-the-project-secret',
+            }),
+          ),
+        )
+        .expect(401);
+      const expired = await http()
+        .get('/auth/me')
+        .set(
+          authorization(
+            await signAccessToken({
+              ...identity,
+              expiresAt: Math.floor(Date.now() / 1000) - 60,
+            }),
+          ),
+        )
+        .expect(401);
+      expect(expired.body.message).toMatch(/expired/);
+      await http()
+        .get('/auth/me')
+        .set(
+          authorization(
+            await signAccessToken({
+              ...identity,
+              issuer: 'https://another-project.supabase.co/auth/v1',
+            }),
+          ),
+        )
+        .expect(401);
+      expect(await prisma.user.count({ where: { id: identity.id } })).toBe(0);
+    });
+
+    it('requires two-factor authentication for the back office', async () => {
+      const unverified = await sessionFor('sales@topflow.ae', 'aal1');
+      expect(unverified.user).toMatchObject({
+        mfaRequired: true,
+        assuranceLevel: 'aal1',
+      });
+      const blocked = await http()
+        .get('/admin/dashboard')
+        .set(bearer(unverified))
+        .expect(403);
+      expect(blocked.body.code).toBe('MFA_REQUIRED');
+      await http()
+        .get('/admin/dashboard')
+        .set(bearer(await sessionFor('sales@topflow.ae')))
+        .expect(200);
+    });
+
+    it('invites staff through Supabase Auth and suspends accounts', async () => {
+      const admin = await sessionFor('admin@topflow.ae');
+      const email = unique('staff');
+      const invited = (
+        await http()
+          .post('/admin/users')
+          .set(bearer(admin))
+          .send({
+            email,
+            fullName: 'E2E Warehouse Colleague',
+            role: 'WAREHOUSE',
+          })
+          .expect(201)
+      ).body as UserAdminDto;
+      expect(invited).toMatchObject({
+        email,
+        role: 'WAREHOUSE',
+        isActive: true,
         emailVerified: false,
       });
-      expect(session.refreshToken).toBeDefined();
-
+      expect(identities.invitations.at(-1)).toMatchObject({
+        email,
+        redirectTo: expect.stringContaining('/auth/set-password') as string,
+      });
       await http()
-        .post('/auth/email/verify')
-        .send({ token: tokenFromMail(email, 'verify-email') })
-        .expect(204);
-      const me = await http().get('/auth/me').set(bearer(session)).expect(200);
-      expect(me.body.emailVerified).toBe(true);
+        .post('/admin/users')
+        .set(bearer(admin))
+        .send({ email, fullName: 'Duplicate Colleague', role: 'SALES' })
+        .expect(409);
 
-      const rotated = (
-        await http()
-          .post('/auth/refresh')
-          .send({ refreshToken: session.refreshToken })
-          .set('x-client-platform', 'mobile')
-          .expect(200)
-      ).body as AuthSession;
-      expect(rotated.refreshToken).not.toBe(session.refreshToken);
-
+      const colleague = await signAccessToken({
+        id: invited.id,
+        email,
+        aal: 'aal2',
+      });
+      await http().get('/auth/me').set(authorization(colleague)).expect(200);
       await http()
-        .post('/auth/logout')
-        .send({ refreshToken: rotated.refreshToken })
-        .expect(204);
-      await http()
-        .post('/auth/refresh')
-        .send({ refreshToken: rotated.refreshToken })
+        .patch(`/admin/users/${invited.id}`)
+        .set(bearer(admin))
+        .send({ isActive: false })
+        .expect(200);
+      expect(identities.suspended.has(invited.id)).toBe(true);
+      const disabled = await http()
+        .get('/auth/me')
+        .set(authorization(colleague))
         .expect(401);
+      expect(disabled.body.code).toBe('ACCOUNT_DISABLED');
     });
 
-    it('delivers refresh tokens to browsers only as an httpOnly cookie', async () => {
-      const res = await http()
-        .post('/auth/login')
-        .send({ email: 'customer@example.com', password: PASSWORD })
+    it('accepts a team invitation only for the invited, signed-in email', async () => {
+      const owner = await sessionFor('owner@desertbloom.ae');
+      const organizationId = owner.user.memberships[0].organizationId;
+      const email = unique('invitee');
+      await http()
+        .post('/org/invitations')
+        .set(bearer(owner))
+        .set('x-organization-id', organizationId)
+        .send({ email, role: 'BUYER' })
+        .expect(201);
+      const token = tokenFromMail(email, 'invitations/accept');
+
+      await http().post('/invitations/accept').send({ token }).expect(401);
+      const stranger = await signAccessToken({
+        id: randomUUID(),
+        email: unique('stranger'),
+      });
+      await http()
+        .post('/invitations/accept')
+        .set(authorization(stranger))
+        .send({ token })
+        .expect(403);
+
+      const invitee = await signAccessToken({
+        id: randomUUID(),
+        email,
+        userMetadata: { full_name: 'E2E Invited Buyer' },
+      });
+      const accepted = await http()
+        .post('/invitations/accept')
+        .set(authorization(invitee))
+        .send({ token })
         .expect(200);
-      expect(res.body.refreshToken).toBeUndefined();
-      const cookie = String(res.headers['set-cookie']);
-      expect(cookie).toMatch(/tf_refresh=.+HttpOnly/i);
-      expect(cookie).toMatch(/SameSite=Lax/i);
-
-      await http()
-        .post('/auth/refresh')
-        .set('cookie', cookie.split(';')[0])
-        .send({})
-        .expect(200);
-    });
-
-    it('resets a forgotten password and signs out existing sessions', async () => {
-      const email = unique('reset');
-      const original = (
-        await http()
-          .post('/auth/register')
-          .set('x-client-platform', 'mobile')
-          .send({ email, password: PASSWORD, fullName: 'Reset Tester' })
-          .expect(201)
-      ).body as AuthSession;
-
-      await http().post('/auth/password/forgot').send({ email }).expect(204);
-      await http()
-        .post('/auth/password/forgot')
-        .send({ email: unique('nobody') })
-        .expect(204); // no account enumeration
-      await http()
-        .post('/auth/password/reset')
-        .send({
-          token: tokenFromMail(email, 'reset-password'),
-          password: 'NewIrrigation99',
-        })
-        .expect(204);
-
-      await http()
-        .post('/auth/refresh')
-        .send({ refreshToken: original.refreshToken })
-        .expect(401);
-      await http()
-        .post('/auth/login')
-        .send({ email, password: PASSWORD })
-        .expect(401);
-      await login(email, 'NewIrrigation99');
+      expect(accepted.body).toEqual({ organizationId });
+      const me = (
+        await http().get('/auth/me').set(authorization(invitee)).expect(200)
+      ).body as AuthUser;
+      expect(me.memberships).toEqual([
+        expect.objectContaining({ organizationId, role: 'BUYER' }),
+      ]);
     });
   });
 
@@ -197,43 +363,79 @@ describe('Top Flow API (e2e)', () => {
       await http().get('/admin/dashboard').expect(401);
       await http()
         .get('/admin/dashboard')
-        .set(bearer(await login('customer@example.com')))
+        .set(bearer(await sessionFor('customer@example.com')))
         .expect(403);
       await http()
         .get('/admin/dashboard')
-        .set(bearer(await login('sales@topflow.ae')))
+        .set(bearer(await sessionFor('sales@topflow.ae')))
         .expect(200);
       await http()
         .get('/admin/audit-logs')
-        .set(bearer(await login('sales@topflow.ae')))
+        .set(bearer(await sessionFor('sales@topflow.ae')))
         .expect(403);
     });
 
-    it('isolates organizations from each other', async () => {
-      const buyer = await login('buyer@desertbloom.ae');
-      const desertBloomId = buyer.user.memberships[0].organizationId;
+    it('opens trade accounts from sign-up and from the account page', async () => {
+      const fromSignUp = await sessionWith({
+        id: randomUUID(),
+        email: unique('founder'),
+        userMetadata: {
+          full_name: 'Signup Founder',
+          organization: {
+            name: 'Oasis Villas Landscaping',
+            type: 'LANDSCAPING',
+            tradeLicenseNumber: 'DED-E2E-SIGNUP',
+          },
+        },
+      });
+      expect(fromSignUp.user.memberships).toEqual([
+        expect.objectContaining({
+          organizationName: 'Oasis Villas Landscaping',
+          role: 'OWNER',
+          organizationStatus: 'PENDING_VERIFICATION',
+        }),
+      ]);
 
-      const owner = (
+      const customer = await sessionWith({
+        id: randomUUID(),
+        email: unique('upgrade'),
+      });
+      const upgraded = (
         await http()
-          .post('/auth/register/business')
-          .set('x-client-platform', 'mobile')
+          .post('/me/organizations')
+          .set(bearer(customer))
           .send({
-            email: unique('owner'),
-            password: PASSWORD,
-            fullName: 'Rival Owner',
-            organization: {
-              name: 'Rival Landscaping',
-              type: 'LANDSCAPING',
-              tradeLicenseNumber: 'DED-E2E',
-            },
+            name: 'Palm Facility Services',
+            type: 'FACILITY_MANAGEMENT',
+            tradeLicenseNumber: 'DED-E2E-UPGRADE',
           })
           .expect(201)
-      ).body as AuthSession;
-      const rivalId = owner.user.memberships[0].organizationId;
-      expect(owner.user.memberships[0]).toMatchObject({
-        role: 'OWNER',
-        organizationStatus: 'PENDING_VERIFICATION',
+      ).body as AuthUser;
+      expect(upgraded.memberships).toEqual([
+        expect.objectContaining({
+          organizationName: 'Palm Facility Services',
+          role: 'OWNER',
+        }),
+      ]);
+    });
+
+    it('isolates organizations from each other', async () => {
+      const buyer = await sessionFor('buyer@desertbloom.ae');
+      const desertBloomId = buyer.user.memberships[0].organizationId;
+
+      const owner = await sessionWith({
+        id: randomUUID(),
+        email: unique('owner'),
+        userMetadata: {
+          full_name: 'Rival Owner',
+          organization: {
+            name: 'Rival Landscaping',
+            type: 'LANDSCAPING',
+            tradeLicenseNumber: 'DED-E2E',
+          },
+        },
       });
+      const rivalId = owner.user.memberships[0].organizationId;
 
       await http()
         .get('/org')
@@ -256,7 +458,7 @@ describe('Top Flow API (e2e)', () => {
 
   describe('B2B procurement', () => {
     async function quoteAndSend(
-      buyer: AuthSession,
+      buyer: TestSession,
       sku: string,
       quantity: number,
     ): Promise<QuotationDto> {
@@ -273,7 +475,7 @@ describe('Top Flow API (e2e)', () => {
           })
           .expect(201)
       ).body as RfqDto;
-      const sales = await login('sales@topflow.ae');
+      const sales = await sessionFor('sales@topflow.ae');
       const draft = (
         await http()
           .post('/admin/quotations')
@@ -294,7 +496,7 @@ describe('Top Flow API (e2e)', () => {
     }
 
     it('lets a buyer accept a quotation within their limit and creates the sales order', async () => {
-      const buyer = await login('buyer@desertbloom.ae');
+      const buyer = await sessionFor('buyer@desertbloom.ae');
       const org = buyer.user.memberships[0].organizationId;
       const quotation = await quoteAndSend(buyer, 'AX-EFS-001', 20);
 
@@ -324,8 +526,8 @@ describe('Top Flow API (e2e)', () => {
     });
 
     it('routes purchases above the buyer limit to an approver (segregation of duties)', async () => {
-      const buyer = await login('buyer@desertbloom.ae');
-      const approver = await login('approver@desertbloom.ae');
+      const buyer = await sessionFor('buyer@desertbloom.ae');
+      const approver = await sessionFor('approver@desertbloom.ae');
       const org = buyer.user.memberships[0].organizationId;
       const quotation = await quoteAndSend(buyer, 'AX-EFS-003', 160);
 
@@ -385,6 +587,7 @@ describe('Top Flow API (e2e)', () => {
     it('accepts a quote request from a website visitor and shows it to sales', async () => {
       const item = await product('AX-EFS-002');
       const email = unique('visitor');
+      const requiredBy = daysFromNow(10);
       const receipt = (
         await http()
           .post('/quote-requests')
@@ -394,7 +597,16 @@ describe('Top Flow API (e2e)', () => {
             phone: '+971 50 555 0199',
             companyName: 'Oasis Villas',
             emirate: 'DUBAI',
-            items: [{ productId: item.id, quantity: 12 }],
+            preferredContact: 'WHATSAPP',
+            projectReference: 'Villa 12 garden',
+            requiredBy,
+            items: [
+              {
+                productId: item.id,
+                quantity: 12,
+                notes: 'Or an equivalent brand',
+              },
+            ],
           })
           .expect(201)
       ).body as WebsiteQuoteReceiptDto;
@@ -404,7 +616,7 @@ describe('Top Flow API (e2e)', () => {
       });
       expect(mail.lastMessageTo(email)?.subject).toContain(receipt.number);
 
-      const sales = await login('sales@topflow.ae');
+      const sales = await sessionFor('sales@topflow.ae');
       const inbox = (
         await http()
           .get('/admin/rfqs')
@@ -416,11 +628,19 @@ describe('Top Flow API (e2e)', () => {
         number: receipt.number,
         source: 'WEBSITE',
         organization: null,
+        projectReference: 'Villa 12 garden',
         contact: {
           name: 'Website Visitor',
           email,
           companyName: 'Oasis Villas',
+          preferredContact: 'WHATSAPP',
         },
+        items: [
+          expect.objectContaining({
+            quantity: 12,
+            notes: 'Or an equivalent brand',
+          }),
+        ],
       });
 
       await http()
@@ -432,12 +652,52 @@ describe('Top Flow API (e2e)', () => {
         })
         .expect(400);
     });
+
+    it('accepts a project enquiry without products and refuses past dates', async () => {
+      const email = unique('enquiry');
+      const notes =
+        'Irrigation for a 5,000 m² community park in Sharjah; BOQ available on request.';
+      const receipt = (
+        await http()
+          .post('/quote-requests')
+          .send({
+            name: 'Project Enquirer',
+            email,
+            phone: '+971 50 555 0142',
+            preferredContact: 'EMAIL',
+            notes,
+          })
+          .expect(201)
+      ).body as WebsiteQuoteReceiptDto;
+      expect(receipt.lineCount).toBe(0);
+      expect(mail.lastMessageTo(email)?.text).toContain('project enquiry');
+
+      await http()
+        .post('/quote-requests')
+        .send({
+          name: 'Late Enquirer',
+          email: unique('late'),
+          phone: '+971 50 555 0143',
+          notes,
+          requiredBy: '2020-01-01',
+        })
+        .expect(400);
+      await http()
+        .post('/quote-requests')
+        .send({
+          name: 'Vague Enquirer',
+          email: unique('vague'),
+          phone: '+971 50 555 0144',
+          notes: 'Need pipes',
+        })
+        .expect(400);
+    });
   });
 
   describe('retail orders', () => {
     it('prices checkout on the server and moves the order through fulfilment', async () => {
-      const customer = await login('customer@example.com');
-      const warehouse = await login('warehouse@topflow.ae');
+      const customer = await sessionFor('customer@example.com');
+      const warehouse = await sessionFor('warehouse@topflow.ae');
       const addresses = (
         await http().get('/me/addresses').set(bearer(customer)).expect(200)
       ).body as AddressDto[];

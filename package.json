@@ -1,7 +1,7 @@
 {
-  "name": "topflow",
+  "name": "topflow-hub",
   "private": true,
-  "description": "Top Flow — B2B/B2C irrigation & flow-control commerce platform (Turborepo monorepo)",
+  "description": "TopFlow Hub — B2B/B2C irrigation & flow-control commerce platform for Top Flow (Turborepo monorepo)",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -19,7 +19,9 @@
     "test": "turbo run test",
     "test:e2e": "turbo run test:e2e",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
-    "db:up": "npx prisma dev --name topflow --detach",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:status": "supabase status",
     "db:generate": "npm run generate -w @topflow/database",
     "db:migrate": "npm run db:migrate -w @topflow/database",
     "db:deploy": "npm run db:deploy -w @topflow/database",
@@ -29,6 +31,7 @@
   },
   "devDependencies": {
     "prettier": "^3.7.4",
+    "supabase": "^2.117.0",
     "turbo": "^2.10.11",
     "typescript": "~6.0.3"
   },
@@ -46,6 +49,7 @@
     "unrs-resolver@1.12.2": true,
     "@parcel/watcher@2.6.0": true,
     "@prisma/engines@7.9.1": true,
-    "esbuild@0.28.2": true
+    "esbuild@0.28.2": true,
+    "supabase@2.117.0": true
   }
 }

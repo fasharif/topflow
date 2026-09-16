@@ -4,12 +4,9 @@ import { organizationProfileSchema } from './auth';
 import {
   emailSchema,
   moneySchema,
-  nameSchema,
   optionalText,
   paginationSchema,
-  passwordSchema,
   percentSchema,
-  phoneSchema,
   tokenSchema,
 } from './common';
 
@@ -50,13 +47,10 @@ export const updateMemberSchema = z
 export type UpdateMemberInput = z.infer<typeof updateMemberSchema>;
 
 /**
- * Accepting an invitation: signed-in users only need the token; people without an
- * account also provide their name and a password.
+ * Accepting an invitation. The invitee signs in (or creates their account) first; the API then
+ * checks that the signed-in email matches the invited address.
  */
 export const acceptInvitationSchema = z.object({
   token: tokenSchema,
-  fullName: nameSchema.optional(),
-  password: passwordSchema.optional(),
-  phoneNumber: phoneSchema.optional(),
 });
 export type AcceptInvitationInput = z.infer<typeof acceptInvitationSchema>;
