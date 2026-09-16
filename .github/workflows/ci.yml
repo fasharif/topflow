@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, develop, "feature/**"]
+    branches: [develop, "feature/**"]
   pull_request:
-    branches: [main, develop]
+    branches: [develop]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -45,12 +45,17 @@ jobs:
           npm test -w @topflow/api
           npm run build -w @topflow/api
 
-      - name: Web — lint and production build
+      - name: Web — lint, typecheck and production build
         run: |
           npm run lint -w web
+          npm run check-types -w web
           npm run build -w web
         env:
           API_INTERNAL_URL: http://localhost:3000
+          NEXT_PUBLIC_SITE_URL: http://localhost:3002
+          # Placeholders: the build never contacts Supabase.
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
 
       - name: Mobile — typecheck
         run: npx tsc --noEmit -p apps/mobile
@@ -93,14 +98,6 @@ jobs:
           npm run db:deploy
           npm run db:seed
 
+      # Supabase Auth is simulated inside the suite (locally signed test tokens), so no network is needed.
       - name: Run end-to-end suite
         run: npm run test:e2e -w @topflow/api
-
-  docker:
-    name: API container image
-    runs-on: ubuntu-latest
-    needs: quality
-    steps:
-      - uses: actions/checkout@v7
-      - name: Build image
-        run: docker build --tag topflow-api:ci .

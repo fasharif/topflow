@@ -1,0 +1,104 @@
+name: Database backup
+
+# Nightly, encrypted, off-site backup of the hosted Supabase database (the Free plan has no
+# automatic backups). The dump is encrypted with the public age key in BACKUP_AGE_RECIPIENT before
+# it leaves the runner; only the holder of the private key (kept offline by Top Flow) can decrypt it.
+# While no hosted database is configured (SUPABASE_DB_URL and BACKUP_AGE_RECIPIENT both unset),
+# runs are skipped with a notice. Restore steps: docs/OPERATIONS.md.
+
+on:
+  schedule:
+    - cron: "17 1 * * *" # 01:17 UTC = 05:17 in the UAE
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: database-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Encrypted database backup
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Session pooler connection string (port 5432) of the Supabase project.
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+      SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+      API_HEALTH_URL: ${{ vars.API_HEALTH_URL }}
+    steps:
+      - name: Check configuration
+        id: config
+        run: |
+          if [ -n "$SUPABASE_DB_URL" ] && [ -n "$BACKUP_AGE_RECIPIENT" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          elif [ -z "$SUPABASE_DB_URL" ] && [ -z "$BACKUP_AGE_RECIPIENT" ]; then
+            echo "::notice::Backup skipped: no hosted database is configured."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Backup is half configured: set both the SUPABASE_DB_URL secret and the BACKUP_AGE_RECIPIENT variable."
+            exit 1
+          fi
+
+      - uses: supabase/setup-cli@v1
+        if: steps.config.outputs.configured == 'true'
+        with:
+          version: 2.117.0
+
+      - name: Install age
+        if: steps.config.outputs.configured == 'true'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq age
+
+      - name: Dump roles, schema and data
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          mkdir -p backup
+          supabase db dump --db-url "$SUPABASE_DB_URL" --role-only -f backup/roles.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/schema.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy -f backup/data.sql
+
+      - name: Sanity-check the dump
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          for file in roles schema data; do
+            size=$(stat -c %s "backup/$file.sql")
+            echo "$file.sql: $size bytes"
+            [ "$size" -gt 0 ] || { echo "::error::$file.sql is empty"; exit 1; }
+          done
+          for table in users organizations products quote_requests quotations orders audit_logs; do
+            grep -q "COPY \"public\".\"$table\"" backup/data.sql || { echo "::error::No data section for public.$table"; exit 1; }
+          done
+
+      - name: Encrypt
+        id: encrypt
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          name="topflow-hub-db-$(date -u +%Y%m%dT%H%M%SZ)"
+          tar -czf - -C backup roles.sql schema.sql data.sql | age -r "$BACKUP_AGE_RECIPIENT" > "$name.tar.gz.age"
+          rm -rf backup
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          ls -l "$name.tar.gz.age"
+
+      - uses: actions/upload-artifact@v4
+        if: steps.config.outputs.configured == 'true'
+        with:
+          name: ${{ steps.encrypt.outputs.name }}
+          path: ${{ steps.encrypt.outputs.name }}.tar.gz.age
+          retention-days: 30
+          if-no-files-found: error
+
+      # Daily health check: the run fails (and GitHub notifies the repository owner) when Supabase
+      # Auth or the API is unhealthy.
+      - name: Health check
+        if: ${{ always() && (env.SUPABASE_URL != '' || env.API_HEALTH_URL != '') }}
+        run: |
+          if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            curl -fsS -o /dev/null -w "Supabase Auth health: %{http_code}\n" -H "apikey: $SUPABASE_PUBLISHABLE_KEY" "$SUPABASE_URL/auth/v1/health"
+          fi
+          if [ -n "$API_HEALTH_URL" ]; then
+            curl -fsS -o /dev/null -w "API readiness: %{http_code}\n" "$API_HEALTH_URL"
+          fi
