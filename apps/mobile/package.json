@@ -5,9 +5,12 @@
   "dependencies": {
     "@expo/ui": "~57.0.15",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@supabase/supabase-js": "^2.116.0",
     "@topflow/shared": "*",
+    "aes-js": "^3.1.2",
     "expo": "~57.0.19",
     "expo-constants": "~57.0.17",
+    "expo-crypto": "~57.0.3",
     "expo-device": "~57.0.1",
     "expo-font": "~57.0.3",
     "expo-glass-effect": "~57.0.1",
@@ -32,7 +35,9 @@
     "zod": "4.6.4"
   },
   "devDependencies": {
+    "@types/aes-js": "^3.1.4",
     "@types/react": "~19.2.4",
+    "eslint-config-expo": "~57.0.2",
     "typescript": "~6.0.3"
   },
   "scripts": {

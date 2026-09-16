@@ -1,44 +1,70 @@
-import type { AuthSession, AuthUser, LoginInput, RegisterInput } from '@topflow/shared';
+import {
+  isAuthRetryableFetchError,
+  isAuthWeakPasswordError,
+  type AuthChangeEvent,
+  type AuthError,
+  type Session,
+} from '@supabase/supabase-js';
+import { ErrorCode, type AuthUser, type LoginInput, type RegisterInput, type SignUpMetadata } from '@topflow/shared';
 import * as SecureStore from 'expo-secure-store';
 import { useSyncExternalStore } from 'react';
 import { AppState, Platform, type AppStateStatus } from 'react-native';
 
-import { isApiError, request } from '@/lib/http';
+import { webUrl } from '@/lib/config';
+import { errorMessage, isApiError, request, type ApiError } from '@/lib/http';
+import { getSupabase, isSupabaseConfigured, signOutLocally, SUPABASE_NOT_CONFIGURED_MESSAGE } from '@/lib/supabase';
 
 /**
  * Session store (external store + `useSyncExternalStore`).
  *
- * - The access token lives in memory only.
- * - The rotating refresh token is persisted in the OS keychain / keystore via SecureStore on
- *   iOS and Android. SecureStore does not support web, so there it stays in memory and the
- *   session ends when the tab closes.
+ * Supabase Auth owns the session. `onAuthStateChange` reports the restored session, sign-in, token
+ * refresh and sign-out, and the session is stored encrypted on the device (see `supabase.ts`). For
+ * each signed-in identity, the Top Flow account (role, trade memberships, verification) comes from
+ * `GET /auth/me`; the API creates it from the Supabase user metadata the first time.
  */
 
-export type SessionStatus = 'loading' | 'authenticated' | 'anonymous';
+/**
+ * - `loading`: restoring the saved session, or loading the account of a new sign-in.
+ * - `authenticated`: signed in; `user` is the Top Flow account.
+ * - `anonymous`: signed out. `error` can explain why, for example a disabled account.
+ * - `unavailable`: signed in with Supabase, but the account could not be loaded (offline, or the API
+ *   is down). The session is kept, and loading is retried when the app returns to the foreground,
+ *   after a token refresh, or through `retryLoadUser()`.
+ */
+export type SessionStatus = 'loading' | 'authenticated' | 'anonymous' | 'unavailable';
 
 export interface SessionState {
   readonly status: SessionStatus;
   readonly user: AuthUser | null;
-  readonly accessToken: string | null;
+  /** Why the account is `unavailable`, or why the customer was signed out. */
+  readonly error: string | null;
 }
 
-export type RefreshOutcome = 'refreshed' | 'expired';
+export type RegisterResult =
+  | { readonly status: 'signed-in'; readonly user: AuthUser }
+  /** Supabase emailed a confirmation link; the customer can sign in once they have followed it. */
+  | { readonly status: 'confirm-email'; readonly email: string };
 
-const REFRESH_TOKEN_KEY = 'topflow.refresh';
-/** Asks the API to return the refresh token in the response body instead of a browser cookie. */
-const MOBILE_CLIENT_HEADERS = { 'x-client-platform': 'mobile' };
-const canPersistToken = Platform.OS !== 'web';
+/** SecureStore key of the refresh token that the retired `/auth/*` endpoints issued. */
+const LEGACY_REFRESH_TOKEN_KEY = 'topflow.refresh';
 
-const ANONYMOUS: SessionState = { status: 'anonymous', user: null, accessToken: null };
+const CONFIRM_EMAIL_REDIRECT = '/auth/confirm?next=/account';
+const RESET_PASSWORD_REDIRECT = '/auth/confirm?next=/account/security';
 
-let state: SessionState = { status: 'loading', user: null, accessToken: null };
-let refreshToken: string | null = null;
-let refreshInFlight: Promise<RefreshOutcome> | null = null;
-let bootstrapPromise: Promise<void> | null = null;
-/** Bumped by explicit sign-in / sign-out so a slow refresh cannot resurrect a replaced session. */
+const OFFLINE_MESSAGE = 'Could not reach Top Flow. Check your connection and try again.';
+
+const LOADING: SessionState = { status: 'loading', user: null, error: null };
+const ANONYMOUS: SessionState = { status: 'anonymous', user: null, error: null };
+
+let state: SessionState = LOADING;
+let bootstrapped = false;
+/** Supabase user whose Top Flow account is loaded or being loaded. */
+let accountUserId: string | null = null;
+let accountLoad: Promise<void> | null = null;
+/** Bumped whenever the signed-in identity changes, so a slow load cannot apply to a replaced session. */
 let generation = 0;
-/** Set when restoring failed for a transient reason (offline); retried when the app is foregrounded. */
-let restorePending = false;
+/** Set while signing out, so a token refresh reported meanwhile cannot bring the old session back. */
+let signingOut = false;
 
 const listeners = new Set<() => void>();
 
@@ -62,174 +88,257 @@ export function useSession(): SessionState {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
-export function getAccessToken(): string | null {
-  return state.accessToken;
-}
+// ─── Following Supabase Auth ─────────────────────────────────────────────────
 
-// ─── Secure storage ──────────────────────────────────────────────────────────
+/** Restores the saved session and keeps the store in step with Supabase Auth. Call once at startup. */
+export function bootstrapSession(): void {
+  if (bootstrapped) return;
+  bootstrapped = true;
+  void removeLegacyRefreshToken();
 
-async function readStoredRefreshToken(): Promise<string | null> {
-  if (!canPersistToken) return null;
-  try {
-    return await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
-  } catch {
-    // The keychain can be unreadable (e.g. after restoring a device backup): start signed out.
-    return null;
-  }
-}
-
-async function storeRefreshToken(token: string): Promise<void> {
-  if (!canPersistToken) return;
-  try {
-    await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token, {
-      keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-    });
-  } catch {
-    // The session keeps working for this launch; the user signs in again next time.
-  }
-}
-
-async function deleteStoredRefreshToken(): Promise<void> {
-  if (!canPersistToken) return;
-  try {
-    await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
-  } catch {
-    // Nothing stored.
-  }
-}
-
-// ─── Transitions ─────────────────────────────────────────────────────────────
-
-async function applySession(session: AuthSession): Promise<void> {
-  if (session.refreshToken) {
-    refreshToken = session.refreshToken;
-    // Persist the rotated token before exposing the session: the previous one is now revoked.
-    await storeRefreshToken(session.refreshToken);
-  }
-  setState({ status: 'authenticated', user: session.user, accessToken: session.accessToken });
-}
-
-async function clearSession(): Promise<void> {
-  refreshToken = null;
-  setState(ANONYMOUS);
-  await deleteStoredRefreshToken();
-}
-
-/**
- * Exchanges the refresh token for a new session. Concurrent callers share one in-flight request,
- * so a burst of 401s triggers a single rotation. Resolves `'expired'` (and signs out) when the
- * API rejects the token; rejects with the underlying error when the API cannot be reached, in
- * which case the stored token is kept for a later attempt.
- */
-export function refreshSession(): Promise<RefreshOutcome> {
-  if (!refreshInFlight) {
-    refreshInFlight = runRefresh().finally(() => {
-      refreshInFlight = null;
-    });
-  }
-  return refreshInFlight;
-}
-
-async function runRefresh(): Promise<RefreshOutcome> {
-  const startedAt = generation;
-  const token = refreshToken ?? (await readStoredRefreshToken());
-  if (!token) {
-    if (startedAt === generation && state.status !== 'anonymous') await clearSession();
-    return 'expired';
-  }
-
-  try {
-    const session = await request<AuthSession>('/auth/refresh', {
-      method: 'POST',
-      body: { refreshToken: token },
-      headers: MOBILE_CLIENT_HEADERS,
-    });
-    if (startedAt !== generation) {
-      return state.status === 'authenticated' ? 'refreshed' : 'expired';
-    }
-    await applySession(session);
-    return 'refreshed';
-  } catch (error) {
-    if (isApiError(error, 400) || isApiError(error, 401) || isApiError(error, 403)) {
-      if (startedAt === generation) await clearSession();
-      return 'expired';
-    }
-    throw error;
-  }
-}
-
-/** Restores the previous session on app start (stored refresh token → new access token). */
-export function bootstrapSession(): Promise<void> {
-  if (!bootstrapPromise) {
-    AppState.addEventListener('change', handleAppStateChange);
-    bootstrapPromise = restoreSession();
-  }
-  return bootstrapPromise;
-}
-
-async function restoreSession(): Promise<void> {
-  const stored = await readStoredRefreshToken();
-  if (!stored) {
-    if (state.status === 'loading') setState(ANONYMOUS);
+  if (!isSupabaseConfigured) {
+    // Browsing and quote requests still work; the sign-in forms repeat this message.
+    console.error(SUPABASE_NOT_CONFIGURED_MESSAGE);
+    setState(ANONYMOUS);
     return;
   }
-  refreshToken ??= stored;
-  try {
-    await refreshSession();
-  } catch {
-    // Offline or the API is unreachable: continue signed out for now, keep the stored token and
-    // try again when the app returns to the foreground.
-    restorePending = true;
-    if (state.status === 'loading') setState(ANONYMOUS);
+
+  getSupabase().auth.onAuthStateChange((event, session) => {
+    const duringSignOut = signingOut;
+    // Supabase notifies listeners while it holds its auth lock: react after it has returned.
+    setTimeout(() => void handleAuthEvent(event, session, duringSignOut), 0);
+  });
+  AppState.addEventListener('change', handleAppStateChange);
+}
+
+async function handleAuthEvent(event: AuthChangeEvent, session: Session | null, duringSignOut: boolean): Promise<void> {
+  if (!session) {
+    // Nothing saved at startup (INITIAL_SESSION), or signed out.
+    forgetAccount();
+    // Keep the explanation of an earlier sign-out, if one is shown.
+    if (state.status !== 'anonymous') setState(ANONYMOUS);
+    return;
   }
+  if (duringSignOut) return;
+
+  const sameUser = session.user.id === accountUserId;
+  // Token refreshes need no reload, unless the account could not be loaded before.
+  if (sameUser && event !== 'USER_UPDATED' && (state.status === 'authenticated' || accountLoad)) return;
+  await loadAccount(session.user.id);
 }
 
 function handleAppStateChange(next: AppStateStatus): void {
-  if (next !== 'active' || !restorePending || state.status !== 'anonymous' || !refreshToken) return;
-  restorePending = false;
-  refreshSession().catch(() => {
-    restorePending = true;
-  });
+  if (next === 'active' && state.status === 'unavailable') void retryLoadUser();
 }
 
-export async function signIn(input: LoginInput): Promise<AuthUser> {
-  const session = await request<AuthSession>('/auth/login', {
-    method: 'POST',
-    body: input,
-    headers: MOBILE_CLIENT_HEADERS,
-  });
+function forgetAccount(): void {
   generation += 1;
-  restorePending = false;
-  await applySession(session);
-  return session.user;
+  accountUserId = null;
+  accountLoad = null;
 }
 
-export async function register(input: RegisterInput): Promise<AuthUser> {
-  const session = await request<AuthSession>('/auth/register', {
-    method: 'POST',
-    body: input,
-    headers: MOBILE_CLIENT_HEADERS,
+/**
+ * Loads the Top Flow account of a signed-in Supabase user. Calls for the same user share one request.
+ * A new identity shows `loading`; a reload for the same user keeps the current state until it ends.
+ */
+function loadAccount(userId: string): Promise<void> {
+  if (accountLoad && accountUserId === userId) return accountLoad;
+  if (accountUserId !== userId) {
+    forgetAccount();
+    accountUserId = userId;
+    setState(LOADING);
+  }
+  const load = fetchAccount(generation);
+  accountLoad = load;
+  void load.finally(() => {
+    if (accountLoad === load) accountLoad = null;
   });
-  generation += 1;
-  restorePending = false;
-  await applySession(session);
-  return session.user;
+  return load;
 }
 
-/** Signs out locally straight away, then revokes the refresh token on the server (best effort). */
-export async function signOut(): Promise<void> {
-  const token = refreshToken ?? (await readStoredRefreshToken());
-  generation += 1;
-  restorePending = false;
-  await clearSession();
-  if (!token) return;
+async function fetchAccount(startedAt: number): Promise<void> {
   try {
-    await request<void>('/auth/logout', {
-      method: 'POST',
-      body: { refreshToken: token },
-      headers: MOBILE_CLIENT_HEADERS,
-    });
+    const user = await request<AuthUser>('/auth/me', { auth: true });
+    if (startedAt === generation) setState({ status: 'authenticated', user, error: null });
+  } catch (error) {
+    if (startedAt !== generation) return;
+    if (isApiError(error, 401)) {
+      // The API rejected the session and http.ts has signed out on this device.
+      forgetAccount();
+      setState({ status: 'anonymous', user: null, error: errorMessage(error) });
+    } else if (isApiError(error, 403) || isApiError(error, 409)) {
+      // The account cannot be used, for example it was disabled: end the session.
+      forgetAccount();
+      setState({ status: 'anonymous', user: null, error: accountProblemMessage(error) });
+      await endSupabaseSession(() => signOutLocally());
+    } else {
+      setState({ status: 'unavailable', user: null, error: errorMessage(error) });
+    }
+  }
+}
+
+function accountProblemMessage(error: ApiError): string {
+  if (error.code === ErrorCode.ACCOUNT_DISABLED) {
+    return 'Your Top Flow account has been disabled. Please contact us for help.';
+  }
+  if (error.code === ErrorCode.ACCOUNT_CONFLICT) {
+    return 'This email address is linked to a different Top Flow account. Please contact us for help.';
+  }
+  return error.message;
+}
+
+async function endSupabaseSession(task: () => Promise<void>): Promise<void> {
+  signingOut = true;
+  try {
+    await task();
   } catch {
-    // The token is already gone from this device and expires on the server.
+    // Best effort: the store already shows the customer as signed out.
+  } finally {
+    signingOut = false;
+  }
+}
+
+/** Installs from before Supabase Auth kept a refresh token for the retired `/auth/refresh` endpoint. */
+async function removeLegacyRefreshToken(): Promise<void> {
+  if (Platform.OS === 'web') return;
+  try {
+    if (await SecureStore.getItemAsync(LEGACY_REFRESH_TOKEN_KEY)) {
+      await SecureStore.deleteItemAsync(LEGACY_REFRESH_TOKEN_KEY);
+    }
+  } catch {
+    // Unreadable keychain: there is nothing we can clean up.
+  }
+}
+
+// ─── Actions ─────────────────────────────────────────────────────────────────
+
+/** A Supabase Auth failure, with a message written for the sign-in and sign-up forms. */
+export class AuthFormError extends Error {
+  readonly code: string | null;
+
+  constructor(error: AuthError) {
+    super(authErrorMessage(error));
+    this.name = 'AuthFormError';
+    this.code = error.code ?? null;
+  }
+}
+
+/** Sign-in was refused because the email address has not been confirmed yet. */
+export function isEmailNotConfirmed(error: unknown): boolean {
+  return error instanceof AuthFormError && error.code === 'email_not_confirmed';
+}
+
+function authErrorMessage(error: AuthError): string {
+  if (isAuthRetryableFetchError(error)) return OFFLINE_MESSAGE;
+  if (isAuthWeakPasswordError(error)) {
+    return 'This password is too weak or has appeared in a data breach. Please choose a different one.';
+  }
+  switch (error.code) {
+    case 'invalid_credentials':
+      return 'The email address or password is incorrect.';
+    case 'email_not_confirmed':
+      return 'Please confirm your email address first, using the link we emailed you.';
+    case 'user_already_exists':
+      return 'An account with this email address already exists. Sign in instead.';
+    case 'email_address_invalid':
+      return 'Enter a valid email address.';
+    case 'over_request_rate_limit':
+    case 'over_email_send_rate_limit':
+      return 'Too many attempts. Please wait a few minutes and try again.';
+    case 'signup_disabled':
+    case 'email_provider_disabled':
+      return 'New accounts cannot be created right now. Please try again later.';
+    case 'user_banned':
+      return 'This account cannot sign in. Please contact Top Flow for help.';
+    default:
+      return error.message || 'Something went wrong. Please try again.';
+  }
+}
+
+/** Signs in with Supabase Auth and loads the Top Flow account. Resolves once fully signed in. */
+export async function signIn({ email, password }: LoginInput): Promise<AuthUser> {
+  const { data, error } = await getSupabase().auth.signInWithPassword({ email, password });
+  if (error) throw new AuthFormError(error);
+  return completeSignIn(data.session);
+}
+
+/**
+ * Creates the Supabase identity. The full name and phone number travel as user metadata, from which
+ * the API creates the Top Flow account on first use.
+ */
+export async function register({ fullName, email, password, phoneNumber }: RegisterInput): Promise<RegisterResult> {
+  const metadata: SignUpMetadata = { full_name: fullName, phone_number: phoneNumber };
+  const { data, error } = await getSupabase().auth.signUp({
+    email,
+    password,
+    options: { data: metadata, emailRedirectTo: webUrl(CONFIRM_EMAIL_REDIRECT) },
+  });
+  if (error) throw new AuthFormError(error);
+  // With email confirmation on, there is no session until the link is followed. Supabase answers the
+  // same way for an address that is already registered, so nothing is revealed about it.
+  if (!data.session) return { status: 'confirm-email', email };
+  return { status: 'signed-in', user: await completeSignIn(data.session) };
+}
+
+async function completeSignIn(session: Session): Promise<AuthUser> {
+  await loadAccount(session.user.id);
+  if (accountUserId === session.user.id && state.status === 'authenticated' && state.user) {
+    return state.user;
+  }
+  // The account could not be loaded: do not leave a half-signed-in session on the device.
+  const message = state.error ?? 'We could not load your account. Please try again.';
+  if (state.status !== 'anonymous') {
+    forgetAccount();
+    setState(ANONYMOUS);
+    await endSupabaseSession(() => signOutLocally());
+  }
+  throw new Error(message);
+}
+
+/** Sends the sign-up confirmation email again. */
+export async function resendConfirmationEmail(email: string): Promise<void> {
+  const { error } = await getSupabase().auth.resend({
+    type: 'signup',
+    email,
+    options: { emailRedirectTo: webUrl(CONFIRM_EMAIL_REDIRECT) },
+  });
+  if (error) throw new AuthFormError(error);
+}
+
+/**
+ * Emails a link to choose a new password on the web app. It resolves the same way whether or not the
+ * account exists: only a failure that says nothing about the account (no connection) is reported.
+ */
+export async function requestPasswordReset(email: string): Promise<void> {
+  const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
+    redirectTo: webUrl(RESET_PASSWORD_REDIRECT),
+  });
+  if (error && isAuthRetryableFetchError(error)) throw new AuthFormError(error);
+}
+
+/** Signs out on this device straight away, then asks Supabase to end the session (best effort). */
+export async function signOut(): Promise<void> {
+  forgetAccount();
+  setState(ANONYMOUS);
+  if (!isSupabaseConfigured) return;
+  await endSupabaseSession(async () => {
+    // Local scope: signing out of the app must not end the user's sessions on the website.
+    const { error } = await getSupabase().auth.signOut({ scope: 'local' });
+    // Offline, Supabase can keep the session: make sure it is gone from this device.
+    if (error) await signOutLocally();
+  });
+}
+
+/** Loads the account again while it is `unavailable`, for example from a "Try again" button. */
+export async function retryLoadUser(): Promise<void> {
+  if (!isSupabaseConfigured || state.status !== 'unavailable') return;
+  const { data, error } = await getSupabase().auth.getSession();
+  if (data.session) {
+    await loadAccount(data.session.user.id);
+  } else if (isAuthRetryableFetchError(error)) {
+    setState({ status: 'unavailable', user: null, error: OFFLINE_MESSAGE });
+  } else {
+    forgetAccount();
+    setState(ANONYMOUS);
   }
 }

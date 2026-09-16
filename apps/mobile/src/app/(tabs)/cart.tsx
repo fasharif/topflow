@@ -36,8 +36,18 @@ export default function CartScreen() {
         {hydrated ? (
           <EmptyState
             title="Your cart is empty"
-            message="Browse irrigation and flow-control supplies and add products to your cart."
-            action={<Button label="Browse products" onPress={() => router.navigate(routes.shop)} />}
+            message="Browse irrigation and flow-control supplies and add products to your cart, or describe your project and we'll quote it."
+            action={
+              <View style={styles.emptyActions}>
+                <Button label="Browse products" onPress={() => router.navigate(routes.shop)} />
+                <Button
+                  label="Request a project quote"
+                  variant="secondary"
+                  accessibilityHint="Opens a form to describe your project to Top Flow's sales team"
+                  onPress={() => router.push(routes.quoteRequest)}
+                />
+              </View>
+            }
           />
         ) : (
           <LoadingState />
@@ -275,6 +285,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     color: Brand.blueInk,
+  },
+  emptyActions: {
+    gap: 10,
   },
   quote: {
     gap: 8,

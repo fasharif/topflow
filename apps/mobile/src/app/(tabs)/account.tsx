@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AccountUnavailable } from '@/components/account-unavailable';
+import { CompanyContact } from '@/components/company-contact';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, SectionTitle } from '@/components/ui/card';
-import { LoadingState } from '@/components/ui/states';
+import { InlineError, LoadingState } from '@/components/ui/states';
 import { Brand } from '@/constants/theme';
 import type { Tone } from '@/lib/format';
 import { routes } from '@/lib/routes';
@@ -23,41 +25,31 @@ export default function AccountScreen() {
   const insets = useSafeAreaInsets();
   const session = useSession();
 
+  let content;
+  if (session.status === 'loading') {
+    content = <LoadingState />;
+  } else if (session.status === 'unavailable') {
+    content = <Unavailable message={session.error} />;
+  } else if (session.user) {
+    content = <SignedIn user={session.user} />;
+  } else {
+    content = <SignedOut notice={session.error} />;
+  }
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <ScrollView contentContainerStyle={styles.content} contentInsetAdjustmentBehavior="automatic">
         <Text style={styles.title} accessibilityRole="header">
           Account
         </Text>
-        {session.status === 'loading' ? (
-          <LoadingState />
-        ) : session.user ? (
-          <SignedIn user={session.user} />
-        ) : (
-          <SignedOut />
-        )}
+        {content}
       </ScrollView>
     </View>
   );
 }
 
-function SignedOut() {
-  return (
-    <>
-      <Card>
-        <Text style={styles.cardTitle}>Sign in to Top Flow</Text>
-        <Text style={styles.body}>
-          Check out with delivery across the UAE, pay on delivery and track every order in one place.
-        </Text>
-        <Button label="Sign in" onPress={() => router.push(routes.login)} fullWidth />
-        <Button label="Create an account" variant="secondary" onPress={() => router.push(routes.register)} fullWidth />
-      </Card>
-      <TradePortalNote />
-    </>
-  );
-}
-
-function SignedIn({ user }: { user: AuthUser }) {
+/** Asks for confirmation on native (the cart stays), then signs out. */
+function useSignOut() {
   const [signingOut, setSigningOut] = useState(false);
 
   const performSignOut = () => {
@@ -75,6 +67,41 @@ function SignedIn({ user }: { user: AuthUser }) {
       { text: 'Sign out', style: 'destructive', onPress: performSignOut },
     ]);
   };
+
+  return { signingOut, confirmSignOut };
+}
+
+function SignedOut({ notice }: { notice: string | null }) {
+  return (
+    <>
+      {notice ? <InlineError message={notice} /> : null}
+      <Card>
+        <Text style={styles.cardTitle}>Sign in to Top Flow</Text>
+        <Text style={styles.body}>
+          Check out with delivery across the UAE, pay on delivery and track every order in one place.
+        </Text>
+        <Button label="Sign in" onPress={() => router.push(routes.login)} fullWidth />
+        <Button label="Create an account" variant="secondary" onPress={() => router.push(routes.register)} fullWidth />
+      </Card>
+      <TradePortalNote />
+      <CompanyContact />
+    </>
+  );
+}
+
+function Unavailable({ message }: { message: string | null }) {
+  const { signingOut, confirmSignOut } = useSignOut();
+  return (
+    <>
+      <AccountUnavailable variant="card" message={message} />
+      <Button label="Sign out" variant="secondary" onPress={confirmSignOut} loading={signingOut} fullWidth />
+      <CompanyContact />
+    </>
+  );
+}
+
+function SignedIn({ user }: { user: AuthUser }) {
+  const { signingOut, confirmSignOut } = useSignOut();
 
   const initials = user.fullName
     .split(/\s+/)
@@ -99,12 +126,12 @@ function SignedIn({ user }: { user: AuthUser }) {
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Email</Text>
           <Badge
-            label={user.emailVerified ? 'Verified' : 'Not verified'}
+            label={user.emailVerified ? 'Confirmed' : 'Not confirmed'}
             tone={user.emailVerified ? 'success' : 'warning'}
           />
         </View>
         {!user.emailVerified ? (
-          <Text style={styles.hint}>Check your inbox for the verification link we sent you.</Text>
+          <Text style={styles.hint}>Check your inbox for the confirmation link we sent you.</Text>
         ) : null}
 
         <View style={styles.infoRow}>
@@ -135,6 +162,8 @@ function SignedIn({ user }: { user: AuthUser }) {
         </Card>
         <TradePortalNote />
       </View>
+
+      <CompanyContact />
 
       <Button label="Sign out" variant="secondary" onPress={confirmSignOut} loading={signingOut} fullWidth />
     </>

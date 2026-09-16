@@ -5,14 +5,14 @@
  */
 
 interface IssueLike {
-  readonly path: ReadonlyArray<PropertyKey>;
+  readonly path: readonly PropertyKey[];
   readonly message: string;
 }
 
 export type FieldErrors<K extends string> = Partial<Record<K, string>>;
 
 /** Maps validation issues to the first message for each top-level field. */
-export function collectFieldErrors<K extends string>(issues: ReadonlyArray<IssueLike>): FieldErrors<K> {
+export function collectFieldErrors<K extends string>(issues: readonly IssueLike[]): FieldErrors<K> {
   const errors: Partial<Record<string, string>> = {};
   for (const issue of issues) {
     const field = issue.path[0];

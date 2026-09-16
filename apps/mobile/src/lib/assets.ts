@@ -1,11 +1,10 @@
+import { WEB_URL } from '@/lib/config';
+
 /**
  * Product photos are served by the Top Flow web app, not the API. The catalogue stores most of them
  * as site-relative paths (e.g. `/catalog/products/y-type-disc-filter.webp`), which are resolved
  * against `EXPO_PUBLIC_WEB_URL`. Absolute http(s) URLs are used as they are.
  */
-
-// Must be referenced statically (dot notation) so Expo inlines it at build time.
-const WEB_URL = (process.env.EXPO_PUBLIC_WEB_URL ?? '').trim().replace(/\/+$/, '');
 
 const HTTP_URL = /^https?:\/\//i;
 const URL_SCHEME = /^[a-z][a-z\d+.-]*:/i;

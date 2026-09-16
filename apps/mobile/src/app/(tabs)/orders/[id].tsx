@@ -15,6 +15,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Platform, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { AccountUnavailable } from '@/components/account-unavailable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, DetailRow, Divider, SectionTitle } from '@/components/ui/card';
@@ -40,6 +41,7 @@ export default function OrderDetailScreen() {
   const orderId = typeof id === 'string' && id.length > 0 ? id : null;
 
   if (session.status === 'loading') return <LoadingState />;
+  if (session.status === 'unavailable') return <AccountUnavailable message={session.error} />;
   if (!session.user) {
     return (
       <EmptyState
