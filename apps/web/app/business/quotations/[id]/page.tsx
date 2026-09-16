@@ -1,6 +1,7 @@
 'use client';
 
 import { OrgPermission, QuotationStatus, type QuotationDto } from '@topflow/shared';
+import { Check, Download } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
@@ -10,7 +11,7 @@ import { BackLink, LoadError } from '@/components/business/feedback';
 import { ApprovalPanel, RespondPanel } from '@/components/business/quotation-actions';
 import { useOrg } from '@/components/business/use-org';
 import { QuotationStatusBadge } from '@/components/status-badge';
-import { Alert, Button, Card, CardHeader, LinkButton, LoadingBlock } from '@/components/ui';
+import { Alert, Button, Card, CardHeader, LinkButton, LoadingBlock, buttonClass } from '@/components/ui';
 import { downloadFile, errorMessage } from '@/lib/api';
 import { formatDate, formatDateTime, pluralize } from '@/lib/format';
 import { useApiQuery } from '@/lib/use-api';
@@ -34,15 +35,11 @@ function DownloadPdfButton({ quotation }: { quotation: QuotationDto }) {
   return (
     <div className="flex flex-col items-start gap-1 sm:items-end">
       <Button variant="secondary" loading={busy} onClick={() => void download()}>
-        {!busy && (
-          <svg viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-            <path d="M10 3v10m0 0l-4-4m4 4l4-4M4 15v1a1 1 0 001 1h10a1 1 0 001-1v-1" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        )}
+        {!busy && <Download aria-hidden="true" />}
         Download PDF
       </Button>
       {error && (
-        <p role="alert" className="text-xs text-red-600">
+        <p role="alert" className="text-xs text-danger-600">
           {error}
         </p>
       )}
@@ -62,26 +59,24 @@ function StatusBanner({ quotation }: { quotation: QuotationDto }) {
   if (quotation.orderId) {
     const approvedSeparately = quotation.approvedBy && quotation.approvedBy.id !== quotation.respondedBy?.id;
     return (
-      <Card className="border-emerald-200 bg-emerald-50/70 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-emerald-600 text-white" aria-hidden="true">
-              <svg viewBox="0 0 20 20" className="size-5" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <path d="M5 10.5l3 3 7-7" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
-            <div>
-              <p className="font-semibold text-emerald-900">Accepted{approvedSeparately ? ' and approved' : ''} — order {quotation.orderNumber} created</p>
-              <p className="text-sm text-emerald-800">
-                {approvedSeparately
-                  ? `Accepted by ${requester}, approved by ${quotation.approvedBy?.fullName} on ${formatDateTime(quotation.approvedAt)}.`
-                  : `Accepted by ${requester} on ${formatDateTime(quotation.respondedAt)}.`}
-              </p>
-            </div>
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-success-200 bg-success-50 p-5">
+        <div className="flex items-start gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-success-600 text-white">
+            <Check aria-hidden="true" className="size-5" />
+          </span>
+          <div>
+            <p className="font-semibold text-success-900">
+              Accepted{approvedSeparately ? ' and approved' : ''} — order {quotation.orderNumber} created
+            </p>
+            <p className="text-sm text-success-800">
+              {approvedSeparately
+                ? `Accepted by ${requester}, approved by ${quotation.approvedBy?.fullName} on ${formatDateTime(quotation.approvedAt)}.`
+                : `Accepted by ${requester} on ${formatDateTime(quotation.respondedAt)}.`}
+            </p>
           </div>
-          <LinkButton href={`/business/orders/${quotation.orderId}`}>View order {quotation.orderNumber}</LinkButton>
         </div>
-      </Card>
+        <LinkButton href={`/business/orders/${quotation.orderId}`}>View order {quotation.orderNumber}</LinkButton>
+      </div>
     );
   }
 
@@ -200,19 +195,17 @@ function QuotationView({ initial }: { initial: QuotationDto }) {
 
       <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wide text-brand-700">
-            Quotation{quotation.revision > 1 ? ` · revision ${quotation.revision}` : ''}
-          </p>
-          <div className="mt-1 flex flex-wrap items-center gap-3">
-            <h1 className="font-mono text-2xl font-bold tracking-tight text-ink-900">{quotation.displayNumber}</h1>
+          <p className="eyebrow text-brand-700">Quotation{quotation.revision > 1 ? ` · revision ${quotation.revision}` : ''}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <h1 className="heading-1 font-mono text-ink-900">{quotation.displayNumber}</h1>
             <QuotationStatusBadge status={quotation.status} expired={quotation.isExpired} />
           </div>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-2 text-sm text-slate-600">
             Issued {formatDate(quotation.sentAt)} · {quotation.isExpired ? 'expired' : 'valid until'} {formatDate(quotation.validUntil)}
             {quotation.quoteRequest && (
               <>
                 {' · for '}
-                <Link href={`/business/rfqs/${quotation.quoteRequest.id}`} className="font-medium text-brand-700 hover:underline">
+                <Link href={`/business/rfqs/${quotation.quoteRequest.id}`} className="font-medium text-brand-700 underline-offset-4 hover:underline">
                   {quotation.quoteRequest.number}
                 </Link>
               </>
@@ -221,7 +214,7 @@ function QuotationView({ initial }: { initial: QuotationDto }) {
         </div>
         <div className="flex flex-wrap items-start gap-2">
           {(canRespond || awaitingApproval) && (
-            <a href="#decision" className="inline-flex h-10 items-center rounded-lg bg-brand-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-brand-700 xl:hidden">
+            <a href="#decision" className={buttonClass('primary', 'md', 'xl:hidden')}>
               {canRespond ? 'Respond' : 'Review approval'}
             </a>
           )}
@@ -239,7 +232,7 @@ function QuotationView({ initial }: { initial: QuotationDto }) {
           <Card className="overflow-hidden">
             <CardHeader title="Pricing" description={`${pluralize(quotation.items.length, 'line')} · amounts in ${quotation.currency}`} />
             <DocumentLines items={quotation.items} />
-            <div className="border-t border-slate-100 bg-slate-50/50 px-5 py-4">
+            <div className="border-t border-slate-200 bg-slate-50 px-5 py-4">
               <div className="sm:ml-auto sm:max-w-sm">
                 <DocumentTotals
                   subtotal={quotation.subtotal}
@@ -259,13 +252,13 @@ function QuotationView({ initial }: { initial: QuotationDto }) {
               <div className="space-y-5 px-5 py-4">
                 {quotation.notes && (
                   <section>
-                    <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Notes from Top Flow</h3>
+                    <h3 className="eyebrow mb-1.5 text-slate-600">Notes from Top Flow</h3>
                     <Prose>{quotation.notes}</Prose>
                   </section>
                 )}
                 {quotation.terms && (
                   <section>
-                    <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Terms &amp; conditions</h3>
+                    <h3 className="eyebrow mb-1.5 text-slate-600">Terms &amp; conditions</h3>
                     <Prose>{quotation.terms}</Prose>
                   </section>
                 )}
@@ -276,7 +269,8 @@ function QuotationView({ initial }: { initial: QuotationDto }) {
 
         <div className="space-y-6">
           {(canRespond || awaitingApproval) && (
-            <div id="decision" className="scroll-mt-24">
+            // The sticky header offset comes from the global scroll-padding, so no scroll margin is needed here.
+            <div id="decision">
               {canRespond ? <RespondPanel quotation={quotation} onUpdated={onUpdated} /> : <ApprovalPanel quotation={quotation} onUpdated={onUpdated} />}
             </div>
           )}

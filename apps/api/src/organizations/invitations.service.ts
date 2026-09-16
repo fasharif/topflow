@@ -4,7 +4,6 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import {
   ORG_ROLE_LABELS,
@@ -15,14 +14,12 @@ import {
 } from '@topflow/shared';
 import { AuditAction } from '../audit/audit-actions';
 import { AuditService } from '../audit/audit.service';
-import { AuthService, type IssuedSession } from '../auth/auth.service';
-import { PasswordService } from '../auth/password.service';
-import { TokenService } from '../auth/token.service';
 import type {
   AuthenticatedUser,
   OrganizationContext,
   RequestMeta,
 } from '../common/request-context';
+import { generateSecret, hashSecret } from '../common/secrets';
 import { InjectConfig } from '../config/config.module';
 import type { AppConfig } from '../config/env';
 import { MailService } from '../mail/mail.service';
@@ -36,8 +33,6 @@ const INVITATION_TTL_DAYS = 7;
 export class InvitationsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auth: AuthService,
-    private readonly passwords: PasswordService,
     private readonly mail: MailService,
     private readonly audit: AuditService,
     @InjectConfig() private readonly config: AppConfig,
@@ -76,7 +71,7 @@ export class InvitationsService {
       );
     }
 
-    const token = TokenService.generateSecret();
+    const token = generateSecret();
     const invitation = await this.prisma.$transaction(async (tx) => {
       // Re-inviting replaces any earlier pending invitation for the same address.
       await tx.organizationInvitation.updateMany({
@@ -93,7 +88,7 @@ export class InvitationsService {
           organizationId: ctx.organizationId,
           email: input.email,
           role: input.role,
-          tokenHash: TokenService.hash(token),
+          tokenHash: hashSecret(token),
           invitedById: actor.id,
           expiresAt: new Date(Date.now() + INVITATION_TTL_DAYS * 86_400_000),
         },
@@ -170,49 +165,19 @@ export class InvitationsService {
   }
 
   /**
-   * Signed-in users join directly (the invitation must be addressed to them). People
-   * without an account create one here; the emailed link proves they own the mailbox.
+   * Joins the organization with the signed-in account. Invitees without an account create one
+   * with Supabase Auth first (confirming the invited mailbox), then accept.
    */
   async accept(
     input: AcceptInvitationInput,
-    currentUser: AuthenticatedUser | undefined,
+    user: AuthenticatedUser,
     meta: RequestMeta,
-  ): Promise<{ organizationId: string; issued?: IssuedSession }> {
+  ): Promise<{ organizationId: string }> {
     const invitation = await this.findValid(input.token);
-    let userId: string;
-
-    if (currentUser) {
-      if (currentUser.email !== invitation.email) {
-        throw new ForbiddenException(
-          'This invitation was sent to a different email address',
-        );
-      }
-      userId = currentUser.id;
-    } else {
-      const existing = await this.prisma.user.findUnique({
-        where: { email: invitation.email },
-        select: { id: true },
-      });
-      if (existing) {
-        throw new UnauthorizedException(
-          'Sign in with this email address to accept the invitation',
-        );
-      }
-      if (!input.fullName || !input.password) {
-        throw new BadRequestException(
-          'Enter your name and choose a password to create your account',
-        );
-      }
-      const user = await this.prisma.user.create({
-        data: {
-          email: invitation.email,
-          fullName: input.fullName,
-          phoneNumber: input.phoneNumber,
-          passwordHash: await this.passwords.hash(input.password),
-          emailVerifiedAt: new Date(),
-        },
-      });
-      userId = user.id;
+    if (user.email.toLowerCase() !== invitation.email.toLowerCase()) {
+      throw new ForbiddenException(
+        'This invitation was sent to a different email address. Sign in with that address to accept it.',
+      );
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -220,7 +185,7 @@ export class InvitationsService {
         where: {
           organizationId_userId: {
             organizationId: invitation.organizationId,
-            userId,
+            userId: user.id,
           },
         },
       });
@@ -232,7 +197,7 @@ export class InvitationsService {
       await tx.organizationMember.create({
         data: {
           organizationId: invitation.organizationId,
-          userId,
+          userId: user.id,
           role: invitation.role,
         },
       });
@@ -249,24 +214,19 @@ export class InvitationsService {
           entityType: 'OrganizationInvitation',
           entityId: invitation.id,
           organizationId: invitation.organizationId,
-          userId,
+          userId: user.id,
           ipAddress: meta.ipAddress,
         },
         tx,
       );
     });
 
-    return {
-      organizationId: invitation.organizationId,
-      issued: currentUser
-        ? undefined
-        : await this.auth.startSession(userId, meta),
-    };
+    return { organizationId: invitation.organizationId };
   }
 
   private async findValid(token: string) {
     const invitation = await this.prisma.organizationInvitation.findUnique({
-      where: { tokenHash: TokenService.hash(token) },
+      where: { tokenHash: hashSecret(token) },
       include: { organization: { select: { name: true } } },
     });
     if (

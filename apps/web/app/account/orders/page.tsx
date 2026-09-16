@@ -1,11 +1,12 @@
 'use client';
 
 import { ORDER_STATUS_LABELS, type OrderStatus, type OrderSummaryDto, type Paginated } from '@topflow/shared';
+import { Package, SearchX } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useRef, type FormEvent } from 'react';
 import { OrderStatusBadge, PaymentStatusBadge } from '@/components/status-badge';
-import { Alert, Button, EmptyState, Field, Input, LinkButton, LoadingBlock, PageHeader, Pagination, Select, Table, Td, Th, cx } from '@/components/ui';
+import { Alert, Button, Card, EmptyState, Field, LinkButton, LoadingBlock, PageHeader, Pagination, SearchInput, Select, Table, Td, Th, cx } from '@/components/ui';
 import { aed, formatDate, pluralize } from '@/lib/format';
 import { useApiQuery } from '@/lib/use-api';
 
@@ -54,10 +55,10 @@ function OrdersList() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-xs md:flex-row md:items-end">
+      <Card className="flex flex-col gap-3 p-4 md:flex-row md:items-end">
         <form role="search" onSubmit={submitSearch} className="flex flex-1 items-end gap-2">
           <Field label="Search" htmlFor="order-search" className="flex-1">
-            <Input ref={searchInput} id="order-search" name="search" type="search" defaultValue={search} placeholder="Order number, e.g. TF-SO-2026-000123" autoComplete="off" />
+            <SearchInput ref={searchInput} id="order-search" name="search" defaultValue={search} placeholder="Order number, e.g. TF-SO-2026-000123" autoComplete="off" />
           </Field>
           <Button type="submit" variant="secondary">
             Search
@@ -78,7 +79,7 @@ function OrdersList() {
             Clear filters
           </Button>
         )}
-      </div>
+      </Card>
 
       {error ? (
         <Alert tone="danger" title="We couldn't load your orders">
@@ -92,6 +93,7 @@ function OrdersList() {
       ) : data.items.length === 0 ? (
         filtered || page > 1 ? (
           <EmptyState
+            icon={<SearchX aria-hidden="true" />}
             title="No orders match your filters"
             description="Try a different order number or status."
             action={
@@ -102,6 +104,7 @@ function OrdersList() {
           />
         ) : (
           <EmptyState
+            icon={<Package aria-hidden="true" />}
             title="You haven't placed any orders yet"
             description="Sprinklers, drip lines, valves and controllers are delivered across the UAE, with payment on delivery."
             action={<LinkButton href="/products">Browse products</LinkButton>}
@@ -109,7 +112,7 @@ function OrdersList() {
         )
       ) : (
         <div aria-busy={loading} className={cx('transition-opacity', loading && 'opacity-60')}>
-          <p className="mb-2 text-sm text-slate-500">{pluralize(data.total, 'order')}</p>
+          <p className="mb-2 text-sm text-slate-600">{pluralize(data.total, 'order')}</p>
           <Table>
             <thead>
               <tr>
@@ -123,9 +126,9 @@ function OrdersList() {
             </thead>
             <tbody>
               {data.items.map((order) => (
-                <tr key={order.id} className="transition hover:bg-slate-50/70">
+                <tr key={order.id} className="transition-colors hover:bg-slate-50">
                   <Td>
-                    <Link href={`/account/orders/${order.id}`} className="font-medium text-brand-700 hover:underline">
+                    <Link href={`/account/orders/${order.id}`} className="font-mono font-medium text-brand-700 underline-offset-4 hover:underline">
                       {order.orderNumber}
                     </Link>
                   </Td>

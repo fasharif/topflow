@@ -10,8 +10,6 @@ import {
   Patch,
   Post,
   Query,
-  Req,
-  Res,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -19,35 +17,32 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import {
   ORGANIZATION_HEADER,
   OrgPermission,
   Permission,
   type AddressDto,
-  type AuthSession,
   type InvitationDto,
   type InvitationPreviewDto,
   type MemberDto,
   type OrganizationDto,
   type Paginated,
 } from '@topflow/shared';
-import type { Response } from 'express';
-import { SessionCookieService } from '../auth/session-cookie.service';
 import {
   CurrentOrganization,
   CurrentUser,
   Meta,
-  OptionalUser,
   Public,
   RequireOrgPermission,
   RequirePermissions,
 } from '../common/decorators';
 import type {
-  AppRequest,
   AuthenticatedUser,
   OrganizationContext,
   RequestMeta,
 } from '../common/request-context';
+import { strictThrottle } from '../common/throttle';
 import { AddressBookService } from '../users/address-book.service';
 import { CreateAddressDto, UpdateAddressDto } from '../users/users.dto';
 import { InvitationsService } from './invitations.service';
@@ -207,12 +202,10 @@ export class OrganizationController {
 @ApiTags('B2B · Invitations')
 @Controller('invitations')
 export class InvitationsController {
-  constructor(
-    private readonly invitations: InvitationsService,
-    private readonly sessions: SessionCookieService,
-  ) {}
+  constructor(private readonly invitations: InvitationsService) {}
 
   @Public()
+  @Throttle(strictThrottle)
   @HttpCode(HttpStatus.OK)
   @Post('preview')
   @ApiOperation({
@@ -223,27 +216,20 @@ export class InvitationsController {
     return this.invitations.preview(dto.token);
   }
 
-  @Public()
+  @ApiBearerAuth()
+  @Throttle(strictThrottle)
   @HttpCode(HttpStatus.OK)
   @Post('accept')
   @ApiOperation({
     summary:
-      'Join the organization — signed in, or creating an account in the same step',
+      'Join the organization with the signed-in account (its email must match the invitation)',
   })
-  async accept(
+  accept(
     @Body() dto: AcceptInvitationDto,
-    @OptionalUser() user: AuthenticatedUser | undefined,
+    @CurrentUser() user: AuthenticatedUser,
     @Meta() meta: RequestMeta,
-    @Req() req: AppRequest,
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<{ organizationId: string; session: AuthSession | null }> {
-    const result = await this.invitations.accept(dto, user, meta);
-    return {
-      organizationId: result.organizationId,
-      session: result.issued
-        ? this.sessions.respond(req, res, result.issued)
-        : null,
-    };
+  ): Promise<{ organizationId: string }> {
+    return this.invitations.accept(dto, user, meta);
   }
 }
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { EMIRATE_LABELS, OrderStatus, PAYMENT_METHOD_LABELS, type OrderDto } from '@topflow/shared';
-import Link from 'next/link';
+import { PackageSearch } from 'lucide-react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense, useState, type ReactNode } from 'react';
 import { CancelOrderCard } from '@/components/account/cancel-order';
@@ -9,7 +9,7 @@ import { OrderItemsCard } from '@/components/account/order-items';
 import { OrderProgress } from '@/components/account/order-progress';
 import { OrderTimeline } from '@/components/account/order-timeline';
 import { OrderStatusBadge, PaymentStatusBadge } from '@/components/status-badge';
-import { Alert, Button, Card, CardHeader, EmptyState, LinkButton, LoadingBlock, PageHeader } from '@/components/ui';
+import { Alert, BackLink, Button, Card, CardHeader, EmptyState, LinkButton, LoadingBlock, PageHeader } from '@/components/ui';
 import { formatDateTime } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { useApiQuery } from '@/lib/use-api';
@@ -29,7 +29,7 @@ function PlacedBanner() {
 function Detail({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</dt>
+      <dt className="eyebrow text-slate-600">{label}</dt>
       <dd className="mt-1 text-sm text-ink-900">{children}</dd>
     </div>
   );
@@ -61,7 +61,7 @@ function DeliveryCard({ order }: { order: OrderDto }) {
           {order.trackingReference ? (
             <span className="font-mono">{order.trackingReference}</span>
           ) : (
-            <span className="text-slate-500">{AWAITING_DISPATCH.includes(order.status) ? 'Shared once your order is dispatched' : '—'}</span>
+            <span className="text-slate-600">{AWAITING_DISPATCH.includes(order.status) ? 'Shared once your order is dispatched' : '—'}</span>
           )}
         </Detail>
         {order.dispatchedAt && <Detail label="Dispatched">{formatDateTime(order.dispatchedAt)}</Detail>}
@@ -108,6 +108,7 @@ function OrderDetail({ id }: { id: string }) {
     if (error.status === 404 || error.status === 400) {
       return (
         <EmptyState
+          icon={<PackageSearch aria-hidden="true" />}
           title="Order not found"
           description="This order doesn't exist or belongs to a different account."
           action={<LinkButton href="/account/orders">Back to your orders</LinkButton>}
@@ -127,15 +128,10 @@ function OrderDetail({ id }: { id: string }) {
 
   return (
     <div>
-      <Link href="/account/orders" className="mb-3 flex w-fit items-center gap-1 text-sm font-medium text-slate-500 hover:text-brand-700">
-        <svg viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-          <path d="m12 15-5-5 5-5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        All orders
-      </Link>
+      <BackLink href="/account/orders">All orders</BackLink>
       <PageHeader
         eyebrow="Order"
-        title={order.orderNumber}
+        title={<span className="font-mono">{order.orderNumber}</span>}
         description={`Placed ${formatDateTime(order.createdAt)}`}
         actions={
           <>

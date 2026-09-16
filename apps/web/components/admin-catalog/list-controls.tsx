@@ -1,10 +1,10 @@
 'use client';
 
 import type { FormEvent, ReactNode } from 'react';
-import { Alert, Button, Input, Spinner, cx } from '@/components/ui';
+import { Alert, Button, SearchInput, Spinner, cx } from '@/components/ui';
 import { pluralize } from '@/lib/format';
 
-/** Segmented filter control (toggle buttons) for switching a list between views. */
+/** Row of filter pills (toggle buttons) for switching a list between views. */
 export function FilterTabs<T extends string>({
   label,
   value,
@@ -17,7 +17,7 @@ export function FilterTabs<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div role="group" aria-label={label} className="flex max-w-full flex-wrap gap-1 rounded-lg bg-slate-100 p-1 text-sm">
+    <div role="group" aria-label={label} className="flex max-w-full flex-wrap gap-2">
       {options.map((option) => {
         const active = option.value === value;
         return (
@@ -27,13 +27,13 @@ export function FilterTabs<T extends string>({
             aria-pressed={active}
             onClick={() => onChange(option.value)}
             className={cx(
-              'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium whitespace-nowrap transition',
-              active ? 'bg-white text-ink-900 shadow-sm' : 'text-slate-600 hover:bg-white/60 hover:text-ink-900',
+              'inline-flex h-9 cursor-pointer items-center gap-2 rounded-full border px-3.5 text-sm font-medium whitespace-nowrap transition-colors',
+              active ? 'border-ink-900 bg-ink-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50 hover:text-ink-900',
             )}
           >
             {option.label}
             {option.count !== undefined && option.count > 0 && (
-              <span className="rounded-full bg-amber-100 px-1.5 text-xs font-semibold text-amber-800">{option.count}</span>
+              <span className="rounded-full bg-warning-100 px-1.5 text-xs font-semibold tabular-nums text-warning-800">{option.count}</span>
             )}
           </button>
         );
@@ -71,13 +71,7 @@ export function SearchForm({
       <label htmlFor={id} className="sr-only">
         {label}
       </label>
-      <div className="relative min-w-0 flex-1">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400">
-          <circle cx="9" cy="9" r="5.5" />
-          <path d="m13.5 13.5 3.5 3.5" strokeLinecap="round" />
-        </svg>
-        <Input key={value} id={id} name="q" type="search" defaultValue={value} placeholder={placeholder} className="pl-9" />
-      </div>
+      <SearchInput key={value} id={id} name="q" defaultValue={value} placeholder={placeholder} className="flex-1" />
       <Button type="submit" variant="secondary">
         Search
       </Button>
@@ -126,7 +120,7 @@ export function ResultSummary({
   const to = Math.min(total, page * pageSize);
   return (
     <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-      <p className="flex items-center gap-2 text-sm text-slate-500" aria-live="polite">
+      <p className="flex items-center gap-2 text-sm text-slate-600" aria-live="polite">
         {total === 0 || from > total ? `No ${plural ?? `${singular}s`} to show` : `Showing ${from}–${to} of ${pluralize(total, singular, plural)}`}
         {loading && (
           <>
@@ -140,7 +134,7 @@ export function ResultSummary({
   );
 }
 
-/** Accessible on/off switch. */
+/** Accessible on/off switch. The off track is slate-400 so it keeps 3:1 contrast against white. */
 export function Switch({
   checked,
   onChange,
@@ -162,11 +156,14 @@ export function Switch({
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={cx(
-        'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-50',
-        checked ? 'bg-emerald-500' : 'bg-slate-300',
+        'relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-55',
+        checked ? 'bg-success-600' : 'bg-slate-400',
       )}
     >
-      <span aria-hidden="true" className={cx('inline-block size-5 rounded-full bg-white shadow transition', checked ? 'translate-x-5.5' : 'translate-x-0.5')} />
+      <span
+        aria-hidden="true"
+        className={cx('inline-block size-5 rounded-full bg-white shadow-sm motion-safe:transition-transform', checked ? 'translate-x-5.5' : 'translate-x-0.5')}
+      />
     </button>
   );
 }
@@ -187,13 +184,20 @@ export function CheckboxField({
 }) {
   return (
     <div className="flex gap-3">
-      <input id={id} type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="mt-0.5 size-4 shrink-0 accent-brand-600" aria-describedby={description ? `${id}-description` : undefined} />
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="mt-0.5 size-4 shrink-0 cursor-pointer"
+        aria-describedby={description ? `${id}-description` : undefined}
+      />
       <div className="text-sm">
-        <label htmlFor={id} className="font-medium text-ink-900">
+        <label htmlFor={id} className="cursor-pointer font-medium text-ink-900">
           {label}
         </label>
         {description && (
-          <p id={`${id}-description`} className="text-slate-500">
+          <p id={`${id}-description`} className="mt-0.5 text-slate-600">
             {description}
           </p>
         )}

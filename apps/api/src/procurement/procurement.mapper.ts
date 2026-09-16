@@ -147,6 +147,7 @@ export function toRfqDto(rfq: RfqRecord): RfqDto {
           email: rfq.contactEmail,
           phone: rfq.contactPhone,
           companyName: rfq.companyName,
+          preferredContact: rfq.preferredContact,
         }
       : null,
     organization: rfq.organization,

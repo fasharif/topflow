@@ -6,6 +6,9 @@
   "setupFiles": ["<rootDir>/setup-env.ts"],
   "testTimeout": 60000,
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
+    "^.+\\.ts$": "ts-jest"
+  },
+  "moduleNameMapper": {
+    "^jose$": "<rootDir>/.cache/jose.cjs"
   }
 }

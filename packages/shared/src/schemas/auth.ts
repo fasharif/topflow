@@ -7,9 +7,15 @@ import {
   optionalText,
   passwordSchema,
   phoneSchema,
-  tokenSchema,
   trnSchema,
 } from './common';
+
+/*
+ * Identity is owned by Supabase Auth: credentials, sessions, email confirmation, password
+ * recovery and multi-factor authentication. These schemas validate the forms that feed it.
+ * The API never receives a password; it keeps authorization (platform roles and
+ * organization memberships) and provisions the platform account on first use.
+ */
 
 export const registerSchema = z.object({
   email: emailSchema,
@@ -30,11 +36,15 @@ export const organizationProfileSchema = z.object({
 });
 export type OrganizationProfileInput = z.infer<typeof organizationProfileSchema>;
 
-/** Business sign-up: creates the user and a PENDING_VERIFICATION organization they own. */
+/** Business sign-up: the owner's organization is created, pending KYC review, when the account is first used. */
 export const registerBusinessSchema = registerSchema.extend({
   organization: organizationProfileSchema,
 });
 export type RegisterBusinessInput = z.infer<typeof registerBusinessSchema>;
+
+/** A signed-in user opening a trade account for their company. */
+export const registerOrganizationSchema = organizationProfileSchema;
+export type RegisterOrganizationInput = z.infer<typeof registerOrganizationSchema>;
 
 export const loginSchema = z.object({
   email: emailSchema,
@@ -42,20 +52,20 @@ export const loginSchema = z.object({
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
-/** Web clients send the refresh token as an httpOnly cookie; native apps send it in the body. */
-export const refreshSchema = z.object({
-  refreshToken: z.string().trim().min(20).max(200).optional(),
-});
-export type RefreshInput = z.infer<typeof refreshSchema>;
-
 export const forgotPasswordSchema = z.object({ email: emailSchema });
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 
-export const resetPasswordSchema = z.object({ token: tokenSchema, password: passwordSchema });
-export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
-
-export const verifyEmailSchema = z.object({ token: tokenSchema });
-export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
+/** Choosing a password after following a recovery or invitation link. */
+export const newPasswordSchema = z
+  .object({
+    password: passwordSchema,
+    confirmPassword: z.string().max(PASSWORD_MAX_LENGTH),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    error: 'The passwords do not match',
+    path: ['confirmPassword'],
+  });
+export type NewPasswordInput = z.infer<typeof newPasswordSchema>;
 
 export const changePasswordSchema = z
   .object({
@@ -67,3 +77,23 @@ export const changePasswordSchema = z
     path: ['newPassword'],
   });
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+/** Six-digit code from an authenticator app (TOTP). */
+export const mfaCodeSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, { error: 'Enter the 6-digit code from your authenticator app' }),
+});
+export type MfaCodeInput = z.infer<typeof mfaCodeSchema>;
+
+/**
+ * Profile captured at sign-up and stored as Supabase user metadata (snake_case, following
+ * Supabase conventions). The API reads it once, when it provisions the platform account.
+ */
+export const signUpMetadataSchema = z.object({
+  full_name: nameSchema.optional(),
+  phone_number: phoneSchema.optional(),
+  organization: organizationProfileSchema.optional(),
+});
+export type SignUpMetadata = z.infer<typeof signUpMetadataSchema>;

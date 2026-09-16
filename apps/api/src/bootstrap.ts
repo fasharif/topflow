@@ -2,11 +2,11 @@ import type { INestApplication } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ORGANIZATION_HEADER } from '@topflow/shared';
-import cookieParser from 'cookie-parser';
 import type { NextFunction, Response } from 'express';
 import helmet from 'helmet';
 import { cleanupOpenApiDoc } from 'nestjs-zod';
 import { randomUUID } from 'node:crypto';
+import { clientIp } from './common/client-ip';
 import type { AppRequest } from './common/request-context';
 import type { AppConfig } from './config/env';
 
@@ -32,28 +32,28 @@ export function configureApp(app: INestApplication, config: AppConfig): void {
   expressApp.useBodyParser('json', { limit: '1mb' });
 
   app.use(requestId);
+  app.use(clientIp(config.http.internalApiSecret));
   app.use(
     helmet({
       contentSecurityPolicy: config.http.swaggerEnabled ? false : undefined,
     }),
   );
-  app.use(cookieParser());
 
   app.enableCors({
-    // Browsers normally reach the API through the web app's same-origin proxy; direct
-    // cross-origin calls are limited to an explicit allowlist. Native apps send no Origin.
+    // Browsers reach the API through the web app's server; direct cross-origin calls are limited
+    // to an explicit allowlist. Native apps send no Origin. Authentication is by bearer token
+    // only, so credentials (cookies) are never accepted cross-origin.
     origin: (
       origin: string | undefined,
       callback: (error: Error | null, allow?: boolean) => void,
     ) => {
       callback(null, !origin || config.http.corsOrigins.includes(origin));
     },
-    credentials: true,
+    credentials: false,
     allowedHeaders: [
       'authorization',
       'content-type',
       'x-request-id',
-      'x-client-platform',
       ORGANIZATION_HEADER,
     ],
     exposedHeaders: ['x-request-id', 'content-disposition'],
@@ -65,10 +65,10 @@ export function configureApp(app: INestApplication, config: AppConfig): void {
     const document = SwaggerModule.createDocument(
       app,
       new DocumentBuilder()
-        .setTitle('Top Flow API')
+        .setTitle('TopFlow Hub API')
         .setDescription(
-          'REST API for the Top Flow B2B/B2C commerce platform. Authenticate with a bearer access token; ' +
-            `B2B endpoints under /org require the ${ORGANIZATION_HEADER} header.`,
+          'REST API for the Top Flow B2B/B2C commerce platform. Authenticate with a Supabase Auth access token ' +
+            `(Authorization: Bearer …); B2B endpoints under /org require the ${ORGANIZATION_HEADER} header.`,
         )
         .setVersion(config.app.version)
         .addBearerAuth()

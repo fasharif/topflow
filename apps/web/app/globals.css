@@ -1,89 +1,217 @@
 @import "tailwindcss";
 
 /*
- * Top Flow design tokens, following the topflow.ae brand: warm paper background, deep
- * green-black ink and an evergreen accent. Fraunces sets display type, Archivo the interface and
- * IBM Plex Mono the codes and labels. Tailwind's slate scale is replaced with warm neutrals, so
- * every screen (storefront, portal and back office) shares the same tone.
+ * TopFlow Hub design tokens.
+ *
+ * A crisp, cool-neutral enterprise palette taken from the logo: evergreen `brand` (the flow
+ * stripes) carries primary actions and `flow` blue (the frame) is the accent for focus rings,
+ * information and highlights. Surfaces are white on a light grey-blue canvas. IBM Plex Sans sets
+ * the interface and headings; IBM Plex Mono sets SKUs, codes and eyebrows.
+ *
+ * Neutral roles on white (WCAG 2.2 AA): slate-200/300 dividers, slate-400 form-control borders
+ * and meaningful icons (at least 3:1), slate-500 secondary text (at least 4.5:1), slate-600/700
+ * body text. Tailwind's slate scale is overridden so every screen shares these neutrals. The
+ * status scales (success, warning, danger) are tuned to sit next to the brand; "info" uses flow.
  */
 @theme {
-  --color-ink-950: #0b1712;
-  --color-ink-900: #12211b;
-  --color-ink-800: #1d3129;
-  --color-ink-700: #2f443a;
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-canvas: #f3f6f9;
+
+  --color-ink-950: #07141a;
+  --color-ink-900: #0d1c23;
+  --color-ink-800: #172a33;
+  --color-ink-700: #243943;
 
   --color-brand-50: #eef5f2;
   --color-brand-100: #dcebe5;
   --color-brand-200: #b5d5ca;
   --color-brand-300: #86b9a8;
+  --color-brand-400: #589a87;
   --color-brand-500: #2a7a67;
   --color-brand-600: #014d41;
   --color-brand-700: #013f35;
   --color-brand-800: #01322a;
+  --color-brand-900: #01261f;
+  --color-brand-950: #001a15;
 
-  --color-sand-50: #fdfcf8;
-  --color-sand-100: #f4f1e9;
-  --color-sand-200: #e4dfd2;
-  --color-sand-300: #cfc8b6;
+  --color-flow-50: #eff4fa;
+  --color-flow-100: #dce7f4;
+  --color-flow-200: #bdd1ea;
+  --color-flow-300: #91b2db;
+  --color-flow-400: #628dc6;
+  --color-flow-500: #4172b3;
+  --color-flow-600: #2c5d9f;
+  --color-flow-700: #254d84;
+  --color-flow-800: #213f6b;
+  --color-flow-900: #1d3558;
+  --color-flow-950: #13223a;
 
-  --color-slate-50: #f8f6f1;
-  --color-slate-100: #f0ede5;
-  --color-slate-200: #e4dfd2;
-  --color-slate-300: #cfc8b6;
-  --color-slate-400: #9d9684;
-  --color-slate-500: #6f695c;
-  --color-slate-600: #575347;
-  --color-slate-700: #423f36;
-  --color-slate-800: #2d2b24;
-  --color-slate-900: #1b1a16;
+  --color-slate-50: #f6f8fa;
+  --color-slate-100: #eef1f5;
+  --color-slate-200: #e1e6ec;
+  --color-slate-300: #cbd3dc;
+  --color-slate-400: #8592a1;
+  --color-slate-500: #5d6b7a;
+  --color-slate-600: #4a5664;
+  --color-slate-700: #37424f;
+  --color-slate-800: #252f3b;
+  --color-slate-900: #161e28;
 
-  --color-canvas: #faf8f3;
+  --color-success-50: #edf8f1;
+  --color-success-100: #d3eedd;
+  --color-success-200: #a9dcbd;
+  --color-success-500: #2f9a5c;
+  --color-success-600: #1f7f4a;
+  --color-success-700: #19663c;
+  --color-success-800: #155132;
+  --color-success-900: #11412a;
 
-  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-fraunces), Georgia, serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+  --color-warning-50: #fdf7e8;
+  --color-warning-100: #fbecc6;
+  --color-warning-200: #f5d98f;
+  --color-warning-500: #d99a2b;
+  --color-warning-600: #b7791f;
+  --color-warning-700: #925b12;
+  --color-warning-800: #74470f;
+  --color-warning-900: #5d3a10;
 
-  --animate-marquee: marquee 60s linear infinite;
+  --color-danger-50: #fdf2f1;
+  --color-danger-100: #fbe0dd;
+  --color-danger-200: #f5bfb9;
+  --color-danger-500: #db5344;
+  --color-danger-600: #c0392b;
+  --color-danger-700: #a02d22;
+  --color-danger-800: #82261d;
+  --color-danger-900: #6a2019;
 
-  @keyframes marquee {
-    from {
-      transform: translateX(0);
-    }
-    to {
-      transform: translateX(-50%);
-    }
-  }
+  --shadow-raised: 0 18px 40px -24px rgb(13 28 35 / 0.3);
+
+  /* Letter-spacing of the "TOP FLOW" wordmark in the logo. */
+  --tracking-wordmark: 0.16em;
 }
 
-/* Small uppercase mono label used above headings ("CATALOGUE", "WHY TOP FLOW"). */
+/* Small uppercase mono label above headings and in table headers ("CATALOGUE", "APPROX. PRICE"). */
 @utility eyebrow {
   font-family: var(--font-mono);
   font-size: 0.75rem;
   line-height: 1rem;
-  letter-spacing: 0.16em;
+  font-weight: 500;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+/*
+ * Heading scale. Use these instead of ad-hoc sizes: display for the home hero, 1 for page titles,
+ * 2 for section titles, 3 for sub-sections and empty states, 4 for card and list-item titles.
+ */
+@utility heading-display {
+  font-size: 2.25rem;
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  @media (width >= 40rem) {
+    font-size: 3rem;
+  }
+  @media (width >= 80rem) {
+    font-size: 3.5rem;
+  }
+}
+
+@utility heading-1 {
+  font-size: 1.875rem;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  @media (width >= 40rem) {
+    font-size: 2.25rem;
+    line-height: 1.15;
+  }
+}
+
+@utility heading-2 {
+  font-size: 1.5rem;
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  @media (width >= 40rem) {
+    font-size: 1.875rem;
+    line-height: 1.2;
+  }
+}
+
+@utility heading-3 {
+  font-size: 1.125rem;
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+@utility heading-4 {
+  font-size: 1rem;
+  line-height: 1.45;
+  font-weight: 600;
+}
+
+/* Hides the native spin buttons of number inputs that have their own +/- controls. */
+@utility no-spinner {
+  appearance: textfield;
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    appearance: none;
+    margin: 0;
+  }
 }
 
 @layer base {
   html {
     color-scheme: light;
+    /* Keeps anchors and keyboard focus clear of the sticky header (WCAG 2.4.11). */
+    scroll-padding-top: 5rem;
+    @media (width >= 64rem) {
+      scroll-padding-top: 7.5rem;
+    }
   }
 
   body {
-    @apply bg-canvas text-slate-800 antialiased;
+    @apply bg-canvas text-slate-700 antialiased;
   }
 
   h1,
   h2,
-  h3 {
+  h3,
+  h4 {
+    @apply text-ink-900;
     text-wrap: balance;
   }
 
   ::selection {
-    @apply bg-brand-200 text-ink-900;
+    @apply bg-flow-100 text-ink-900;
   }
 
   :focus-visible {
-    @apply outline-2 outline-offset-2 outline-brand-500;
+    @apply outline-2 outline-offset-2 outline-flow-600;
+  }
+
+  /* On dark bands the blue ring lacks contrast, so focus turns white. */
+  [data-surface='dark'] :focus-visible {
+    outline-color: var(--color-white);
+  }
+
+  input[type='checkbox'],
+  input[type='radio'] {
+    accent-color: var(--color-brand-600);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *:not(.animate-spin),
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

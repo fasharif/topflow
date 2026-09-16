@@ -1,6 +1,7 @@
 'use client';
 
 import { EMIRATE_LABELS, OrgPermission, type AddressDto } from '@topflow/shared';
+import { MapPin, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { ConfirmAction, LoadError } from '@/components/business/feedback';
 import { SiteForm } from '@/components/business/site-form';
@@ -65,7 +66,10 @@ export default function SitesPage() {
         description={sites.data ? `${pluralize(list.length, 'site')} · choose one when you submit an RFQ.` : 'Project sites and yards we deliver to.'}
         actions={
           canManage && editing !== 'new' ? (
-            <Button onClick={() => startEditing('new')}>Add delivery site</Button>
+            <Button onClick={() => startEditing('new')}>
+              <Plus aria-hidden="true" />
+              Add delivery site
+            </Button>
           ) : undefined
         }
       />
@@ -92,13 +96,21 @@ export default function SitesPage() {
       ) : list.length === 0 ? (
         editing !== 'new' && (
           <EmptyState
+            icon={<MapPin aria-hidden="true" />}
             title="No delivery sites yet"
             description={
               canManage
                 ? 'Add your project sites so buyers can pick them when requesting quotations.'
                 : 'Ask an approver or owner to add your project sites.'
             }
-            action={canManage ? <Button onClick={() => startEditing('new')}>Add delivery site</Button> : undefined}
+            action={
+              canManage ? (
+                <Button onClick={() => startEditing('new')}>
+                  <Plus aria-hidden="true" />
+                  Add delivery site
+                </Button>
+              ) : undefined
+            }
           />
         )
       ) : (
@@ -116,21 +128,28 @@ export default function SitesPage() {
             ) : (
               <li key={site.id}>
                 <Card className="flex h-full flex-col p-5">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <h2 className="font-semibold text-ink-900">{site.label}</h2>
-                    {site.isDefault && <Badge tone="brand">Default</Badge>}
-                  </div>
-                  <address className="mt-2 flex-1 text-sm not-italic leading-relaxed text-slate-600">
-                    {[site.line1, site.line2].filter(Boolean).join(', ')}
-                    <br />
-                    {site.area}, {site.city}, {EMIRATE_LABELS[site.emirate]}
-                    <br />
-                    <span className="text-slate-500">
-                      {site.contactName} · {site.phoneNumber}
+                  <div className="flex flex-1 items-start gap-4">
+                    <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-flow-50 text-flow-700">
+                      <MapPin aria-hidden="true" className="size-5" />
                     </span>
-                  </address>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h2 className="heading-4 text-ink-900">{site.label}</h2>
+                        {site.isDefault && <Badge tone="brand">Default</Badge>}
+                      </div>
+                      <address className="mt-1 text-sm not-italic leading-relaxed text-slate-600">
+                        {[site.line1, site.line2].filter(Boolean).join(', ')}
+                        <br />
+                        {site.area}, {site.city}, {EMIRATE_LABELS[site.emirate]}
+                        <br />
+                        <span className="text-slate-500">
+                          {site.contactName} · {site.phoneNumber}
+                        </span>
+                      </address>
+                    </div>
+                  </div>
                   {canManage && (
-                    <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+                    <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4">
                       <Button size="sm" variant="secondary" onClick={() => startEditing(site.id)}>
                         Edit
                       </Button>

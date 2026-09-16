@@ -11,6 +11,7 @@ import {
   type OrderDto,
   type OrderEventDto,
 } from '@topflow/shared';
+import { ArrowRight, Check } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
@@ -19,7 +20,7 @@ import { DocumentLinesTable, DocumentTotals } from '@/components/admin/document-
 import { OrderActions } from '@/components/admin/order-actions';
 import { RequireAuth } from '@/components/require-auth';
 import { OrderStatusBadge, PaymentStatusBadge } from '@/components/status-badge';
-import { Alert, Card, CardHeader, LoadingBlock, PageHeader, cx } from '@/components/ui';
+import { Alert, BackLink, Card, CardHeader, LoadingBlock, PageHeader, cx } from '@/components/ui';
 import { formatDateTime, pluralize } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { useApiQuery } from '@/lib/use-api';
@@ -44,23 +45,28 @@ function OrderProgress({ order }: { order: OrderDto }) {
     <ol className="grid gap-4 sm:auto-cols-fr sm:grid-flow-col">
       {steps.map((status, index) => {
         const done = index <= current;
+        const completed = done && index !== current;
         const at = done ? reachedAt(order.events, status) : null;
         return (
-          <li key={status} className="flex items-start gap-3 sm:flex-col sm:gap-2">
+          <li key={status} aria-current={index === current ? 'step' : undefined} className="flex items-start gap-3 sm:flex-col sm:gap-2">
             <div className="flex items-center gap-2 sm:w-full">
               <span
+                aria-hidden="true"
                 className={cx(
-                  'grid size-7 shrink-0 place-items-center rounded-full text-xs font-semibold',
-                  done ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-500',
+                  'grid size-7 shrink-0 place-items-center rounded-full text-xs font-semibold tabular-nums',
+                  done ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600',
                   index === current && 'ring-4 ring-brand-100',
                 )}
               >
-                {done && index !== current ? '✓' : index + 1}
+                {completed ? <Check aria-hidden="true" className="size-4" /> : index + 1}
               </span>
-              {index < steps.length - 1 && <span className={cx('hidden h-0.5 flex-1 rounded sm:block', index < current ? 'bg-brand-600' : 'bg-slate-200')} />}
+              {index < steps.length - 1 && <span className={cx('hidden h-0.5 flex-1 rounded-full sm:block', index < current ? 'bg-brand-600' : 'bg-slate-200')} />}
             </div>
             <div>
-              <p className={cx('text-sm font-medium', done ? 'text-ink-900' : 'text-slate-500')}>{ORDER_STATUS_LABELS[status]}</p>
+              <p className={cx('text-sm font-medium', done ? 'text-ink-900' : 'text-slate-500')}>
+                {ORDER_STATUS_LABELS[status]}
+                {completed && <span className="sr-only"> (completed)</span>}
+              </p>
               {at && <p className="text-xs text-slate-500">{formatDateTime(at)}</p>}
             </div>
           </li>
@@ -81,7 +87,14 @@ function Timeline({ events }: { events: OrderEventDto[] }) {
             aria-hidden="true"
           />
           <p className="text-sm font-medium text-ink-900">
-            {event.fromStatus ? `${ORDER_STATUS_LABELS[event.fromStatus]} → ${ORDER_STATUS_LABELS[event.toStatus]}` : ORDER_STATUS_LABELS[event.toStatus]}
+            {event.fromStatus ? (
+              <>
+                {ORDER_STATUS_LABELS[event.fromStatus]} <ArrowRight aria-hidden="true" className="inline-block size-4 align-middle text-slate-500" />
+                <span className="sr-only">to</span> {ORDER_STATUS_LABELS[event.toStatus]}
+              </>
+            ) : (
+              ORDER_STATUS_LABELS[event.toStatus]
+            )}
           </p>
           <p className="text-xs text-slate-500">
             {formatDateTime(event.createdAt)} · {event.actor?.fullName ?? 'System'}
@@ -113,13 +126,9 @@ function OrderDetail({ id }: { id: string }) {
 
   return (
     <>
+      <BackLink href="/admin/orders">Orders</BackLink>
       <PageHeader
-        eyebrow={
-          <Link href="/admin/orders" className="hover:underline">
-            ← Orders
-          </Link>
-        }
-        title={order.orderNumber}
+        title={<span className="font-mono">{order.orderNumber}</span>}
         description={
           <>
             Placed {formatDateTime(order.createdAt)} · {pluralize(order.itemCount, 'line')}
@@ -168,7 +177,7 @@ function OrderDetail({ id }: { id: string }) {
 
         <div className="min-w-0 space-y-6">
           <section>
-            <h2 className="mb-3 text-base font-semibold text-ink-900">Items</h2>
+            <h2 className="heading-4 mb-3 text-ink-900">Items</h2>
             <DocumentLinesTable lines={order.items} />
             <div className="mt-4 flex justify-end">
               <Card className="w-full p-5 sm:max-w-sm">

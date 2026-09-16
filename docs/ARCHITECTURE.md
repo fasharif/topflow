@@ -2,53 +2,84 @@
 
 ## 1. Shape of the system
 
-Top Flow is a **modular monolith**: one deployable NestJS API with strict module boundaries, one Next.js web application serving three audiences, and an Expo mobile app. A shared TypeScript package carries the domain contracts, so the same rules run on the server and in every client.
+TopFlow Hub is a **modular monolith**: one NestJS API with strict module boundaries, one Next.js web application serving three audiences, and an Expo mobile app. A shared TypeScript package carries the domain contracts, so the same rules run on the server and in every client. Supabase provides identity and the PostgreSQL database; Vercel runs both the web app and the API.
 
 | Package | Responsibility |
 | --- | --- |
 | `packages/database` | Prisma schema, SQL migrations, seed data, generated client (`createPrismaClient`) |
 | `packages/shared` | Enums and labels, permission matrix, workflow state machines, money/VAT maths, document numbering, Zod request schemas, API response types |
-| `apps/api` | REST API — authentication, tenancy, catalog, procurement, orders, back office |
-| `apps/web` | Storefront, customer account, trade portal (`/business`), back office (`/admin`) |
+| `apps/api` | REST API — account provisioning and authorization, tenancy, catalog, procurement, orders, back office |
+| `apps/web` | Storefront, customer account, trade portal (`/business`), back office (`/admin`), and the backend-for-frontend (`/api/*`) |
 | `apps/mobile` | Customer mobile app |
+| `supabase/` | Supabase Auth policy, branded email templates, storage buckets (`supabase config push`) |
 
 ### API bounded contexts
 
 | Module | Owns |
 | --- | --- |
-| `auth` | Registration (personal / business), login, refresh-token rotation, email verification, password reset, global guards |
-| `users` | Profile, personal address book, staff user administration |
+| `auth` | Supabase access-token verification, account provisioning, Supabase Auth administration, the global authentication / RBAC / tenant guards, `GET /auth/me` |
+| `users` | Profile, trade-account opening, personal address book, staff invitations and suspension |
 | `organizations` | B2B tenants, members & roles, invitations, delivery sites, KYC review |
 | `catalog` | Products, categories, brands, viewer-dependent pricing (retail vs. trade) |
-| `procurement` | RFQs, quotation revisions, customer responses, purchase approvals, quotation PDFs |
+| `procurement` | RFQs and website quote requests, quotation revisions, customer responses, purchase approvals, quotation PDFs |
 | `orders` | Retail checkout, order creation from quotations, fulfilment state machine, stock, payments |
 | `dashboard`, `audit` | Back-office KPIs, audit trail |
-| `common` | Error envelope, document numbering, serialization, request context |
+| `common` | Error envelope, document numbering, serialization, request context, client-IP resolution, rate limiting |
 
-## 2. Request pipeline
+## 2. Hosting topology
+
+> **Status (16 September 2026):** nothing is hosted yet. Everything runs locally against the Supabase CLI stack; the diagram is the intended deployment, and the reasoning is in ADR-019 of [DECISIONS.md](DECISIONS.md).
 
 ```mermaid
 flowchart LR
-  R[HTTP request] --> H[Helmet, CORS allowlist,<br/>cookie parser, request id]
-  H --> T[ThrottlerGuard<br/>rate limits]
-  T --> J[JwtAuthGuard<br/>verify token, reload user]
-  J --> P[PermissionsGuard<br/>platform RBAC]
+  B["Browser"] --> P["proxy.ts<br/>refresh session · protect areas"]
+  subgraph WEB["Web app (Next.js)"]
+    P --> PAGES["Pages & Server Components"]
+    P --> ACTIONS["Server Actions<br/>sign-in · sign-up · MFA"]
+    B --> BFF["/api/* route handler"]
+  end
+  subgraph API["API (NestJS)"]
+    GUARDS["Guards → controllers → services"]
+  end
+  subgraph SB["Supabase"]
+    AUTH["Auth"]
+    DB[("PostgreSQL")]
+  end
+  M["Mobile app"] --> AUTH
+  M --> GUARDS
+  ACTIONS --> AUTH
+  PAGES -- "public catalogue, cached" --> GUARDS
+  BFF -- "Bearer token · client IP · internal secret" --> GUARDS
+  GUARDS -- "JWKS" --> AUTH
+  GUARDS -- "Supavisor transaction pooler" --> DB
+```
+
+- Compute and the database belong in the same region, the closest pair to the UAE, so API ↔ database round trips stay short.
+- The API is built to run as a serverless function: its `pg` pool releases idle connections before an instance is suspended (`attachDatabasePool` when it runs on Vercel), the runtime connection string uses Supabase's transaction pooler (port 6543), and migrations use a session connection (`DIRECT_URL`, port 5432).
+
+## 3. Request pipeline (API)
+
+```mermaid
+flowchart LR
+  R[HTTP request] --> H[Helmet, CORS allowlist,<br/>request id, client IP]
+  H --> T[ClientThrottlerGuard<br/>per-client rate limits]
+  T --> J[AuthenticationGuard<br/>verify Supabase token,<br/>provision / reload account]
+  J --> P[PermissionsGuard<br/>platform RBAC + staff MFA]
   P --> O[OrganizationGuard<br/>tenant membership + org role]
   O --> V[ZodValidationPipe<br/>shared schemas]
   V --> C[Controller] --> S[Service<br/>workflow rules, transactions] --> DB[(PostgreSQL)]
   S -. errors .-> F[HttpExceptionFilter<br/>uniform envelope]
 ```
 
-- Every route is authenticated unless decorated with `@Public()`.
-- `@RequirePermissions(...)` checks the platform role against `ROLE_PERMISSIONS` from `@topflow/shared`.
+- Every route requires a Supabase access token unless decorated with `@Public()`; a valid token on a public route still identifies the caller (for trade prices).
+- `@RequirePermissions(...)` checks the platform role against `ROLE_PERMISSIONS` from `@topflow/shared`. With `STAFF_MFA_REQUIRED=true`, staff also need a session verified with a second factor (`aal2`); otherwise the API answers `403` with `code: "MFA_REQUIRED"`.
 - `@RequireOrgPermission(...)` resolves the organization from the `x-organization-id` header, verifies membership in the database, rejects suspended organizations and checks the member's organization role.
-- Failures always return `{ statusCode, error, message, details?, requestId }`; database and internal errors are never leaked.
+- Failures always return `{ statusCode, error, message, code?, details?, requestId }`; database and internal errors are never leaked.
 
-## 3. Data model
+## 4. Data model
 
 ```mermaid
 erDiagram
-  USER ||--o{ REFRESH_TOKEN : "sessions"
   USER ||--o{ ORGANIZATION_MEMBER : "belongs to"
   ORGANIZATION ||--o{ ORGANIZATION_MEMBER : "has"
   ORGANIZATION ||--o{ ORGANIZATION_INVITATION : "invites"
@@ -56,7 +87,7 @@ erDiagram
   USER ||--o{ ADDRESS : "address book"
   CATEGORY ||--o{ PRODUCT : "groups"
   ORGANIZATION ||--o{ QUOTE_REQUEST : "raises"
-  QUOTE_REQUEST ||--|{ QUOTE_REQUEST_ITEM : "lines"
+  QUOTE_REQUEST ||--o{ QUOTE_REQUEST_ITEM : "lines"
   QUOTE_REQUEST ||--o{ QUOTATION : "answered by"
   QUOTATION ||--|{ QUOTATION_ITEM : "priced lines"
   QUOTATION ||--o| ORDER : "accepted into"
@@ -69,13 +100,15 @@ erDiagram
 
 Design choices worth noting:
 
+- **Identity lives in Supabase.** `users.id` equals `auth.users.id`; the platform table keeps only the profile and authorization data (role, active flag, memberships). Credentials, sessions, one-time links and MFA factors belong to Supabase Auth.
 - **Snapshots, not references, on documents.** Order, quotation and RFQ lines copy SKU, name, unit of measure and prices; delivery addresses are stored as JSON snapshots. Editing a product or address never rewrites history.
 - **Revisions as rows.** Each quotation revision is its own row sharing a `number` (`TF-QT-2026-000045`, revision 1…n).
 - **Soft archive.** Products are unpublished (`isActive = false`) rather than deleted.
 - **Sequential numbering.** `document_sequences` holds per-type, per-year counters incremented with an atomic `INSERT … ON CONFLICT DO UPDATE … RETURNING` inside the business transaction.
 - **Audit trail.** `audit_logs` records who did what, to which entity, from which IP — written in the same transaction as the change.
+- **Locked-down tables.** Every table has Row Level Security enabled with no policies, and the Data API roles have no privileges: only the API's database role can read or write platform data.
 
-## 4. Workflows
+## 5. Workflows
 
 The transition maps live in `packages/shared/src/workflows` and are enforced by the API (`assertTransition`) and used by clients to decide which buttons to show.
 
@@ -116,61 +149,64 @@ stateDiagram-v2
 
 Segregation of duties is enforced in `QuotationsService`: a buyer's net commitment above their `approvalLimit` (or any commitment by a buyer without a limit) requires an **approver or owner who did not raise the request** and whose own limit covers the amount.
 
-## 5. Authentication and sessions
+## 6. Authentication and sessions
 
 ```mermaid
 sequenceDiagram
-  participant B as Browser (web)
-  participant N as Next.js (/api rewrite)
-  participant A as API
+  participant B as Browser
+  participant W as Web app (Vercel)
+  participant S as Supabase Auth
+  participant A as API (Vercel)
   participant D as Database
 
-  B->>N: POST /api/auth/login {email, password}
-  N->>A: POST /auth/login
-  A->>D: verify bcrypt hash, create refresh token (hash only)
-  A-->>B: 200 {user, accessToken (15 min)} + Set-Cookie tf_refresh (httpOnly, SameSite=Lax)
-  Note over B: access token kept in memory only
-  B->>N: GET /api/org/quotations (Bearer + x-organization-id)
-  N->>A: forward
-  A-->>B: 401 when the access token has expired
-  B->>N: POST /api/auth/refresh (cookie sent automatically)
-  N->>A: forward
-  A->>D: mark token rotated, issue new token in the same family
-  A-->>B: new access token + new cookie
-  Note over A,D: a rotated token presented again after the 30 s grace window<br/>revokes the whole family (stolen-token detection)
+  B->>W: submit sign-in form (Server Action)
+  W->>S: signInWithPassword
+  S-->>W: session (access token 1 h, rotating refresh token)
+  W-->>B: Set-Cookie sb-…-auth-token (httpOnly, Secure, SameSite=Lax)
+  B->>W: GET /api/org/quotations (cookie, x-organization-id)
+  W->>S: refresh the session first if the access token expired
+  W->>A: GET /org/quotations with Bearer token, client IP and internal secret
+  A->>S: verify signature with the cached JWKS, issuer, audience, expiry
+  A->>D: load (or provision) the account, check role and membership
+  A-->>W: 200 JSON
+  W-->>B: 200 JSON
 ```
 
-- Mobile clients send `x-client-platform: mobile` and receive the refresh token in the body, stored in the device keychain/keystore.
-- Password reset and change revoke every refresh token; `passwordChangedAt` invalidates access tokens issued earlier.
-- Deactivating a user takes effect on the next request because the guard reloads the user.
+- **No token in browser JavaScript.** Supabase runs only on the web server (Server Actions, Route Handlers, `proxy.ts`), so its session cookies are httpOnly. Client code calls `/api/*` on its own origin; the route handler adds the token. State-changing requests from other origins are refused (Origin check on top of `SameSite=Lax`).
+- **Email links** (sign-up confirmation, password recovery, staff invitation, email change) land on `/auth/confirm`, which verifies the token hash and starts the session; recovery and invitation links continue to `/auth/set-password`.
+- **Provisioning.** The first request of a new identity creates the platform account with the same id, from the sign-up metadata. A business sign-up also creates its organization, pending verification.
+- **Two-factor authentication.** Staff are sent to `/auth/mfa`, which enrols an authenticator app (TOTP) or verifies a code; the session is then upgraded to `aal2`. Customers can turn it on from their account page.
+- **Suspension.** Deactivating a user blocks every API request immediately (the account is re-read per request) and bans the Supabase identity so no new session or refresh succeeds.
+- **Mobile.** `supabase-js` keeps the session encrypted at rest (AES key in SecureStore, ciphertext in AsyncStorage), refreshes it while the app is in the foreground and sends the access token as a Bearer header.
 
-## 6. Multi-tenancy
+## 7. Multi-tenancy
 
 - A **tenant** is an `Organization`. Users join through `OrganizationMember` with a role (`OWNER`, `APPROVER`, `BUYER`) and an optional `approvalLimit`.
 - The client selects the active tenant; the API trusts only its own membership lookup. Services receive an `OrganizationContext` and always filter by `organizationId` from that context — never from a request body.
-- New business accounts start `PENDING_VERIFICATION`: they can browse trade prices only after verification, can submit RFQs, but cannot accept quotations until Top Flow sales activate them and set payment terms, credit limit and trade discount.
+- New business accounts start `PENDING_VERIFICATION`: they can submit RFQs, but cannot accept quotations until Top Flow sales activate them and set payment terms, credit limit and trade discount.
 - Suspended organizations are blocked at the guard.
 
-## 7. Money, VAT and documents
+## 8. Money, VAT and documents
 
 - Prices are stored as `DECIMAL(10,2)` **net of VAT**; all arithmetic happens in integer fils via `@topflow/shared/money`.
 - VAT (5%) is calculated **per line** with half-up rounding, plus VAT on delivery, so line VAT always sums to document VAT.
-- Consumers see VAT-inclusive prices (UAE requirement); trade users see net prices after their organization's discount.
+- Consumers see VAT-inclusive approximate ranges (UAE requirement); trade users see net prices after their organization's discount.
 - Quotation PDFs (PDFKit) show supplier and customer TRNs, revision, validity, per-line VAT, totals, terms and a watermark for drafts, superseded, rejected or expired offers.
 
-## 8. Quality strategy
+## 9. Quality strategy
 
 | Level | Tooling | Focus |
 | --- | --- | --- |
 | Static | TypeScript strict, ESLint (type-aware), compile-time Prisma ↔ shared enum parity | Contract drift, unsafe code |
-| Unit | Jest | Money/VAT, state machines, permissions, schemas, token rotation, guards, error mapping, config |
-| End-to-end | Jest + Supertest against PostgreSQL | Real middleware stack: auth flows, RBAC, tenant isolation, procurement and fulfilment journeys |
-| Delivery | GitHub Actions, Docker (`turbo prune`) | Every push builds, lints, tests and packages the API |
+| Unit | Jest | Money/VAT, state machines, permissions, schemas, Supabase token verification, guards, error mapping, config |
+| End-to-end | Jest + Supertest against PostgreSQL | Real middleware stack with simulated Supabase Auth: provisioning, MFA, invitations, RBAC, tenant isolation, procurement and fulfilment journeys, RLS lockdown |
+| Delivery | GitHub Actions | Every push lints, type-checks, tests and builds every workspace; nightly encrypted backups |
 
-## 9. Operations
+## 10. Operations
 
-- **Configuration** is validated with Zod at boot (`apps/api/src/config/env.ts`); production refuses weak JWT secrets.
-- **Health:** `GET /health` (liveness) and `GET /health/ready` (database) for load balancers.
+- **Configuration** is validated with Zod at boot (`apps/api/src/config/env.ts`); production refuses to start without the Supabase secret key, an https Supabase URL and the internal secret.
+- **Releases.** Vercel builds the API from the repository root; on production deployments `apps/api/scripts/release.mjs` runs the environment preflight and `prisma migrate deploy` before the new version receives traffic. A failed release leaves the previous deployment serving.
+- **Health:** `GET /health` (liveness) and `GET /health/ready` (database).
 - **Tracing:** every response carries `x-request-id`, also included in error bodies and server logs.
-- **Releases** run `npm run release`: `apps/api/src/preflight.ts` validates the environment, then `prisma migrate deploy` applies pending migrations (guarded by Prisma's advisory lock). On Railway this is a pre-deploy step (`railway.json`). A misconfigured or failed release therefore never touches the database or replaces the running deployment. Without a platform release phase, the container `CMD` runs the same step before starting the API.
-- **Rate limiting:** global per-IP limits plus stricter limits on credential endpoints (in-memory store; use a shared store such as Redis when running multiple API instances).
+- **Rate limiting:** per-client limits, stricter on public forms. The web app's server forwards the shopper's IP with a shared secret (`INTERNAL_API_SECRET`); server-rendered catalogue fetches carry the secret without an IP and are not limited. The store is in memory per instance — move it to a shared store if abuse patterns require global limits.
+- **Backups:** a nightly GitHub Actions job dumps roles, schema and data with the Supabase CLI and uploads an age-encrypted archive. Restore steps are in [OPERATIONS.md](OPERATIONS.md).

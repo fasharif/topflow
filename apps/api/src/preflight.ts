@@ -1,6 +1,6 @@
 /**
- * Release-phase guard that runs before database migrations (`npm run release`, used by the
- * Dockerfile and by Railway's pre-deploy command). It validates the environment exactly as the
+ * Release-phase guard that runs before database migrations (`npm run release`, called by
+ * `scripts/release.mjs` during production builds). It validates the environment exactly as the
  * API does at boot, so a misconfigured deployment stops here — before any migration touches the
  * database — and the previous release keeps serving traffic.
  */

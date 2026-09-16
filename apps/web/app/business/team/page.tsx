@@ -49,7 +49,7 @@ function limitLabel(member: Pick<MemberDto, 'approvalLimit' | 'role'>) {
   return (
     <>
       No limit
-      {member.role === OrgRole.BUYER && <span className="block text-xs text-slate-500">Every purchase needs approval</span>}
+      {member.role === OrgRole.BUYER && <span className="block text-xs text-slate-600">Every purchase needs approval</span>}
     </>
   );
 }
@@ -107,7 +107,8 @@ function MemberRow({
   };
 
   return (
-    <tr className="align-top">
+    // Top-aligned so the role select and the limit input line up even when the limit hint wraps.
+    <tr className="[&>td]:align-top">
       <Td>
         <p className="font-medium text-ink-900">
           {member.fullName}
@@ -153,11 +154,11 @@ function MemberRow({
               aria-invalid={Boolean(errors.approvalLimit)}
             />
             {errors.approvalLimit ? (
-              <p role="alert" className="mt-1 text-xs text-red-600">
+              <p role="alert" className="mt-1 text-xs text-danger-600">
                 {errors.approvalLimit}
               </p>
             ) : (
-              <p className="mt-1 text-xs text-slate-500">AED, excl. VAT · empty = no limit</p>
+              <p className="mt-1 text-xs text-slate-600">AED, excl. VAT · empty = no limit</p>
             )}
           </>
         ) : (
@@ -191,7 +192,7 @@ function MemberRow({
             {!dirty && !isSelf && <ConfirmAction label="Remove" confirmLabel="Remove" prompt={`Remove ${member.fullName.split(' ')[0]}?`} onConfirm={remove} />}
           </div>
           {error && (
-            <p role="alert" className="mt-2 text-left text-xs text-red-600 sm:text-right">
+            <p role="alert" className="mt-2 text-left text-xs text-danger-600 sm:text-right">
               {error}
             </p>
           )}
@@ -286,9 +287,9 @@ function PendingInvitations({ onChanged }: { onChanged: (message: string) => voi
       ) : !invitations.data ? (
         <LoadingBlock label="Loading invitations…" />
       ) : invitations.data.length === 0 ? (
-        <p className="px-5 py-6 text-sm text-slate-500">No pending invitations.</p>
+        <p className="px-5 py-6 text-sm text-slate-600">No pending invitations.</p>
       ) : (
-        <ul className="divide-y divide-slate-100">
+        <ul className="divide-y divide-slate-200">
           {invitations.data.map((invitation) => (
             <li key={invitation.id} className="space-y-2 px-5 py-3 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -335,9 +336,9 @@ export default function TeamPage() {
       />
 
       {notice && (
-        <div className="mb-6">
-          <Alert tone="success">{notice}</Alert>
-        </div>
+        <Alert tone="success" className="mb-6">
+          {notice}
+        </Alert>
       )}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -376,20 +377,22 @@ export default function TeamPage() {
             </Table>
           )}
 
-          <Card className="p-5">
-            <h2 className="text-base font-semibold text-ink-900">Roles and approvals</h2>
-            <dl className="mt-3 grid gap-4 sm:grid-cols-3">
-              {ROLE_OPTIONS.map((role) => (
-                <div key={role}>
-                  <dt className="text-sm font-medium text-ink-900">{ORG_ROLE_LABELS[role]}</dt>
-                  <dd className="mt-0.5 text-sm text-slate-600">{ROLE_GUIDE[role]}</dd>
-                </div>
-              ))}
-            </dl>
-            <p className="mt-4 text-xs text-slate-500">
-              Purchasing limits compare against a quotation&apos;s value excluding VAT. A buyer without a limit needs approval for every purchase; approvers
-              and owners without a limit can buy and approve any amount. Nobody can approve their own purchase.
-            </p>
+          <Card>
+            <CardHeader title="Roles and approvals" />
+            <div className="p-5">
+              <dl className="grid gap-4 sm:grid-cols-3">
+                {ROLE_OPTIONS.map((role) => (
+                  <div key={role}>
+                    <dt className="text-sm font-medium text-ink-900">{ORG_ROLE_LABELS[role]}</dt>
+                    <dd className="mt-0.5 text-sm text-slate-600">{ROLE_GUIDE[role]}</dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-4 text-xs text-slate-600">
+                Purchasing limits compare against a quotation&apos;s value excluding VAT. A buyer without a limit needs approval for every purchase; approvers
+                and owners without a limit can buy and approve any amount. Nobody can approve their own purchase.
+              </p>
+            </div>
           </Card>
         </div>
 

@@ -8,6 +8,7 @@ import {
   type Paginated,
   type QuotationSummaryDto,
 } from '@topflow/shared';
+import { FileText, SearchX } from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { LoadError } from '@/components/business/feedback';
@@ -46,6 +47,7 @@ function QuotationList() {
       ) : data.items.length === 0 ? (
         list.filtered ? (
           <EmptyState
+            icon={<SearchX aria-hidden="true" />}
             title="No quotations match your filters"
             description="Try another status or search term."
             action={
@@ -56,6 +58,7 @@ function QuotationList() {
           />
         ) : (
           <EmptyState
+            icon={<FileText aria-hidden="true" />}
             title="No quotations yet"
             description="Quotations appear here as soon as our sales team prices one of your RFQs. We'll also email you."
             action={
@@ -85,9 +88,12 @@ function QuotationList() {
               {data.items.map((quotation) => {
                 const actionable = isQuotationOpen(quotation.status) && !quotation.isExpired;
                 return (
-                  <tr key={quotation.id} className={cx('hover:bg-slate-50/70', actionable && 'bg-brand-50/30')}>
+                  <tr key={quotation.id} className={cx('hover:bg-slate-50', actionable && 'bg-brand-50/40')}>
                     <Td>
-                      <Link href={`/business/quotations/${quotation.id}`} className="whitespace-nowrap font-mono text-xs font-semibold text-brand-700 hover:underline">
+                      <Link
+                        href={`/business/quotations/${quotation.id}`}
+                        className="whitespace-nowrap font-mono text-sm font-semibold text-brand-700 underline-offset-4 hover:underline"
+                      >
                         {quotation.displayNumber}
                       </Link>
                     </Td>
@@ -96,7 +102,7 @@ function QuotationList() {
                     </Td>
                     <Td className="whitespace-nowrap">{quotation.customer?.fullName ?? '—'}</Td>
                     <Td className="whitespace-nowrap text-right font-medium tabular-nums text-ink-900">{aed(quotation.total)}</Td>
-                    <Td className={cx('whitespace-nowrap', quotation.isExpired ? 'text-slate-400 line-through' : 'text-slate-600')}>
+                    <Td className={cx('whitespace-nowrap', quotation.isExpired ? 'text-slate-500 line-through' : 'text-slate-600')}>
                       {formatDate(quotation.validUntil)}
                     </Td>
                     <Td className="whitespace-nowrap text-slate-500">{formatDate(quotation.createdAt)}</Td>

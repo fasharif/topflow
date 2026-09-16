@@ -67,7 +67,16 @@ export class HttpExceptionFilter implements ExceptionFilter {
           : (payload as { message?: unknown }).message;
       const first: unknown = Array.isArray(raw) ? (raw as unknown[])[0] : raw;
       const message = typeof first === 'string' ? first : exception.message;
-      return { statusCode: status, error: httpStatusName(status), message };
+      const code =
+        typeof payload === 'object' && payload !== null
+          ? (payload as { code?: unknown }).code
+          : undefined;
+      return {
+        statusCode: status,
+        error: httpStatusName(status),
+        message,
+        ...(typeof code === 'string' && { code }),
+      };
     }
 
     if (exception instanceof InvalidTransitionError) {

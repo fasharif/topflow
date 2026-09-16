@@ -25,6 +25,7 @@ interface TextOptions {
   className?: string;
   type?: string;
   autoComplete?: string;
+  optional?: boolean;
 }
 
 function initialValues(address: AddressDto | undefined, defaults: Partial<AddressFormValues>): AddressFormValues {
@@ -92,7 +93,7 @@ export function AddressForm({
   };
 
   const text = (name: TextField, label: string, options: TextOptions = {}) => (
-    <Field label={label} htmlFor={`address-${name}`} error={errors[name]} className={options.className}>
+    <Field label={label} htmlFor={`address-${name}`} error={errors[name]} optional={options.optional} className={options.className}>
       <Input
         id={`address-${name}`}
         type={options.type}
@@ -111,7 +112,7 @@ export function AddressForm({
         {text('contactName', 'Contact name', { autoComplete: 'name' })}
         {text('phoneNumber', 'Mobile number', { type: 'tel', autoComplete: 'tel', placeholder: '+971 50 123 4567' })}
         {text('line1', 'Street, building or villa', { className: 'sm:col-span-2', autoComplete: 'address-line1' })}
-        {text('line2', 'Apartment, floor or landmark (optional)', { className: 'sm:col-span-2', autoComplete: 'address-line2' })}
+        {text('line2', 'Apartment, floor or landmark', { className: 'sm:col-span-2', autoComplete: 'address-line2', optional: true })}
         {text('area', 'Area / community', { placeholder: 'e.g. Al Barsha' })}
         {text('city', 'City', { autoComplete: 'address-level2' })}
         <Field label="Emirate" htmlFor="address-emirate" error={errors.emirate}>
@@ -132,12 +133,12 @@ export function AddressForm({
           checked={values.isDefault}
           disabled={defaultLocked}
           onChange={(e) => setValues((current) => ({ ...current, isDefault: e.target.checked }))}
-          className="mt-0.5 size-4 accent-brand-600 disabled:opacity-60"
+          className="mt-0.5 size-4 shrink-0 disabled:cursor-not-allowed disabled:opacity-60"
         />
         <span>
           <span className="font-medium text-ink-900">Use as my default delivery address</span>
           {defaultLocked && (
-            <span className="block text-xs text-slate-500">
+            <span className="mt-0.5 block text-xs text-slate-600">
               {firstAddress ? 'Your first saved address is always the default.' : 'To change your default, make another address the default.'}
             </span>
           )}

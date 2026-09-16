@@ -15,6 +15,7 @@ import {
   type QuotationDto,
   type RfqDto,
 } from '@topflow/shared';
+import { ClipboardList } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
@@ -31,7 +32,7 @@ import {
 } from '@/components/admin/quotation-line-editor';
 import { RequireAuth } from '@/components/require-auth';
 import { QuotationStatusBadge, RfqStatusBadge } from '@/components/status-badge';
-import { Alert, Button, Card, EmptyState, LinkButton, LoadingBlock, PageHeader } from '@/components/ui';
+import { Alert, BackLink, Button, Card, EmptyState, LinkButton, LoadingBlock, PageHeader } from '@/components/ui';
 import { ApiError, api, errorMessage } from '@/lib/api';
 import { aed, pluralize } from '@/lib/format';
 import { apiFieldErrors, zodFieldErrors, type FieldErrors } from '@/lib/forms';
@@ -73,9 +74,9 @@ function initialForm(rfq: RfqDto, catalog: Catalog): { values: QuotationFormValu
   for (const item of rfq.items) {
     const entry = item.productId ? catalog[item.productId] : 'missing';
     if (entry === 'missing') {
-      skipped.push({ sku: item.sku, productName: item.productName, reason: 'no longer in the catalog' });
+      skipped.push({ sku: item.sku, productName: item.productName, reason: 'no longer in the catalogue' });
     } else if (entry === 'error' || entry === undefined) {
-      skipped.push({ sku: item.sku, productName: item.productName, reason: 'catalog details could not be loaded — add it again below' });
+      skipped.push({ sku: item.sku, productName: item.productName, reason: 'catalogue details could not be loaded — add it again below' });
     } else if (!entry.isActive) {
       skipped.push({ sku: item.sku, productName: item.productName, reason: 'archived, so it cannot be quoted' });
     } else {
@@ -126,12 +127,10 @@ function NewQuotationForm({ rfq, catalog, defaultDiscount, notice }: { rfq: RfqD
 
   return (
     <>
+      <BackLink href={`/admin/rfqs/${rfq.id}`}>
+        <span className="font-mono">{rfq.number}</span>
+      </BackLink>
       <PageHeader
-        eyebrow={
-          <Link href={`/admin/rfqs/${rfq.id}`} className="hover:underline">
-            ← {rfq.number}
-          </Link>
-        }
         title="New quotation"
         description={
           <>
@@ -168,7 +167,7 @@ function NewQuotationForm({ rfq, catalog, defaultDiscount, notice }: { rfq: RfqD
           <QuotationTermsCard values={values} onChange={setValues} errors={errors} disabled={submitting} />
           <Card className="h-fit space-y-5 p-5">
             <QuotationSettingsFields values={values} onChange={setValues} errors={errors} disabled={submitting} />
-            <div className="border-t border-slate-100 pt-5">
+            <div className="border-t border-slate-200 pt-5">
               <QuotationTotalsPreview values={values} defaultDiscount={defaultDiscount} />
             </div>
             {error && <Alert tone="danger">{error}</Alert>}
@@ -241,20 +240,16 @@ function NewQuotationFromRfq({ rfqId }: { rfqId: string }) {
   if (blocked) {
     return (
       <>
-        <PageHeader
-          eyebrow={
-            <Link href={`/admin/rfqs/${rfqData.id}`} className="hover:underline">
-              ← {rfqData.number}
-            </Link>
-          }
-          title="New quotation"
-        />
+        <BackLink href={`/admin/rfqs/${rfqData.id}`}>
+          <span className="font-mono">{rfqData.number}</span>
+        </BackLink>
+        <PageHeader title="New quotation" />
         <Alert tone="warning" title={blocked.title}>
           {blocked.message}
         </Alert>
         {rfqData.quotations.length > 0 && (
           <Card className="mt-4">
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-slate-200">
               {rfqData.quotations.map((quotation) => (
                 <li key={quotation.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
                   <Link href={`/admin/quotations/${quotation.id}`} className="font-mono text-sm font-semibold text-brand-700 hover:underline">
@@ -273,7 +268,7 @@ function NewQuotationFromRfq({ rfqId }: { rfqId: string }) {
     );
   }
 
-  if (!catalog || catalog.rfqId !== rfqData.id) return <LoadingBlock label="Looking up catalog prices…" />;
+  if (!catalog || catalog.rfqId !== rfqData.id) return <LoadingBlock label="Looking up catalogue prices…" />;
 
   const defaultDiscount = organization ? (organization.status === OrgStatus.ACTIVE ? organization.discountRate : '0.00') : null;
   const notice =
@@ -294,6 +289,7 @@ function NewQuotation() {
         <EmptyState
           title="Start from an RFQ"
           description="Quotations are drafted from a customer’s request for quotation. Open an RFQ and choose “Create quotation”."
+          icon={<ClipboardList aria-hidden="true" />}
           action={<LinkButton href="/admin/rfqs">Browse RFQs</LinkButton>}
         />
       </>

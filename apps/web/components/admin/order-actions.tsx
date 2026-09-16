@@ -151,17 +151,13 @@ export function OrderActions({ order, onUpdated }: { order: OrderDto; onUpdated:
                 </Button>
               )}
               {order.canCancel && (
-                <button
-                  type="button"
-                  onClick={() => open({ kind: 'cancel' })}
-                  className="inline-flex h-10 items-center justify-center rounded-lg border border-red-200 bg-white px-4 text-sm font-medium text-red-700 transition hover:bg-red-50"
-                >
+                <Button variant="danger-outline" onClick={() => open({ kind: 'cancel' })}>
                   Cancel order
-                </button>
+                </Button>
               )}
             </div>
           ) : (
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-600">
               {closed ? 'This order is closed — there is nothing left to do.' : 'Nothing for your role to do at this stage.'}
             </p>
           ))}
@@ -169,8 +165,8 @@ export function OrderActions({ order, onUpdated }: { order: OrderDto; onUpdated:
         {mode?.kind === 'transition' && (
           <div className="space-y-4">
             <div>
-              <p className="font-medium text-ink-900">Mark as {ORDER_STATUS_LABELS[mode.status]}</p>
-              <p className="mt-0.5 text-sm text-slate-500">
+              <p className="heading-4 text-ink-900">Mark as {ORDER_STATUS_LABELS[mode.status]}</p>
+              <p className="mt-0.5 text-sm text-slate-600">
                 {TRANSITION_HINTS[mode.status]}
                 {mode.status === OrderStatus.DELIVERED && collectsCashOnDelivery && ' Cash on delivery will be recorded as collected.'}
               </p>
@@ -197,8 +193,8 @@ export function OrderActions({ order, onUpdated }: { order: OrderDto; onUpdated:
         {mode?.kind === 'cancel' && (
           <div className="space-y-4">
             <div>
-              <p className="font-medium text-ink-900">Cancel this order</p>
-              <p className="mt-0.5 text-sm text-slate-500">The customer is emailed with your reason. This cannot be undone.</p>
+              <p className="heading-4 text-ink-900">Cancel this order</p>
+              <p className="mt-0.5 text-sm text-slate-600">The customer is emailed with your reason. This cannot be undone.</p>
             </div>
             <Field label="Reason" htmlFor="cancelReason" error={errors.reason ?? errors.note}>
               <Textarea
@@ -218,8 +214,8 @@ export function OrderActions({ order, onUpdated }: { order: OrderDto; onUpdated:
         {mode?.kind === 'payment' && (
           <div className="space-y-4">
             <div>
-              <p className="font-medium text-ink-900">Record payment</p>
-              <p className="mt-0.5 text-sm text-slate-500">
+              <p className="heading-4 text-ink-900">Record payment</p>
+              <p className="mt-0.5 text-sm text-slate-600">
                 Marks the order as paid.
                 {order.status === OrderStatus.PENDING_PAYMENT && ' The order is confirmed automatically.'}
               </p>

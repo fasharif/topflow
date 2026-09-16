@@ -1,7 +1,7 @@
-// Top Flow — commerce platform data model (v2)
+// TopFlow Hub — commerce platform data model (v3)
 //
 // Bounded contexts (mirrored by the NestJS modules in apps/api):
-//   Identity & access ....... User, RefreshToken, OneTimeToken
+//   Identity & access ....... User (credentials, sessions and MFA live in Supabase Auth)
 //   B2B tenancy ............. Organization, OrganizationMember, OrganizationInvitation, Address
 //   Catalog ................. Category, Product
 //   Procurement ............. QuoteRequest (RFQ) -> Quotation (revisions) -> Order
@@ -10,6 +10,9 @@
 //
 // Money is stored as DECIMAL (AED, 2dp) and always computed server-side in integer fils
 // (see @topflow/shared/money). Prices on products are NET (excluding 5% UAE VAT).
+//
+// Every table has Row Level Security enabled and no policies: the API's database role is the
+// only reader and writer, so Supabase's public Data API can never expose platform data.
 
 generator client {
   provider            = "prisma-client"
@@ -32,33 +35,29 @@ enum Role {
   ADMIN
 }
 
-enum TokenPurpose {
-  EMAIL_VERIFICATION
-  PASSWORD_RESET
-}
-
+/// A platform account. Supabase Auth owns the credentials; this row holds the profile and the
+/// authorization data and shares its primary key with auth.users.
 model User {
-  id                String    @id @default(uuid())
-  email             String    @unique
-  passwordHash      String
-  fullName          String
-  phoneNumber       String?
-  role              Role      @default(CUSTOMER)
-  isActive          Boolean   @default(true)
-  emailVerifiedAt   DateTime?
-  lastLoginAt       DateTime?
-  passwordChangedAt DateTime?
+  /// Equal to the Supabase Auth user id (auth.users.id).
+  id              String    @id @default(uuid())
+  email           String    @unique
+  fullName        String
+  phoneNumber     String?
+  role            Role      @default(CUSTOMER)
+  isActive        Boolean   @default(true)
+  emailVerifiedAt DateTime?
+  lastLoginAt     DateTime?
+  /// Supabase session id of the latest sign-in, so each new session is recorded once.
+  lastSessionId   String?
   /// Legacy prototype field — superseded by Organization. Not collected by new clients.
-  companyName       String?
+  companyName     String?
   /// Legacy prototype field (data minimisation: no longer collected).
-  birthDate         DateTime?
+  birthDate       DateTime?
   /// Legacy prototype field (data minimisation: no longer collected).
-  gender            String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  gender          String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  refreshTokens      RefreshToken[]
-  oneTimeTokens      OneTimeToken[]
   memberships        OrganizationMember[]
   invitationsSent    OrganizationInvitation[] @relation("InvitationSender")
   addresses          Address[]
@@ -74,40 +73,6 @@ model User {
   auditLogs          AuditLog[]
 
   @@map("users")
-}
-
-/// Opaque refresh tokens (stored as SHA-256 hashes) with rotation families for reuse detection.
-model RefreshToken {
-  id        String    @id @default(uuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  familyId  String
-  tokenHash String    @unique
-  expiresAt DateTime
-  rotatedAt DateTime?
-  revokedAt DateTime?
-  userAgent String?
-  ipAddress String?
-  createdAt DateTime  @default(now())
-
-  @@index([userId])
-  @@index([familyId])
-  @@map("refresh_tokens")
-}
-
-/// Single-use tokens for email verification and password reset (hashed at rest).
-model OneTimeToken {
-  id         String       @id @default(uuid())
-  userId     String
-  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  purpose    TokenPurpose
-  tokenHash  String       @unique
-  expiresAt  DateTime
-  consumedAt DateTime?
-  createdAt  DateTime     @default(now())
-
-  @@index([userId, purpose])
-  @@map("one_time_tokens")
 }
 
 // ─────────────────────────────── B2B tenancy ───────────────────────────────
@@ -361,7 +326,6 @@ enum QuotationStatus {
   SUPERSEDED
 }
 
-/// Request for Quotation raised by a customer (evolution of the prototype's "enquiry").
 /// Where a request for quotation came from.
 enum RfqSource {
   /// A buyer inside a trade organization.
@@ -370,17 +334,25 @@ enum RfqSource {
   WEBSITE
 }
 
+/// How a website visitor prefers to be contacted about a quote request.
+enum ContactChannel {
+  PHONE
+  WHATSAPP
+  EMAIL
+}
+
+/// Request for Quotation raised by a customer (evolution of the prototype's "enquiry").
 model QuoteRequest {
-  id               String        @id @default(uuid())
-  number           String        @unique
-  source           RfqSource     @default(TRADE_PORTAL)
+  id               String          @id @default(uuid())
+  number           String          @unique
+  source           RfqSource       @default(TRADE_PORTAL)
   organizationId   String?
-  organization     Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  organization     Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   requestedById    String?
-  requestedBy      User?         @relation("RfqRequester", fields: [requestedById], references: [id], onDelete: SetNull)
+  requestedBy      User?           @relation("RfqRequester", fields: [requestedById], references: [id], onDelete: SetNull)
   assignedToId     String?
-  assignedTo       User?         @relation("RfqAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
-  status           RfqStatus     @default(SUBMITTED)
+  assignedTo       User?           @relation("RfqAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  status           RfqStatus       @default(SUBMITTED)
   projectReference String?
   shippingAddress  String?
   deliveryAddress  Json?
@@ -391,8 +363,9 @@ model QuoteRequest {
   contactEmail     String?
   contactPhone     String?
   companyName      String?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  preferredContact ContactChannel?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 
   items      QuoteRequestItem[]
   quotations Quotation[]

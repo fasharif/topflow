@@ -1,0 +1,17 @@
+# Uploads from the Vercel CLI (Git deployments only contain committed files anyway).
+# Local environment files never leave this machine: Vercel injects the project's variables.
+.env
+**/.env
+**/.env.*
+!**/.env.example
+
+# Dependencies, build output and local caches are rebuilt remotely.
+**/node_modules
+**/.turbo
+**/.next
+**/dist
+**/.expo
+apps/api/test/.cache
+supabase/.temp
+supabase/.branches
+.claude

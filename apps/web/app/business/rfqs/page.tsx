@@ -1,6 +1,7 @@
 'use client';
 
 import { RFQ_STATUS_LABELS, RfqStatus, enumValues, type Paginated, type RfqDto } from '@topflow/shared';
+import { ClipboardList, SearchX } from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { LoadError } from '@/components/business/feedback';
@@ -39,6 +40,7 @@ function RfqList() {
       ) : data.items.length === 0 ? (
         list.filtered ? (
           <EmptyState
+            icon={<SearchX aria-hidden="true" />}
             title="No RFQs match your filters"
             description="Try another status or search term."
             action={
@@ -49,6 +51,7 @@ function RfqList() {
           />
         ) : (
           <EmptyState
+            icon={<ClipboardList aria-hidden="true" />}
             title="No RFQs yet"
             description="Add products to your cart and choose “Request a trade quotation” to get negotiated pricing for your project."
             action={<LinkButton href="/products">Browse products</LinkButton>}
@@ -72,13 +75,16 @@ function RfqList() {
               {data.items.map((rfq) => {
                 const latest = rfq.quotations[0];
                 return (
-                  <tr key={rfq.id} className="hover:bg-slate-50/70">
+                  <tr key={rfq.id} className="hover:bg-slate-50">
                     <Td>
-                      <Link href={`/business/rfqs/${rfq.id}`} className="whitespace-nowrap font-mono text-xs font-semibold text-brand-700 hover:underline">
+                      <Link
+                        href={`/business/rfqs/${rfq.id}`}
+                        className="whitespace-nowrap font-mono text-sm font-semibold text-brand-700 underline-offset-4 hover:underline"
+                      >
                         {rfq.number}
                       </Link>
                     </Td>
-                    <Td className="max-w-56 truncate">{rfq.projectReference ?? <span className="text-slate-400">—</span>}</Td>
+                    <Td className="max-w-56 truncate">{rfq.projectReference ?? <span className="text-slate-500">—</span>}</Td>
                     <Td>
                       <RfqStatusBadge status={rfq.status} />
                     </Td>
@@ -87,11 +93,11 @@ function RfqList() {
                     <Td>
                       {latest ? (
                         <Link href={`/business/quotations/${latest.id}`} className="group inline-flex flex-wrap items-center gap-2">
-                          <span className="font-mono text-xs text-ink-900 group-hover:underline">{latest.displayNumber}</span>
+                          <span className="font-mono text-sm text-ink-900 underline-offset-4 group-hover:underline">{latest.displayNumber}</span>
                           <QuotationStatusBadge status={latest.status} expired={latest.isExpired} />
                         </Link>
                       ) : (
-                        <span className="text-slate-400">Not quoted yet</span>
+                        <span className="text-slate-500">Not quoted yet</span>
                       )}
                     </Td>
                     <Td className="whitespace-nowrap text-slate-500">{formatDate(rfq.createdAt)}</Td>

@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { AccountUnavailable } from '@/components/account-unavailable';
 import { AddressForm } from '@/components/address-form';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,10 @@ export function CheckoutSection({ lines }: { lines: readonly CartLine[] }) {
         <ActivityIndicator color={Brand.blue} />
       </Card>
     );
+  }
+
+  if (session.status === 'unavailable') {
+    return <AccountUnavailable variant="card" message={session.error} />;
   }
 
   if (!session.user) {

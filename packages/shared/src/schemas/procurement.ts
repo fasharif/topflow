@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { QUOTATION_DEFAULT_VALIDITY_DAYS, QUOTATION_MAX_VALIDITY_DAYS } from '../constants';
-import { Emirate, QuotationStatus, RfqSource, RfqStatus } from '../enums';
+import { ContactChannel, Emirate, QuotationStatus, RfqSource, RfqStatus } from '../enums';
 import { ApprovalDecision, QuotationResponse } from '../workflows/quotation';
 import {
   emailSchema,
@@ -30,19 +30,34 @@ export const createRfqSchema = z.object({
 });
 export type CreateRfqInput = z.infer<typeof createRfqSchema>;
 
-/** A visitor on the public website asks for a quotation. No account is needed. */
-export const createWebsiteQuoteRequestSchema = z.object({
-  name: nameSchema,
-  email: emailSchema,
-  phone: phoneSchema,
-  companyName: optionalText(160),
-  emirate: z.enum(Emirate).optional(),
-  notes: optionalText(2000),
-  items: z
-    .array(z.object({ productId: idSchema, quantity: quantitySchema }))
-    .min(1, { error: 'Add at least one product' })
-    .max(100, { error: 'A quote request can contain at most 100 lines' }),
-});
+/** Minimum description for a project enquiry that lists no catalogue products. */
+export const PROJECT_ENQUIRY_MIN_LENGTH = 20;
+
+/**
+ * A visitor on the public website asks for a quotation. No account is needed. Visitors either
+ * send the products in their basket, or describe a project (for example from a bill of
+ * quantities) and let the sales team propose the items.
+ */
+export const createWebsiteQuoteRequestSchema = z
+  .object({
+    name: nameSchema,
+    email: emailSchema,
+    phone: phoneSchema,
+    companyName: optionalText(160),
+    emirate: z.enum(Emirate).optional(),
+    preferredContact: z.enum(ContactChannel).optional(),
+    projectReference: optionalText(120),
+    requiredBy: isoDateSchema.optional(),
+    notes: optionalText(2000),
+    items: z
+      .array(z.object({ productId: idSchema, quantity: quantitySchema, notes: optionalText(300) }))
+      .max(100, { error: 'A quote request can contain at most 100 lines' })
+      .default([]),
+  })
+  .refine((data) => data.items.length > 0 || (data.notes?.length ?? 0) >= PROJECT_ENQUIRY_MIN_LENGTH, {
+    error: `Add products from the catalogue, or describe what you need in at least ${PROJECT_ENQUIRY_MIN_LENGTH} characters`,
+    path: ['notes'],
+  });
 export type CreateWebsiteQuoteRequestInput = z.infer<typeof createWebsiteQuoteRequestSchema>;
 
 export const rfqQuerySchema = paginationSchema.extend({

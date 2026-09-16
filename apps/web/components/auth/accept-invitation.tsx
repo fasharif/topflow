@@ -1,19 +1,22 @@
 'use client';
 
-import { ORG_ROLE_LABELS, passwordSchema, type AuthSession, type InvitationPreviewDto } from '@topflow/shared';
+import { ORG_ROLE_LABELS, type InvitationPreviewDto } from '@topflow/shared';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState, type FormEvent } from 'react';
-import { Alert, Button, Card, Field, Input, LinkButton, LoadingBlock } from '@/components/ui';
+import { useEffect, useState } from 'react';
+import { Alert, Button, Card, LinkButton, LoadingBlock } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
-import { applySession, refreshSession, setActiveOrganization, useSession } from '@/lib/session';
+import { refreshSession, setActiveOrganization, signOut, useSession } from '@/lib/session';
 
+/**
+ * Team invitation landing page. Invitees sign in, or create their account with the invited email
+ * address (confirming the mailbox with Supabase Auth), and then join the organization.
+ */
 export function AcceptInvitation() {
   const router = useRouter();
   const token = useSearchParams().get('token') ?? '';
   const session = useSession();
   const [preview, setPreview] = useState<InvitationPreviewDto | null>(null);
   const [loadError, setLoadError] = useState<string | null>(token ? null : 'This invitation link is incomplete.');
-  const [form, setForm] = useState({ fullName: '', password: '' });
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -24,22 +27,12 @@ export function AcceptInvitation() {
       .catch((err: unknown) => setLoadError(errorMessage(err)));
   }, [token]);
 
-  const accept = async (event?: FormEvent) => {
-    event?.preventDefault();
+  const accept = async () => {
     setError(null);
-    if (session.status !== 'authenticated') {
-      const check = passwordSchema.safeParse(form.password);
-      if (form.fullName.trim().length < 2) return setError('Enter your full name');
-      if (!check.success) return setError(check.error.issues[0]?.message ?? 'Choose a stronger password');
-    }
     setSubmitting(true);
     try {
-      const result = await api<{ organizationId: string; session: AuthSession | null }>('/invitations/accept', {
-        method: 'POST',
-        body: session.status === 'authenticated' ? { token } : { token, ...form },
-      });
-      if (result.session) applySession(result.session);
-      else await refreshSession();
+      const result = await api<{ organizationId: string }>('/invitations/accept', { method: 'POST', body: { token } });
+      await refreshSession();
       setActiveOrganization(result.organizationId);
       router.replace('/business?joined=1');
     } catch (err) {
@@ -49,12 +42,16 @@ export function AcceptInvitation() {
   };
 
   if (loadError) {
-    return <Alert tone="danger" title="Invitation unavailable">{loadError}</Alert>;
+    return (
+      <Alert tone="danger" title="Invitation unavailable">
+        {loadError}
+      </Alert>
+    );
   }
   if (!preview || session.status === 'loading') return <LoadingBlock />;
 
-  const signedInAsOther = session.status === 'authenticated' && session.user?.email !== preview.email;
-  const next = `/invitations/accept?token=${encodeURIComponent(token)}`;
+  const here = `/invitations/accept?token=${encodeURIComponent(token)}`;
+  const signedInAsOther = session.status === 'authenticated' && session.user?.email.toLowerCase() !== preview.email.toLowerCase();
 
   return (
     <div className="space-y-6">
@@ -67,33 +64,37 @@ export function AcceptInvitation() {
 
       {signedInAsOther ? (
         <Alert tone="warning" title="Different account">
-          You are signed in as {session.user?.email}. Sign out and sign in as {preview.email} to accept this invitation.
+          <p>
+            You are signed in as {session.user?.email}. Sign out, then continue with {preview.email} to accept this invitation.
+          </p>
+          <Button variant="secondary" size="sm" className="mt-3" onClick={() => void signOut()}>
+            Sign out
+          </Button>
         </Alert>
       ) : session.status === 'authenticated' ? (
         <Card className="p-5">
           <p className="text-sm text-slate-600">Accept to access {preview.organizationName}&apos;s quotations, orders and delivery sites.</p>
-          {error && <div className="mt-4"><Alert tone="danger">{error}</Alert></div>}
+          {error && (
+            <div className="mt-4">
+              <Alert tone="danger">{error}</Alert>
+            </div>
+          )}
           <Button size="lg" className="mt-5 w-full" loading={submitting} onClick={() => void accept()}>
             Join organization
           </Button>
         </Card>
-      ) : preview.hasAccount ? (
-        <LinkButton href={`/login?next=${encodeURIComponent(next)}`} size="lg" className="w-full">
-          Sign in to accept
-        </LinkButton>
       ) : (
-        <form onSubmit={accept} className="space-y-4" noValidate>
-          <Field label="Full name" htmlFor="fullName">
-            <Input id="fullName" autoComplete="name" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
-          </Field>
-          <Field label="Choose a password" htmlFor="password" hint="At least 8 characters, with letters and numbers">
-            <Input id="password" type="password" autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-          </Field>
-          {error && <Alert tone="danger">{error}</Alert>}
-          <Button type="submit" size="lg" className="w-full" loading={submitting}>
-            Create account &amp; join
-          </Button>
-        </form>
+        <div className="space-y-3">
+          <LinkButton href={`/login?next=${encodeURIComponent(here)}`} size="lg" variant={preview.hasAccount ? 'primary' : 'secondary'} className="w-full">
+            Sign in to accept
+          </LinkButton>
+          {!preview.hasAccount && (
+            <LinkButton href={`/register?email=${encodeURIComponent(preview.email)}&next=${encodeURIComponent(here)}`} size="lg" className="w-full">
+              Create your account
+            </LinkButton>
+          )}
+          <p className="text-center text-sm text-slate-500">Use {preview.email}: the invitation only works for that address.</p>
+        </div>
       )}
     </div>
   );

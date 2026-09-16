@@ -1,32 +1,31 @@
 'use client';
 
-import {
-  ORG_TYPE_LABELS,
-  OrgType,
-  PASSWORD_MIN_LENGTH,
-  registerBusinessSchema,
-  registerSchema,
-  type AuthSession,
-} from '@topflow/shared';
+import { ORG_TYPE_LABELS, OrgType, PASSWORD_MIN_LENGTH, registerBusinessSchema, registerSchema } from '@topflow/shared';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { Alert, Button, Field, Input, Select, cx } from '@/components/ui';
-import { api, errorMessage } from '@/lib/api';
-import { apiFieldErrors, zodFieldErrors, type FieldErrors } from '@/lib/forms';
-import { applySession } from '@/lib/session';
+import { resendConfirmation, signUp } from '@/lib/auth/actions';
+import { safeNextPath } from '@/lib/auth/redirects';
+import { zodFieldErrors, type FieldErrors } from '@/lib/forms';
+import { refreshSession } from '@/lib/session';
 
 type AccountType = 'personal' | 'business';
+
+const UNEXPECTED = 'We could not reach the sign-up service. Please try again.';
 
 export function RegisterForm() {
   const router = useRouter();
   const params = useSearchParams();
+  const next = params.get('next') ?? undefined;
   const [type, setType] = useState<AccountType>(params.get('type') === 'business' ? 'business' : 'personal');
-  const [user, setUser] = useState({ fullName: '', email: '', phoneNumber: '', password: '', confirm: '' });
+  const [user, setUser] = useState({ fullName: '', email: params.get('email') ?? '', phoneNumber: '', password: '', confirm: '' });
   const [org, setOrg] = useState({ name: '', legalName: '', type: OrgType.CONTRACTOR as OrgType, tradeLicenseNumber: '', trn: '' });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [resent, setResent] = useState(false);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -49,18 +48,60 @@ export function RegisterForm() {
 
     setSubmitting(true);
     try {
-      const session = await api<AuthSession>(type === 'business' ? '/auth/register/business' : '/auth/register', {
-        method: 'POST',
-        body: parsed.data,
-      });
-      applySession(session);
-      router.replace(type === 'business' ? '/business?welcome=1' : '/account?welcome=1');
-    } catch (err) {
-      setError(errorMessage(err));
-      setErrors(apiFieldErrors(err));
+      const result = await signUp({ accountType: type, details: parsed.data, next });
+      if (!result.ok) {
+        setError(result.error);
+        setErrors(result.fieldErrors ?? {});
+        setSubmitting(false);
+        return;
+      }
+      if (result.data.needsConfirmation) {
+        setSentTo(result.data.email);
+        setSubmitting(false);
+        return;
+      }
+      await refreshSession();
+      router.replace(safeNextPath(next, window.location.origin, type === 'business' ? '/business?welcome=1' : '/account?welcome=1'));
+    } catch {
+      setError(UNEXPECTED);
       setSubmitting(false);
     }
   };
+
+  const resend = async () => {
+    if (!sentTo) return;
+    const result = await resendConfirmation({ email: sentTo });
+    if (result.ok) setResent(true);
+    else setError(result.error);
+  };
+
+  if (sentTo) {
+    return (
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-ink-900">Check your inbox</h1>
+        <p className="mt-2 text-sm text-slate-600">
+          We sent a confirmation link to <strong className="text-ink-900">{sentTo}</strong>. Open it to activate your account
+          {type === 'business' ? ' — your trade account is then submitted to Top Flow for verification.' : '.'}
+        </p>
+        <div className="mt-6 space-y-4">
+          <Alert tone="info">The link is valid for one hour. Can&apos;t find the email? Check your spam folder.</Alert>
+          {error && <Alert tone="danger">{error}</Alert>}
+          {resent ? (
+            <Alert tone="success">A new confirmation link is on its way.</Alert>
+          ) : (
+            <Button variant="secondary" className="w-full" onClick={resend}>
+              Resend confirmation email
+            </Button>
+          )}
+        </div>
+        <p className="mt-6 text-center text-sm">
+          <Link href="/login" className="font-medium text-brand-700 hover:underline">
+            Back to sign in
+          </Link>
+        </p>
+      </div>
+    );
+  }
 
   const userField = (key: keyof typeof user, label: string, inputType = 'text', autoComplete?: string, hint?: string) => (
     <Field label={label} htmlFor={key} error={errors[key]} hint={hint}>
@@ -79,7 +120,7 @@ export function RegisterForm() {
       <h1 className="text-2xl font-bold tracking-tight text-ink-900">Create your account</h1>
       <p className="mt-1 text-sm text-slate-500">Shop online, or apply for a trade account for your business.</p>
 
-      <div className="mt-6 grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1 text-sm" role="tablist">
+      <div className="mt-6 grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1 text-sm" role="tablist" aria-label="Account type">
         {(['personal', 'business'] as const).map((option) => (
           <button
             key={option}
@@ -128,11 +169,12 @@ export function RegisterForm() {
         <Button type="submit" size="lg" className="w-full" loading={submitting}>
           {type === 'business' ? 'Apply for a trade account' : 'Create account'}
         </Button>
+        <p className="text-center text-xs text-slate-500">We&apos;ll email you a link to confirm your address.</p>
       </form>
 
       <p className="mt-6 text-center text-sm text-slate-600">
         Already have an account?{' '}
-        <Link href="/login" className="font-medium text-brand-700 hover:underline">
+        <Link href={next ? `/login?next=${encodeURIComponent(next)}` : '/login'} className="font-medium text-brand-700 hover:underline">
           Sign in
         </Link>
       </p>

@@ -1,4 +1,5 @@
 import { UOM_LABELS, bpsToPercent, fromFils, toFils, type DocumentLineDto } from '@topflow/shared';
+import { Th } from '@/components/ui';
 import { aed } from '@/lib/format';
 
 /** "10.00" → "10%", "12.50" → "12.5%". */
@@ -25,23 +26,23 @@ export function DocumentLines({ items }: { items: DocumentLineDto[] }) {
       <div className="hidden overflow-x-auto md:block">
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead>
-            <tr className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              <th scope="col" className="px-4 py-2.5">Product</th>
-              <th scope="col" className="px-4 py-2.5 text-right">Qty</th>
-              {showListPrice && <th scope="col" className="px-4 py-2.5 text-right">List price</th>}
-              {showDiscount && <th scope="col" className="px-4 py-2.5 text-right">Discount</th>}
-              <th scope="col" className="px-4 py-2.5 text-right">Unit price</th>
-              <th scope="col" className="px-4 py-2.5 text-right">Net</th>
-              <th scope="col" className="px-4 py-2.5 text-right">VAT</th>
-              <th scope="col" className="px-4 py-2.5 text-right">Total</th>
+            <tr className="border-b border-slate-200">
+              <Th>Product</Th>
+              <Th className="text-right">Qty</Th>
+              {showListPrice && <Th className="text-right">List price</Th>}
+              {showDiscount && <Th className="text-right">Discount</Th>}
+              <Th className="text-right">Unit price</Th>
+              <Th className="text-right">Net</Th>
+              <Th className="text-right">VAT</Th>
+              <Th className="text-right">Total</Th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-200">
             {items.map((line) => (
               <tr key={line.id} className="align-top">
                 <td className="px-4 py-3">
                   <p className="font-medium text-ink-900">{line.productName}</p>
-                  <p className="font-mono text-xs text-slate-400">{line.sku}</p>
+                  <p className="font-mono text-xs text-slate-500">{line.sku}</p>
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
                   {line.quantity.toLocaleString('en-AE')} <span className="text-slate-500">{UOM_LABELS[line.uom]}</span>
@@ -53,7 +54,7 @@ export function DocumentLines({ items }: { items: DocumentLineDto[] }) {
                 )}
                 {showDiscount && (
                   <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
-                    {hasDiscount(line) ? <span className="text-emerald-700">{formatPercent(line.discountRate)}</span> : <span className="text-slate-400">—</span>}
+                    {hasDiscount(line) ? <span className="text-success-700">{formatPercent(line.discountRate)}</span> : <span className="text-slate-500">—</span>}
                   </td>
                 )}
                 <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{aed(line.unitPrice)}</td>
@@ -66,22 +67,22 @@ export function DocumentLines({ items }: { items: DocumentLineDto[] }) {
         </table>
       </div>
 
-      <ul className="divide-y divide-slate-100 md:hidden">
+      <ul className="divide-y divide-slate-200 md:hidden">
         {items.map((line) => (
           <li key={line.id} className="px-4 py-3 text-sm">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="font-medium text-ink-900">{line.productName}</p>
-                <p className="font-mono text-xs text-slate-400">{line.sku}</p>
+                <p className="font-mono text-xs text-slate-500">{line.sku}</p>
               </div>
               <p className="whitespace-nowrap font-semibold tabular-nums text-ink-900">{aed(line.lineTotal)}</p>
             </div>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-slate-600">
               {line.quantity.toLocaleString('en-AE')} {UOM_LABELS[line.uom]} × {aed(line.unitPrice)}
               {hasDiscount(line) && (
                 <>
                   {' '}
-                  <span className="text-emerald-700">
+                  <span className="text-success-700">
                     (−{formatPercent(line.discountRate)}
                     {line.listPrice !== null && ` off ${aed(line.listPrice)}`})
                   </span>
@@ -127,7 +128,7 @@ export function DocumentTotals({
       {discountFils > 0 && (
         <>
           <TotalRow label="List value" value={aed(fromFils(toFils(subtotal) + discountFils))} />
-          <TotalRow label="Trade discount" value={`− ${aed(discountTotal)}`} valueClassName="font-medium tabular-nums text-emerald-700" />
+          <TotalRow label="Trade discount" value={`− ${aed(discountTotal)}`} valueClassName="font-medium tabular-nums text-success-700" />
         </>
       )}
       <TotalRow label="Subtotal (excl. VAT)" value={aed(subtotal)} />
@@ -135,7 +136,7 @@ export function DocumentTotals({
       <TotalRow label={`VAT (${formatPercent(bpsToPercent(vatRateBps))})`} value={aed(vatAmount)} />
       <div className="flex justify-between gap-4 border-t border-slate-200 pt-3 text-base">
         <dt className="font-semibold text-ink-900">Total (incl. VAT)</dt>
-        <dd className="font-bold tabular-nums text-ink-900">{aed(total)}</dd>
+        <dd className="font-semibold tabular-nums text-ink-900">{aed(total)}</dd>
       </div>
     </dl>
   );

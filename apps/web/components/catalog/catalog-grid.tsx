@@ -1,9 +1,10 @@
 'use client';
 
 import type { Paginated, ProductDto } from '@topflow/shared';
+import { SearchX } from 'lucide-react';
 import { useApiQuery } from '@/lib/use-api';
 import { useSession } from '@/lib/session';
-import { Alert, EmptyState } from '../ui';
+import { Alert, EmptyState, LinkButton } from '../ui';
 import { ProductCard } from './product-card';
 
 /**
@@ -19,23 +20,36 @@ export function CatalogGrid({ initial, query }: { initial: Paginated<ProductDto>
 
   return (
     <div>
+      <h2 className="sr-only">Products</h2>
       {activeMembership && (
-        <div className="mb-4">
-          <Alert tone={activeMembership.organizationStatus === 'ACTIVE' ? 'info' : 'warning'}>
-            {activeMembership.organizationStatus === 'ACTIVE'
-              ? `Showing trade prices for ${activeMembership.organizationName} (excl. VAT).`
-              : `${activeMembership.organizationName} is pending verification — list prices shown until Top Flow approves your trade account.`}
-          </Alert>
-        </div>
+        <Alert tone={activeMembership.organizationStatus === 'ACTIVE' ? 'info' : 'warning'} className="mb-4">
+          {activeMembership.organizationStatus === 'ACTIVE'
+            ? `Showing trade prices for ${activeMembership.organizationName} (excl. VAT).`
+            : `${activeMembership.organizationName} is pending verification — list prices shown until Top Flow approves your trade account.`}
+        </Alert>
       )}
       {data.items.length === 0 ? (
-        <EmptyState title="No products match your filters" description="Try a different search term or clear the filters." />
+        <EmptyState
+          icon={<SearchX aria-hidden="true" />}
+          title="No products match your filters"
+          description="Try a different search term or clear the filters. You can also describe what you need in a quote request."
+          action={
+            <>
+              <LinkButton href="/products" variant="secondary">
+                Clear filters
+              </LinkButton>
+              <LinkButton href="/quote">Request a quote</LinkButton>
+            </>
+          }
+        />
       ) : (
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <ul className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {data.items.map((product) => (
-            <ProductCard key={product.id} product={product} trade={tradeMode} />
+            <li key={product.id}>
+              <ProductCard product={product} trade={tradeMode} />
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );

@@ -15,6 +15,7 @@ import {
   type ProductDto,
   type UnitOfMeasure,
 } from '@topflow/shared';
+import { Trash } from 'lucide-react';
 import { Badge, Button, Card, CardHeader, Field, Input, Td, Textarea, Th } from '@/components/ui';
 import type { FieldErrors } from '@/lib/forms';
 import { aed } from '@/lib/format';
@@ -151,7 +152,7 @@ interface SectionProps {
 
 function CellError({ message }: { message?: string }) {
   return message ? (
-    <p className="mt-1 text-xs text-red-600" role="alert">
+    <p className="mt-1 text-xs font-medium text-danger-700" role="alert">
       {message}
     </p>
   ) : null;
@@ -169,16 +170,16 @@ export function QuotationLinesCard({ values, onChange, errors, disabled, default
     <Card>
       <CardHeader
         title="Line items"
-        description="Blank discount = the organization’s default trade discount. Blank list price = catalog price. Prices are net of VAT."
+        description="Blank discount = the organization’s default trade discount. Blank list price = catalogue price. Prices are net of VAT."
       />
-      <div className="border-b border-slate-100 p-5">
+      <div className="border-b border-slate-200 p-5">
         <ProductPicker selectedIds={values.lines.map((line) => line.productId)} onSelect={addProduct} disabled={disabled} />
       </div>
 
       {values.lines.length === 0 ? (
         <div className="px-5 py-10 text-center">
-          <p className="font-medium text-ink-900">No lines yet</p>
-          <p className="mt-1 text-sm text-slate-500">Search the catalog above to add products.</p>
+          <p className="heading-4 text-ink-900">No lines yet</p>
+          <p className="mt-1 text-sm text-slate-600">Search the catalogue above to add products.</p>
           <CellError message={errors.items} />
         </div>
       ) : (
@@ -208,13 +209,13 @@ export function QuotationLinesCard({ values, onChange, errors, disabled, default
                   <tr key={line.productId}>
                     <Td className="align-top">
                       <p className="font-medium text-ink-900">{line.productName}</p>
-                      <p className="font-mono text-xs text-slate-400">{line.sku}</p>
+                      <p className="font-mono text-xs text-slate-500">{line.sku}</p>
                       {line.isTradeOnly && (
                         <Badge tone="brand" className="mt-1">
                           Trade only
                         </Badge>
                       )}
-                      {line.note && <p className="mt-1 max-w-xs text-xs text-slate-500">Customer note: {line.note}</p>}
+                      {line.note && <p className="mt-1 max-w-xs text-xs text-slate-600">Customer note: {line.note}</p>}
                       <CellError message={errors[`items.${index}.productId`]} />
                     </Td>
                     <Td className="align-top">
@@ -231,23 +232,23 @@ export function QuotationLinesCard({ values, onChange, errors, disabled, default
                           aria-invalid={Boolean(quantityError)}
                           disabled={disabled}
                         />
-                        <span className="text-xs text-slate-400">{UOM_LABELS[line.uom]}</span>
+                        <span className="text-xs text-slate-500">{UOM_LABELS[line.uom]}</span>
                       </div>
-                      {belowMinimum && <p className="mt-1 text-xs text-amber-700">Min. order {line.minOrderQty}</p>}
+                      {belowMinimum && <p className="mt-1 text-xs text-warning-700">Min. order {line.minOrderQty}</p>}
                       <CellError message={quantityError} />
                     </Td>
                     <Td className="align-top">
                       <Input
                         inputMode="decimal"
                         value={line.listPrice}
-                        placeholder={line.basePrice ?? 'Catalog'}
+                        placeholder={line.basePrice ?? 'Catalogue'}
                         onChange={(event) => setLine(index, { listPrice: event.target.value })}
                         className="w-28 text-right"
                         aria-label={`List price of ${line.sku}`}
                         aria-invalid={Boolean(priceError)}
                         disabled={disabled}
                       />
-                      {line.listPrice.trim() === '' && <p className="mt-1 text-xs text-slate-400">Catalog price</p>}
+                      {line.listPrice.trim() === '' && <p className="mt-1 text-xs text-slate-500">Catalogue price</p>}
                       <CellError message={priceError} />
                     </Td>
                     <Td className="align-top">
@@ -261,7 +262,7 @@ export function QuotationLinesCard({ values, onChange, errors, disabled, default
                         aria-invalid={Boolean(discountError)}
                         disabled={disabled}
                       />
-                      {line.discount.trim() === '' && <p className="mt-1 text-xs text-slate-400">{defaultLabel}</p>}
+                      {line.discount.trim() === '' && <p className="mt-1 text-xs text-slate-500">{defaultLabel}</p>}
                       <CellError message={discountError} />
                     </Td>
                     <Td className="whitespace-nowrap text-right align-top tabular-nums text-slate-700">
@@ -272,6 +273,7 @@ export function QuotationLinesCard({ values, onChange, errors, disabled, default
                     </Td>
                     <Td className="text-right align-top">
                       <Button variant="ghost" size="sm" className="mt-1" onClick={() => removeLine(index)} disabled={disabled} aria-label={`Remove ${line.sku}`}>
+                        <Trash aria-hidden="true" />
                         Remove
                       </Button>
                     </Td>
@@ -329,7 +331,7 @@ export function QuotationTermsCard({ values, onChange, errors, disabled }: Secti
         <Field label="Terms & conditions" htmlFor="terms" error={errors.terms} hint="Payment, delivery and validity terms.">
           <Textarea id="terms" rows={4} value={values.terms} maxLength={4000} onChange={(event) => onChange({ ...values, terms: event.target.value })} disabled={disabled} />
         </Field>
-        <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-4">
+        <Card tone="warning" className="p-4">
           <Field label="Internal notes" htmlFor="internalNotes" error={errors.internalNotes} hint="Top Flow staff only — never shown to the customer.">
             <Textarea
               id="internalNotes"
@@ -339,7 +341,7 @@ export function QuotationTermsCard({ values, onChange, errors, disabled }: Secti
               disabled={disabled}
             />
           </Field>
-        </div>
+        </Card>
       </div>
     </Card>
   );
@@ -348,7 +350,7 @@ export function QuotationTermsCard({ values, onChange, errors, disabled }: Secti
 const ISSUE_MESSAGES: Record<PreviewIssue, string> = {
   empty: 'Add at least one line to see totals.',
   invalid: 'Fix the highlighted quantities, prices or discounts to see totals.',
-  unpriced: 'Some lines have no known catalog price yet — enter a list price or save to let the server price them.',
+  unpriced: 'Some lines have no known catalogue price yet — enter a list price or save to let the server price them.',
 };
 
 export function QuotationTotalsPreview({ values, defaultDiscount }: { values: QuotationFormValues; defaultDiscount: string | null }) {
@@ -356,7 +358,7 @@ export function QuotationTotalsPreview({ values, defaultDiscount }: { values: Qu
   return (
     <div>
       <div className="mb-3 flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-ink-900">Totals</p>
+        <p className="heading-4 text-ink-900">Totals</p>
         <Badge>Preview</Badge>
       </div>
       {totals ? (
@@ -369,7 +371,7 @@ export function QuotationTotalsPreview({ values, defaultDiscount }: { values: Qu
           vatRateBps={VAT_RATE_BPS}
         />
       ) : (
-        <p className="text-sm text-slate-500">{issue ? ISSUE_MESSAGES[issue] : null}</p>
+        <p className="text-sm text-slate-600">{issue ? ISSUE_MESSAGES[issue] : null}</p>
       )}
       <p className="mt-3 text-xs text-slate-500">Preview — the server recalculates on save.</p>
     </div>

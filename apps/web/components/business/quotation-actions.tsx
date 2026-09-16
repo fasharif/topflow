@@ -95,18 +95,20 @@ export function RespondPanel({ quotation, onUpdated }: { quotation: QuotationDto
   };
 
   return (
-    <Card className="border-brand-200 ring-4 ring-brand-50">
+    <Card tone="brand">
       <CardHeader title="Your response" description={`This offer is valid until ${formatDate(quotation.validUntil)}.`} />
       <form onSubmit={submit} className="space-y-4 p-5" noValidate>
         <fieldset>
           <legend className="sr-only">Choose a response</legend>
-          <div className="grid grid-cols-3 gap-1 rounded-lg bg-slate-100 p-1 text-sm">
+          <div className="grid grid-cols-3 gap-1 rounded-lg bg-brand-100 p-1 text-sm">
             {RESPONSE_OPTIONS.map((option) => (
               <label
                 key={option.value}
                 className={cx(
-                  'cursor-pointer rounded-md px-2 py-1.5 text-center font-medium transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-500',
-                  action === option.value ? 'bg-white text-ink-900 shadow-sm' : 'text-slate-500 hover:text-ink-900',
+                  'cursor-pointer rounded-md px-2 py-1.5 text-center font-medium transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-flow-600',
+                  action === option.value
+                    ? 'bg-white text-brand-800 shadow-xs ring-1 ring-brand-600 ring-inset'
+                    : 'text-slate-700 hover:bg-white/70 hover:text-ink-900',
                 )}
               >
                 <input
@@ -125,12 +127,12 @@ export function RespondPanel({ quotation, onUpdated }: { quotation: QuotationDto
 
         {accepting ? (
           <>
-            <div className="rounded-lg bg-slate-50 px-4 py-3 text-sm">
+            <div className="rounded-lg border border-brand-200 bg-white px-4 py-3 text-sm">
               <div className="flex items-baseline justify-between gap-3">
                 <span className="text-slate-600">You commit to</span>
-                <span className="text-lg font-bold tabular-nums text-ink-900">{aed(quotation.total)}</span>
+                <span className="text-lg font-semibold tabular-nums text-ink-900">{aed(quotation.total)}</span>
               </div>
-              <p className="mt-0.5 text-right text-xs text-slate-500">incl. VAT · net {aed(fromFils(netFils))}</p>
+              <p className="mt-0.5 text-right text-xs text-slate-600">incl. VAT · net {aed(fromFils(netFils))}</p>
             </div>
 
             {!verified ? (
@@ -150,7 +152,7 @@ export function RespondPanel({ quotation, onUpdated }: { quotation: QuotationDto
               )
             )}
 
-            <Field label="Purchase order number (optional)" htmlFor="response-po" error={errors.purchaseOrderNumber} hint="Printed on the sales order and invoice">
+            <Field label="Purchase order number" htmlFor="response-po" error={errors.purchaseOrderNumber} hint="Printed on the sales order and invoice" optional>
               <Input
                 id="response-po"
                 value={purchaseOrderNumber}
@@ -161,7 +163,7 @@ export function RespondPanel({ quotation, onUpdated }: { quotation: QuotationDto
                 placeholder="e.g. PO-2026-0142"
               />
             </Field>
-            <Field label={needsApproval ? 'Note for the approver (optional)' : 'Note (optional)'} htmlFor="response-note" error={errors.note}>
+            <Field label={needsApproval ? 'Note for the approver' : 'Note'} htmlFor="response-note" error={errors.note} optional>
               <Textarea id="response-note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} disabled={!verified} aria-invalid={Boolean(errors.note)} />
             </Field>
           </>
@@ -184,7 +186,7 @@ export function RespondPanel({ quotation, onUpdated }: { quotation: QuotationDto
               {needsApproval ? 'Send for approval' : 'Accept quotation'}
             </Button>
             {verified && (
-              <p className="text-center text-xs text-slate-500">
+              <p className="text-center text-xs text-slate-600">
                 {needsApproval
                   ? 'An approver or owner reviews the purchase before an order is created.'
                   : 'Accepting creates a sales order on your account at the prices shown.'}
@@ -248,32 +250,32 @@ export function ApprovalPanel({ quotation, onUpdated }: { quotation: QuotationDt
   };
 
   return (
-    <Card className="border-amber-200 ring-4 ring-amber-50">
+    <Card tone="warning">
       <CardHeader title={canDecide ? 'Your approval is needed' : 'Waiting for approval'} description={`Net value ${aed(fromFils(netFils))} excl. VAT`} />
       <div className="space-y-4 p-5 text-sm">
         <dl className="space-y-2">
           <div className="flex justify-between gap-3">
-            <dt className="text-slate-500">Requested by</dt>
+            <dt className="text-slate-600">Requested by</dt>
             <dd className="text-right font-medium text-ink-900">{ownRequest ? 'You' : (requester?.fullName ?? '—')}</dd>
           </div>
           <div className="flex justify-between gap-3">
-            <dt className="text-slate-500">Requested on</dt>
+            <dt className="text-slate-600">Requested on</dt>
             <dd className="text-right text-ink-900">{formatDateTime(quotation.respondedAt)}</dd>
           </div>
           {quotation.purchaseOrderNumber && (
             <div className="flex justify-between gap-3">
-              <dt className="text-slate-500">PO number</dt>
+              <dt className="text-slate-600">PO number</dt>
               <dd className="text-right font-mono text-ink-900">{quotation.purchaseOrderNumber}</dd>
             </div>
           )}
         </dl>
         {quotation.responseNote && (
-          <blockquote className="rounded-lg border-l-4 border-slate-200 bg-slate-50 px-3 py-2 text-slate-700">{quotation.responseNote}</blockquote>
+          <blockquote className="rounded-lg border-l-4 border-warning-500 bg-white px-3 py-2 text-slate-700">{quotation.responseNote}</blockquote>
         )}
 
         {canDecide ? (
           <>
-            <Field label="Note (optional)" htmlFor="approval-note" error={errors.note} hint="Shared with the requester — useful when declining">
+            <Field label="Note" htmlFor="approval-note" error={errors.note} hint="Shared with the requester — useful when declining" optional>
               <Textarea id="approval-note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} aria-invalid={Boolean(errors.note)} />
             </Field>
             {error && <Alert tone="danger">{error}</Alert>}
@@ -285,7 +287,7 @@ export function ApprovalPanel({ quotation, onUpdated }: { quotation: QuotationDt
                 Decline
               </Button>
             </div>
-            <p className="text-xs text-slate-500">Approving creates the sales order. Declining re-opens the quotation for the buyer.</p>
+            <p className="text-xs text-slate-600">Approving creates the sales order. Declining re-opens the quotation for the buyer.</p>
           </>
         ) : (
           <Alert tone="info">

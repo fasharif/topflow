@@ -1,4 +1,5 @@
 import { ORDER_PROGRESS, ORDER_STATUS_LABELS, OrderStatus, type OrderDto } from '@topflow/shared';
+import { Check, CircleX, X } from 'lucide-react';
 import { cx } from '@/components/ui';
 import { formatDate, formatDateTime } from '@/lib/format';
 
@@ -32,14 +33,14 @@ const LABEL_TONES: Record<StepState, string> = {
   complete: 'font-semibold text-ink-900',
   current: 'font-semibold text-brand-700',
   upcoming: 'text-slate-500',
-  cancelled: 'font-semibold text-red-700',
+  cancelled: 'font-semibold text-danger-700',
 };
 
 const CONNECTOR_TONES: Record<StepState, string> = {
   complete: 'bg-brand-600',
   current: 'bg-brand-600',
   upcoming: 'bg-slate-200',
-  cancelled: 'bg-red-200',
+  cancelled: 'bg-danger-200',
 };
 
 function buildSteps(order: ProgressOrder): Step[] {
@@ -79,16 +80,14 @@ function StepMarker({ state }: { state: StepState }) {
   const base = 'relative grid size-8 shrink-0 place-items-center rounded-full';
   if (state === 'complete' || state === 'cancelled') {
     return (
-      <span aria-hidden="true" className={cx(base, 'text-white shadow-sm', state === 'complete' ? 'bg-brand-600' : 'bg-red-600')}>
-        <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d={state === 'complete' ? 'm5 12.5 4.5 4.5L19 7.5' : 'M7 7l10 10M17 7 7 17'} />
-        </svg>
+      <span aria-hidden="true" className={cx(base, 'text-white shadow-xs', state === 'complete' ? 'bg-brand-600' : 'bg-danger-600')}>
+        {state === 'complete' ? <Check aria-hidden="true" className="size-4.5" /> : <X aria-hidden="true" className="size-4.5" />}
       </span>
     );
   }
   return (
-    <span aria-hidden="true" className={cx(base, 'bg-white ring-2 ring-inset', state === 'current' ? 'ring-brand-600' : 'ring-slate-200')}>
-      <span className={cx('rounded-full', state === 'current' ? 'size-2.5 bg-brand-600' : 'size-2 bg-slate-300')} />
+    <span aria-hidden="true" className={cx(base, 'bg-white ring-2 ring-inset', state === 'current' ? 'ring-brand-600' : 'ring-slate-300')}>
+      <span className={cx('rounded-full', state === 'current' ? 'size-2.5 bg-brand-600' : 'size-2 bg-slate-400')} />
     </span>
   );
 }
@@ -132,9 +131,12 @@ export function OrderProgress({ order }: { order: ProgressOrder }) {
       </ol>
 
       {order.status === OrderStatus.CANCELLED && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
-          <p className="font-semibold">This order was cancelled{order.cancelledAt ? ` on ${formatDateTime(order.cancelledAt)}` : ''}.</p>
-          {order.cancellationReason && <p className="mt-1">Reason: {order.cancellationReason}</p>}
+        <div className="flex gap-3 rounded-lg border border-danger-200 bg-danger-50 px-4 py-3 text-sm text-danger-900">
+          <CircleX aria-hidden="true" className="mt-0.5 size-4.5 shrink-0 text-danger-600" />
+          <div className="min-w-0">
+            <p className="font-semibold">This order was cancelled{order.cancelledAt ? ` on ${formatDateTime(order.cancelledAt)}` : ''}.</p>
+            {order.cancellationReason && <p className="mt-1">Reason: {order.cancellationReason}</p>}
+          </div>
         </div>
       )}
     </div>

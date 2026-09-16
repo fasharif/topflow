@@ -5,7 +5,6 @@ import {
   nameSchema,
   optionalText,
   paginationSchema,
-  passwordSchema,
   phoneSchema,
 } from './common';
 
@@ -51,12 +50,14 @@ export const adminUpdateUserSchema = z
   .refine((data) => data.role !== undefined || data.isActive !== undefined, { error: 'Nothing to update' });
 export type AdminUpdateUserInput = z.infer<typeof adminUpdateUserSchema>;
 
-/** Administrators create staff accounts directly (sales, warehouse, admin). */
+/**
+ * Administrators invite staff (sales, warehouse, admin). Supabase Auth emails the invitation;
+ * the new colleague sets their own password, so no administrator ever knows it.
+ */
 export const createStaffUserSchema = z.object({
   email: emailSchema,
   fullName: nameSchema,
   phoneNumber: phoneSchema.optional(),
   role: z.enum([Role.SALES, Role.WAREHOUSE, Role.ADMIN]),
-  password: passwordSchema,
 });
 export type CreateStaffUserInput = z.infer<typeof createStaffUserSchema>;

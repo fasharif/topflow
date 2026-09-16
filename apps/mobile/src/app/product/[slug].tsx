@@ -130,10 +130,14 @@ function ProductDetail({
             onPress={handleRequestQuote}
             fullWidth
           />
-          <DetailRow
-            label={product.priceRange ? 'Online price excl. VAT' : 'Price excl. VAT'}
-            value={`${formatMoney(product.unitPrice)} ${perUnit(product.uom)}`}
-          />
+          {product.priceRange ? (
+            <DetailRow
+              label="Buy online (incl. VAT)"
+              value={`${formatMoney(product.retailPrice)} ${perUnit(product.uom)}`}
+            />
+          ) : (
+            <DetailRow label="Price excl. VAT" value={`${formatMoney(product.unitPrice)} ${perUnit(product.uom)}`} />
+          )}
           <DetailRow
             label="Availability"
             value={

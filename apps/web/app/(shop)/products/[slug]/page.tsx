@@ -2,6 +2,7 @@ import type { Paginated, ProductDto } from '@topflow/shared';
 import type { Metadata } from 'next';
 import { connection } from 'next/server';
 import { ProductDetail } from '@/components/catalog/product-detail';
+import { Container } from '@/components/ui';
 import { ServerApiError, serverApi } from '@/lib/server-api';
 
 async function loadProduct(slug: string): Promise<ProductDto | null> {
@@ -52,9 +53,9 @@ export default async function ProductPage({ params }: PageProps<'/products/[slug
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+    <Container className="py-8 sm:py-10">
       {jsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />}
       <ProductDetail product={product} slug={slug} related={related} />
-    </div>
+    </Container>
   );
 }

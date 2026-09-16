@@ -1,18 +1,32 @@
 /**
- * Idempotent reference and demo data for local development, CI end-to-end tests and demos.
- * Run with `npm run db:seed`. Refuses to run in production unless SEED_FORCE=true.
+ * Idempotent reference and demo data for local development, CI end-to-end tests, demos and the
+ * first load of a real environment. Run with `npm run db:seed`. Refuses to run in production
+ * unless SEED_FORCE=true.
  *
  * - The catalogue in prisma/data/topflow-catalogue.json is Top Flow's product range with
  *   indicative price ranges. Products that are no longer listed are unpublished, never deleted
  *   (set SEED_KEEP_UNLISTED=true to leave them untouched). Re-running refreshes content and
- *   prices but keeps live stock levels.
- * - Demo accounts use SEED_DEMO_PASSWORD (the default, TopFlow2026!, is public: never use it in
- *   production). SEED_RESET_PASSWORDS=true also resets the password of accounts that exist.
- * - SEED_DEMO_DOCUMENTS=false skips the sample RFQs, quotations and orders.
+ *   prices but keeps live stock levels. SEED_ACCOUNTS=false refreshes only the catalogue.
+ * - SEED_PROFILE=demo (the default) adds fictional staff, a retail customer, two trade customers
+ *   and sample documents (SEED_DEMO_DOCUMENTS=false skips the RFQs, quotations and orders).
+ *   SEED_PROFILE=production adds only the staff roles and one retail test customer, and never
+ *   changes accounts that already exist.
+ * - Accounts sign in with Supabase Auth. With SUPABASE_URL and SUPABASE_SECRET_KEY set, the seed
+ *   creates their identities (same id as the platform account). Demo identities share
+ *   SEED_DEMO_PASSWORD (the default, TopFlow2026!, is public). With SEED_CREDENTIALS_FILE — required
+ *   by the production profile, and only outside the repository — every identity the run creates
+ *   gets its own random password, written only to that file and never logged.
+ *   SEED_RESET_PASSWORDS=true also replaces the password of identities that exist. Without Supabase
+ *   credentials only the platform rows are created, which is what the CI end-to-end suite needs
+ *   (it signs its own test tokens).
+ * - SEED_ADMIN_EMAIL, SEED_SALES_EMAIL, SEED_WAREHOUSE_EMAIL and SEED_CUSTOMER_EMAIL override the
+ *   default account addresses.
  */
 import 'dotenv/config';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { randomInt, randomUUID } from 'node:crypto';
+import { appendFileSync, readFileSync } from 'node:fs';
+import { join, resolve, sep } from 'node:path';
+import { createClient } from '@supabase/supabase-js';
 import {
   bpsToPercent,
   calculateTotals,
@@ -20,7 +34,6 @@ import {
   toFils,
   type DocumentTotals,
 } from '@topflow/shared';
-import bcrypt from 'bcryptjs';
 import {
   Emirate,
   OrderChannel,
@@ -41,22 +54,54 @@ import {
   type Product,
 } from '../src/index';
 
-if (process.env.NODE_ENV === 'production' && process.env.SEED_FORCE !== 'true') {
-  console.error('Refusing to seed demo data in production (set SEED_FORCE=true to override).');
+function fail(message: string): never {
+  console.error(message);
   process.exit(1);
+}
+
+if (process.env.NODE_ENV === 'production' && process.env.SEED_FORCE !== 'true') {
+  fail('Refusing to seed in production (set SEED_FORCE=true to override).');
 }
 
 const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  console.error('DATABASE_URL is not set.');
-  process.exit(1);
+if (!connectionString) fail('DATABASE_URL is not set.');
+
+const PROFILE = process.env.SEED_PROFILE === 'production' ? 'production' : 'demo';
+const SEED_ACCOUNTS = process.env.SEED_ACCOUNTS !== 'false';
+const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? 'TopFlow2026!';
+const RESET_PASSWORDS = process.env.SEED_RESET_PASSWORDS === 'true';
+const CREDENTIALS_FILE = process.env.SEED_CREDENTIALS_FILE ? resolve(process.env.SEED_CREDENTIALS_FILE) : null;
+const REPOSITORY_ROOT = resolve(__dirname, '..', '..', '..');
+const DAY = 86_400_000;
+const daysAgo = (days: number) => new Date(Date.now() - days * DAY);
+
+const accountEmail = (variable: string, fallback: string) => (process.env[variable]?.trim() || fallback).toLowerCase();
+const ACCOUNT_EMAILS = {
+  admin: accountEmail('SEED_ADMIN_EMAIL', 'admin@topflow.ae'),
+  sales: accountEmail('SEED_SALES_EMAIL', 'sales@topflow.ae'),
+  warehouse: accountEmail('SEED_WAREHOUSE_EMAIL', 'warehouse@topflow.ae'),
+  customer: accountEmail('SEED_CUSTOMER_EMAIL', 'customer@example.com'),
+};
+
+const supabaseAdmin =
+  process.env.SUPABASE_URL && process.env.SUPABASE_SECRET_KEY
+    ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, {
+        auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+      })
+    : null;
+
+if (CREDENTIALS_FILE && (CREDENTIALS_FILE === REPOSITORY_ROOT || CREDENTIALS_FILE.toLowerCase().startsWith(`${REPOSITORY_ROOT.toLowerCase()}${sep}`))) {
+  fail('SEED_CREDENTIALS_FILE must be outside the repository, so passwords can never be committed.');
+}
+if (SEED_ACCOUNTS && PROFILE === 'production') {
+  if (!supabaseAdmin) fail('SEED_PROFILE=production creates real sign-ins: set SUPABASE_URL and SUPABASE_SECRET_KEY.');
+  if (!CREDENTIALS_FILE) fail('SEED_PROFILE=production needs SEED_CREDENTIALS_FILE: every account gets its own password, written only to that file.');
+}
+if (SEED_ACCOUNTS && supabaseAdmin && process.env.NODE_ENV === 'production' && !CREDENTIALS_FILE) {
+  fail('Refusing to give production sign-ins a shared password: set SEED_CREDENTIALS_FILE.');
 }
 
 const prisma = createPrismaClient({ connectionString });
-const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? 'TopFlow2026!';
-const RESET_PASSWORDS = process.env.SEED_RESET_PASSWORDS === 'true';
-const DAY = 86_400_000;
-const daysAgo = (days: number) => new Date(Date.now() - days * DAY);
 
 interface CatalogueCategory {
   slug: string;
@@ -96,13 +141,98 @@ function slugify(value: string): string {
     .replace(/(^-|-$)/g, '');
 }
 
-async function upsertUser(email: string, fullName: string, role: Role, passwordHash: string, phoneNumber?: string) {
-  return prisma.user.upsert({
-    where: { email },
-    update: { fullName, role, isActive: true, ...(RESET_PASSWORDS && { passwordHash, passwordChangedAt: new Date() }) },
-    create: { email, fullName, role, passwordHash, phoneNumber, emailVerifiedAt: new Date() },
-  });
+// ─── Accounts ───────────────────────────────────────────────────────────────
+
+/** Letters and digits without look-alikes (no I, l, O, 0, 1). */
+const PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+let issuedPasswords = 0;
+let seededAccounts = 0;
+
+/** 24 characters from a 56-symbol alphabet (about 139 bits), always mixing upper case, lower case and digits. */
+function generatePassword(): string {
+  for (;;) {
+    const password = Array.from({ length: 24 }, () => PASSWORD_ALPHABET[randomInt(PASSWORD_ALPHABET.length)]).join('');
+    if (/[A-Z]/.test(password) && /[a-z]/.test(password) && /\d/.test(password)) return password;
+  }
 }
+
+/**
+ * The password for an identity that is being created or reset. With SEED_CREDENTIALS_FILE it is
+ * unique and appended to that file (owner-only permissions) before Supabase is called, so a failure
+ * later in the run can never leave an account whose password nobody knows.
+ */
+function issuePassword(email: string, role: Role): string {
+  if (!CREDENTIALS_FILE) return DEMO_PASSWORD;
+  const password = generatePassword();
+  if (issuedPasswords === 0) {
+    appendFileSync(
+      CREDENTIALS_FILE,
+      `# TopFlow Hub sign-ins issued ${new Date().toISOString()}. Keep private: move them to a password manager, then delete this file.\n`,
+      { mode: 0o600 },
+    );
+  }
+  appendFileSync(CREDENTIALS_FILE, `${email}\t${role}\t${password}\n`, { mode: 0o600 });
+  issuedPasswords++;
+  return password;
+}
+
+let identityIdsByEmail: Map<string, string> | null = null;
+
+/** Supabase identities by email. Seeded environments are small, so one page of users is enough. */
+async function findIdentityId(email: string): Promise<string | undefined> {
+  if (!supabaseAdmin) return undefined;
+  if (!identityIdsByEmail) {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    if (error) throw error;
+    identityIdsByEmail = new Map(data.users.flatMap((user) => (user.email ? [[user.email.toLowerCase(), user.id]] : [])));
+  }
+  return identityIdsByEmail.get(email);
+}
+
+/**
+ * Makes sure an account can sign in with Supabase Auth and returns the identity id, which the
+ * platform account shares. Without Supabase credentials it only settles the platform id.
+ */
+async function ensureIdentity(existingId: string | undefined, email: string, fullName: string, role: Role, phoneNumber?: string): Promise<string> {
+  if (!supabaseAdmin) return existingId ?? randomUUID();
+
+  const knownId = existingId ?? (await findIdentityId(email));
+  if (knownId) {
+    const { data } = await supabaseAdmin.auth.admin.getUserById(knownId);
+    if (data.user) {
+      if (RESET_PASSWORDS) {
+        const { error } = await supabaseAdmin.auth.admin.updateUserById(knownId, { password: issuePassword(email, role), email_confirm: true });
+        if (error) throw error;
+      }
+      return knownId;
+    }
+  }
+
+  const { data, error } = await supabaseAdmin.auth.admin.createUser({
+    ...(knownId && { id: knownId }),
+    email,
+    password: issuePassword(email, role),
+    email_confirm: true,
+    user_metadata: { full_name: fullName, ...(phoneNumber && { phone_number: phoneNumber }) },
+  });
+  if (error || !data.user) throw error ?? new Error(`Could not create the Supabase identity for ${email}`);
+  return data.user.id;
+}
+
+async function upsertUser(email: string, fullName: string, role: Role, phoneNumber?: string) {
+  const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+  const id = await ensureIdentity(existing?.id, email, fullName, role, phoneNumber);
+  seededAccounts++;
+  if (existing) {
+    // Real environments keep whatever their administrators changed (names, roles, suspensions).
+    return PROFILE === 'production'
+      ? prisma.user.findUniqueOrThrow({ where: { id: existing.id } })
+      : prisma.user.update({ where: { id: existing.id }, data: { fullName, role, isActive: true } });
+  }
+  return prisma.user.create({ data: { id, email, fullName, role, phoneNumber, emailVerifiedAt: new Date() } });
+}
+
+// ─── Catalogue ──────────────────────────────────────────────────────────────
 
 /** Matches on slug or name, so categories created by earlier data sets are updated, not duplicated. */
 async function upsertCategory(data: CatalogueCategory & { parentId: number | null }) {
@@ -166,12 +296,21 @@ async function seedCatalogue() {
   return { categories: categoryIds.size, products: catalogue.products.length, retired };
 }
 
-async function seedAccounts(passwordHash: string) {
-  await upsertUser('admin@topflow.ae', 'Aisha Rahman', Role.ADMIN, passwordHash, '+971 4 555 0100');
-  await upsertUser('sales@topflow.ae', 'Omar Haddad', Role.SALES, passwordHash, '+971 4 555 0101');
-  await upsertUser('warehouse@topflow.ae', 'Ravi Menon', Role.WAREHOUSE, passwordHash, '+971 4 555 0102');
+/**
+ * A real environment starts with one administrator and one retail test customer — no fictional
+ * people or companies. Sales and warehouse staff are invited from the back office.
+ */
+async function seedProductionAccounts() {
+  await upsertUser(ACCOUNT_EMAILS.admin, 'Top Flow Administrator', Role.ADMIN);
+  await upsertUser(ACCOUNT_EMAILS.customer, 'Test Customer', Role.CUSTOMER);
+}
 
-  const customer = await upsertUser('customer@example.com', 'Sara Ahmed', Role.CUSTOMER, passwordHash, '+971 50 123 4567');
+async function seedDemoAccounts() {
+  await upsertUser(ACCOUNT_EMAILS.admin, 'Aisha Rahman', Role.ADMIN, '+971 4 555 0100');
+  await upsertUser(ACCOUNT_EMAILS.sales, 'Omar Haddad', Role.SALES, '+971 4 555 0101');
+  await upsertUser(ACCOUNT_EMAILS.warehouse, 'Ravi Menon', Role.WAREHOUSE, '+971 4 555 0102');
+
+  const customer = await upsertUser(ACCOUNT_EMAILS.customer, 'Sara Ahmed', Role.CUSTOMER, '+971 50 123 4567');
   if (!(await prisma.address.findFirst({ where: { userId: customer.id } }))) {
     await prisma.address.create({
       data: { userId: customer.id, label: 'Home', contactName: 'Sara Ahmed', phoneNumber: '+971 50 123 4567', line1: 'Villa 14, Street 3', area: 'Arabian Ranches', city: 'Dubai', emirate: Emirate.DUBAI, isDefault: true },
@@ -203,7 +342,7 @@ async function seedAccounts(passwordHash: string) {
     ['buyer@desertbloom.ae', 'Joseph Mathew', OrgRole.BUYER, '5000.00'],
   ];
   for (const [email, fullName, role, approvalLimit] of team) {
-    const user = await upsertUser(email, fullName, Role.CUSTOMER, passwordHash, '+971 55 700 1000');
+    const user = await upsertUser(email, fullName, Role.CUSTOMER, '+971 55 700 1000');
     await prisma.organizationMember.upsert({
       where: { organizationId_userId: { organizationId: organization.id, userId: user.id } },
       update: { role, approvalLimit },
@@ -223,7 +362,7 @@ async function seedAccounts(passwordHash: string) {
     update: {},
     create: { name: 'Al Waha Facility Management LLC', type: OrgType.FACILITY_MANAGEMENT, status: OrgStatus.PENDING_VERIFICATION, tradeLicenseNumber: 'DED-910221', trn: '100998877600003', email: 'procurement@alwaha.ae', phoneNumber: '+971 2 644 1100' },
   });
-  const pendingOwner = await upsertUser('owner@alwaha.ae', 'Hamad Al Suwaidi', Role.CUSTOMER, passwordHash, '+971 50 900 4411');
+  const pendingOwner = await upsertUser('owner@alwaha.ae', 'Hamad Al Suwaidi', Role.CUSTOMER, '+971 50 900 4411');
   await prisma.organizationMember.upsert({
     where: { organizationId_userId: { organizationId: pending.id, userId: pendingOwner.id } },
     update: {},
@@ -315,7 +454,7 @@ function formatted(address: Address): string {
 async function seedDemoDocuments(organizationId: string, customerId: string) {
   const byEmail = async (email: string) => prisma.user.findUniqueOrThrow({ where: { email } });
   const [buyer, approver, sales, warehouse] = await Promise.all(
-    ['buyer@desertbloom.ae', 'approver@desertbloom.ae', 'sales@topflow.ae', 'warehouse@topflow.ae'].map(byEmail),
+    ['buyer@desertbloom.ae', 'approver@desertbloom.ae', ACCOUNT_EMAILS.sales, ACCOUNT_EMAILS.warehouse].map(byEmail),
   );
   const site = await prisma.address.findFirstOrThrow({ where: { organizationId, isDefault: true } });
   const home = await prisma.address.findFirstOrThrow({ where: { userId: customerId, isDefault: true } });
@@ -510,16 +649,30 @@ async function seedDemoDocuments(organizationId: string, customerId: string) {
   return created;
 }
 
+function describeAccounts(): string {
+  if (!SEED_ACCOUNTS) return 'no accounts (SEED_ACCOUNTS=false)';
+  const count = `${seededAccounts} account(s)`;
+  if (!supabaseAdmin) return `${count} as platform rows only (set SUPABASE_URL and SUPABASE_SECRET_KEY to create sign-in identities)`;
+  if (CREDENTIALS_FILE) return `${count} with Supabase sign-in; ${issuedPasswords} new password(s) written to ${CREDENTIALS_FILE}`;
+  const password = process.env.SEED_DEMO_PASSWORD ? '(from SEED_DEMO_PASSWORD)' : DEMO_PASSWORD;
+  return `${count} with Supabase sign-in${RESET_PASSWORDS ? ' (passwords reset)' : ''}; demo password: ${password}`;
+}
+
 async function main() {
-  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 12);
   const catalog = await seedCatalogue();
-  const { organizationId, customerId } = await seedAccounts(passwordHash);
-  const documents = process.env.SEED_DEMO_DOCUMENTS === 'false' ? 0 : await seedDemoDocuments(organizationId, customerId);
+  let organizations = 0;
+  let documents = 0;
+  if (SEED_ACCOUNTS && PROFILE === 'production') {
+    await seedProductionAccounts();
+  } else if (SEED_ACCOUNTS) {
+    const { organizationId, customerId } = await seedDemoAccounts();
+    organizations = 2;
+    documents = process.env.SEED_DEMO_DOCUMENTS === 'false' ? 0 : await seedDemoDocuments(organizationId, customerId);
+  }
 
   console.log(
-    `Seeded ${catalog.categories} categories and ${catalog.products} products (${catalog.retired} unlisted product(s) unpublished), ` +
-      `8 users${RESET_PASSWORDS ? ' (passwords reset)' : ''}, 2 organizations and ${documents} new demo document(s). ` +
-      `Demo password: ${process.env.SEED_DEMO_PASSWORD ? '(from SEED_DEMO_PASSWORD)' : DEMO_PASSWORD}`,
+    `Seeded (${PROFILE} profile) ${catalog.categories} categories and ${catalog.products} products (${catalog.retired} unlisted product(s) unpublished), ` +
+      `${describeAccounts()}, ${organizations} demo organization(s) and ${documents} new demo document(s).`,
   );
 }
 

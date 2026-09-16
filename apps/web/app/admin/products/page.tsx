@@ -9,6 +9,7 @@ import {
   type Paginated,
   type ProductDto,
 } from '@topflow/shared';
+import { Package, Plus, RotateCcw, SearchX } from 'lucide-react';
 import Link from 'next/link';
 import { Fragment, Suspense, useState } from 'react';
 import { RequirePermission, useCan } from '@/components/admin-catalog/access';
@@ -22,7 +23,7 @@ import { STOCK_LABELS } from '@/components/catalog/labels';
 import { ProductImage } from '@/components/catalog/product-card';
 import { Alert, Badge, Button, Card, EmptyState, LinkButton, LoadingBlock, PageHeader, Pagination, Select, Table, Td, Th, cx } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
-import { aed, aedRange } from '@/lib/format';
+import { VAT_LABEL, aed, aedRange } from '@/lib/format';
 import { useApiQuery } from '@/lib/use-api';
 
 const SORT_LABELS: Record<ProductSort, string> = {
@@ -119,6 +120,7 @@ function ProductsList() {
   } else if (items.length === 0) {
     content = filtered ? (
       <EmptyState
+        icon={<SearchX aria-hidden="true" />}
         title="No products match these filters"
         description={archived ? 'Try another search, category or availability.' : 'Try another search or category, or include archived products.'}
         action={
@@ -129,9 +131,15 @@ function ProductsList() {
       />
     ) : (
       <EmptyState
+        icon={<Package aria-hidden="true" />}
         title={archived ? 'No products yet' : 'No published products'}
-        description="Add products to the catalog to sell them in the storefront and quote them to trade customers."
-        action={<LinkButton href="/admin/products/new">New product</LinkButton>}
+        description="Add products to the catalogue to sell them in the storefront and quote them to trade customers."
+        action={
+          <LinkButton href="/admin/products/new">
+            <Plus aria-hidden="true" />
+            New product
+          </LinkButton>
+        }
       />
     );
   } else {
@@ -165,8 +173,8 @@ function ProductsList() {
                       <Td className="font-mono text-xs whitespace-nowrap text-slate-600">{product.sku}</Td>
                       <Td className="min-w-64">
                         <div className="flex items-center gap-3">
-                          <div className={cx('size-10 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-white', !product.isActive && 'opacity-60')}>
-                            <ProductImage product={product} />
+                          <div className={cx('size-12 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-white', !product.isActive && 'opacity-60')}>
+                            <ProductImage product={product} alt="" className="size-full object-contain p-1" />
                           </div>
                           <div className="min-w-0">
                             <Link
@@ -184,11 +192,11 @@ function ProductsList() {
                           </div>
                         </div>
                       </Td>
-                      <Td className="whitespace-nowrap text-slate-600">{product.brand ?? <span className="text-slate-400">—</span>}</Td>
-                      <Td className="whitespace-nowrap text-slate-600">{product.category?.name ?? <span className="text-slate-400">Uncategorised</span>}</Td>
+                      <Td className="whitespace-nowrap text-slate-600">{product.brand ?? <span className="text-slate-500">—</span>}</Td>
+                      <Td className="whitespace-nowrap text-slate-600">{product.category?.name ?? <span className="text-slate-500">Uncategorised</span>}</Td>
                       <Td className="text-right whitespace-nowrap tabular-nums">
                         {aed(product.unitPrice)}
-                        <span className="block text-xs text-slate-400">per {UOM_LABELS[product.uom]}</span>
+                        <span className="block text-xs text-slate-500">per {UOM_LABELS[product.uom]}</span>
                         {product.priceRange && (
                           <span className="block text-xs text-slate-500">
                             <span className="sr-only">Indicative range </span>
@@ -198,10 +206,10 @@ function ProductsList() {
                       </Td>
                       <Td className="text-right whitespace-nowrap text-slate-600 tabular-nums">{aed(product.retailPrice)}</Td>
                       <Td className="text-right whitespace-nowrap tabular-nums">
-                        <span className={cx('inline-block rounded-md px-1.5 py-0.5', low ? 'bg-amber-50 font-semibold text-amber-800 ring-1 ring-amber-200 ring-inset' : 'text-ink-900')}>
+                        <span className={cx('inline-block rounded-full px-2 py-0.5', low ? 'bg-warning-50 font-semibold text-warning-800 ring-1 ring-warning-200 ring-inset' : 'text-ink-900')}>
                           {product.stockQuantity}
                         </span>
-                        <span className={cx('block text-xs', low ? 'text-amber-700' : 'text-slate-400')}>
+                        <span className={cx('block text-xs', low ? 'text-warning-700' : 'text-slate-500')}>
                           {low ? 'Low · ' : ''}alert at {product.lowStockThreshold}
                         </span>
                       </Td>
@@ -221,12 +229,11 @@ function ProductsList() {
                           {product.isActive
                             ? canArchive && (
                                 <ConfirmButton
-                                  variant="ghost"
-                                  className="text-red-600! hover:bg-red-50! hover:text-red-700!"
+                                  variant="danger-ghost"
                                   title={`Archive ${product.name}?`}
                                   description={
                                     <>
-                                      <p>The product is hidden from the storefront, trade catalog and new quotations.</p>
+                                      <p>The product is hidden from the storefront, trade catalogue and new quotations.</p>
                                       <p>Orders, quotations and RFQs that reference it are kept, and you can restore it at any time.</p>
                                     </>
                                   }
@@ -267,13 +274,16 @@ function ProductsList() {
       <PageHeader
         eyebrow="Catalog"
         title="Products"
-        description="Maintain the catalog, net list prices and stock levels. Retail prices include 5% VAT."
+        description={`Maintain the catalogue, net list prices and stock levels. Retail prices include ${VAT_LABEL} VAT.`}
         actions={
           <>
             <LinkButton href="/admin/categories" variant="secondary">
               Categories
             </LinkButton>
-            <LinkButton href="/admin/products/new">New product</LinkButton>
+            <LinkButton href="/admin/products/new">
+              <Plus aria-hidden="true" />
+              New product
+            </LinkButton>
           </>
         }
       />
@@ -328,12 +338,13 @@ function ProductsList() {
           </div>
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-          <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-            <input type="checkbox" checked={archived} onChange={(e) => update({ archived: e.target.checked ? 1 : null })} className="size-4 accent-brand-600" />
+          <label className="inline-flex min-h-6 cursor-pointer items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" checked={archived} onChange={(e) => update({ archived: e.target.checked ? 1 : null })} className="size-4 cursor-pointer" />
             Show archived products
           </label>
           {(filtered || archived || sort !== ProductSort.NEWEST) && (
             <Button variant="ghost" size="sm" onClick={clearFilters}>
+              <RotateCcw aria-hidden="true" />
               Reset filters
             </Button>
           )}

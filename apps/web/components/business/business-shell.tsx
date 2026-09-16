@@ -1,10 +1,11 @@
 'use client';
 
 import { ORG_ROLE_LABELS, type MembershipSummary } from '@topflow/shared';
+import { Building } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { RequireAuth } from '@/components/require-auth';
 import { OrgStatusBadge } from '@/components/status-badge';
-import { Button, EmptyState } from '@/components/ui';
+import { Button, Card, EmptyState, Select } from '@/components/ui';
 import { aed } from '@/lib/format';
 import { setActiveOrganization, useSession } from '@/lib/session';
 import { BusinessNav } from './business-nav';
@@ -29,39 +30,39 @@ function OrganizationStrip({ membership, memberships }: { membership: Membership
         : 'No purchasing limit';
 
   return (
-    <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-xs">
-      <div className="flex min-w-0 items-center gap-3">
-        <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-ink-900 text-sm font-bold text-white" aria-hidden="true">
+    <Card className="mb-6 flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+      <div className="flex min-w-0 items-center gap-3.5">
+        <span
+          className="grid size-11 shrink-0 place-items-center rounded-lg bg-brand-600 text-sm font-semibold tracking-wide text-white"
+          aria-hidden="true"
+        >
           {initials(membership.organizationName)}
         </span>
         <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wide text-brand-700">Trade portal</p>
-          <p className="truncate text-lg font-semibold leading-tight text-ink-900">{membership.organizationName}</p>
+          <p className="eyebrow text-brand-700">Trade portal</p>
+          <p className="heading-3 mt-0.5 truncate text-ink-900">{membership.organizationName}</p>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-        <span className="text-slate-500">
+        <span className="text-slate-600">
           Your role: <span className="font-medium text-ink-900">{ORG_ROLE_LABELS[membership.role]}</span>
           <span className="hidden sm:inline"> · {limit}</span>
         </span>
         <OrgStatusBadge status={membership.organizationStatus} />
         {memberships.length > 1 && (
-          <select
-            aria-label="Switch organization"
-            value={membership.organizationId}
-            onChange={(event) => setActiveOrganization(event.target.value)}
-            className="h-9 max-w-52 rounded-lg border border-slate-300 bg-white px-2 text-sm text-ink-900 lg:hidden"
-          >
-            {memberships.map((m) => (
-              <option key={m.organizationId} value={m.organizationId}>
-                {m.organizationName}
-              </option>
-            ))}
-          </select>
+          <div className="w-52 max-w-full lg:hidden">
+            <Select aria-label="Switch organization" value={membership.organizationId} onChange={(event) => setActiveOrganization(event.target.value)}>
+              {memberships.map((m) => (
+                <option key={m.organizationId} value={m.organizationId}>
+                  {m.organizationName}
+                </option>
+              ))}
+            </Select>
+          </div>
         )}
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -73,6 +74,7 @@ function OrganizationGate({ children }: { children: ReactNode }) {
     return (
       <div className="mx-auto max-w-lg py-16">
         <EmptyState
+          icon={<Building aria-hidden="true" />}
           title="Choose an organization"
           description="Select the business account you want to work in."
           action={
@@ -93,7 +95,8 @@ function OrganizationGate({ children }: { children: ReactNode }) {
     <>
       <OrganizationStrip membership={activeMembership} memberships={memberships} />
       <div className="grid gap-6 lg:grid-cols-[208px_minmax(0,1fr)] lg:gap-8">
-        <aside className="lg:sticky lg:top-24 lg:self-start">
+        {/* Offset clears the sticky site header (main row and category bar) on large screens. */}
+        <aside className="lg:sticky lg:top-32 lg:self-start">
           <BusinessNav />
         </aside>
         {/* Remount the page when the active organization changes so no state leaks between tenants. */}

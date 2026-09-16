@@ -1,25 +1,22 @@
 import type { NextConfig } from 'next';
 
 /**
- * The browser talks to the API through this app's own origin (`/api/*` → NestJS). Keeping
- * the API same-origin means the httpOnly refresh-token cookie is a first-party cookie (no
- * third-party cookie restrictions) and no CORS preflights are needed.
+ * Browser requests reach the NestJS API through app/api/[...path]/route.ts, which attaches the
+ * Supabase session from httpOnly cookies on this server, so no rewrites are needed.
  */
-const apiOrigin = (process.env.API_INTERNAL_URL ?? 'http://localhost:3000').replace(/\/$/, '');
-
 const securityHeaders = [
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
+  ...(process.env.NODE_ENV === 'production'
+    ? [{ key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' }]
+    : []),
 ];
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
-  async rewrites() {
-    return [{ source: '/api/:path*', destination: `${apiOrigin}/:path*` }];
-  },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },

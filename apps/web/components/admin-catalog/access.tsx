@@ -1,6 +1,7 @@
 'use client';
 
 import { ROLE_LABELS, hasPermission, type Permission } from '@topflow/shared';
+import { ShieldAlert } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { EmptyState, LinkButton, LoadingBlock } from '@/components/ui';
 import { useSession } from '@/lib/session';
@@ -17,6 +18,7 @@ export function RequirePermission({ permission, area, children }: { permission: 
     return (
       <div className="mx-auto max-w-xl py-10">
         <EmptyState
+          icon={<ShieldAlert aria-hidden="true" />}
           title="Access restricted"
           description={`${area} is not available to the ${ROLE_LABELS[user.role]} role. Ask a Top Flow administrator if you need access.`}
           action={

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <body style="margin:0;padding:0;background:#f3f5f8;font-family:'IBM Plex Sans',Arial,Helvetica,sans-serif;color:#1b2430;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f5f8;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e2e7ee;border-radius:12px;">
+            <tr>
+              <td style="padding:28px 32px 0;">
+                <p style="margin:0;font-size:13px;font-weight:700;letter-spacing:0.18em;color:#014d41;">TOP FLOW <span style="color:#2c5d9f;">HUB</span></p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 32px 8px;">
+                <h1 style="margin:0 0 12px;font-size:22px;line-height:1.3;color:#0f1a24;">Sign in to Top Flow</h1>
+                <p style="margin:0 0 20px;font-size:15px;line-height:1.6;">Use the button below to sign in as <strong>{{ .Email }}</strong>.</p>
+                <p style="margin:0 0 24px;">
+                  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink&next={{ .RedirectTo }}" style="display:inline-block;background:#014d41;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 24px;border-radius:999px;">Sign in</a>
+                </p>
+                <p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#5b6773;">The link is valid for one hour and can be used once. If you did not request it, you can ignore this email.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 32px 28px;border-top:1px solid #edf1f5;font-size:12px;line-height:1.6;color:#7a8591;">
+                Top Flow · Irrigation &amp; flow-control supplies · United Arab Emirates<br />
+                +971 56 109 1235 · info@topflow.ae · www.topflow.ae
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

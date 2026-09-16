@@ -49,10 +49,21 @@ export function formatDateTime(iso: string | null | undefined): string {
   return date ? formatDubaiDateTime(date) : '—';
 }
 
-/** "14 Sept 2026" in Asia/Dubai. */
+/** "14 Sept 2026" in Asia/Dubai. Calendar dates ("2026-09-14") keep their day. */
 export function formatDate(iso: string | null | undefined): string {
   const date = parseDate(iso);
   return date ? formatDubaiDate(date) : '—';
+}
+
+/** A calendar date in the API's "YYYY-MM-DD" format, from a year, month (1–12) and day. */
+export function isoCalendarDate(year: number, month: number, day: number): string {
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+/** Today's calendar date on this device, as "YYYY-MM-DD". */
+export function todayIsoDate(): string {
+  const now = new Date();
+  return isoCalendarDate(now.getFullYear(), now.getMonth() + 1, now.getDate());
 }
 
 // ─── Catalog ─────────────────────────────────────────────────────────────────
@@ -94,12 +105,17 @@ export function formatMoneyRange(min: string, max: string, separator = ' – '):
   return `${formatMoney(low)}${separator}${formatMoney(high, { currency: '' }).trim()}`;
 }
 
-/** Spoken price for accessibility labels, including the approximate range when there is one. */
-export function priceAccessibilityLabel(product: Pick<ProductDto, 'retailPrice' | 'priceRange'>): string {
-  const online = formatMoney(product.retailPrice);
-  if (!product.priceRange) return `${online} including VAT`;
+/** "≈ AED 22.05 – 30.45" for an indicative price range, or "≈ AED 22.05" when both ends match. */
+export function formatApproxPrice(min: string, max: string): string {
+  return `≈ ${formatMoneyRange(min, max)}`;
+}
+
+/** Spoken consumer price for accessibility labels: the approximate range when there is one. */
+export function priceAccessibilityLabel(product: Pick<ProductDto, 'retailPrice' | 'priceRange' | 'uom'>): string {
+  const unit = perUnit(product.uom);
+  if (!product.priceRange) return `${formatMoney(product.retailPrice)} ${unit} including VAT`;
   const { retailMin, retailMax } = product.priceRange;
-  return `approximately ${formatMoneyRange(retailMin, retailMax, ' to ')} including VAT, or ${online} to buy online`;
+  return `approximate price ${formatMoneyRange(retailMin, retailMax, ' to ')} ${unit} including VAT`;
 }
 
 // ─── Orders & addresses ──────────────────────────────────────────────────────

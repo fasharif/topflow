@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { Button, Input } from '@/components/ui';
+import { Button, Card, SearchInput } from '@/components/ui';
 
 /** `value` when it is one of `allowed`, otherwise '' — hand-edited query strings never reach the API. */
 export function pickEnum<T extends string>(value: string | null, allowed: readonly T[]): T | '' {
@@ -55,7 +55,7 @@ export function SearchBox({
   };
   return (
     <form role="search" onSubmit={submit} className="flex min-w-0 flex-1 gap-2">
-      <Input type="search" value={value} onChange={(event) => setValue(event.target.value)} placeholder={placeholder} aria-label={label} className="min-w-0" />
+      <SearchInput value={value} onChange={(event) => setValue(event.target.value)} placeholder={placeholder} aria-label={label} className="flex-1" />
       <Button type="submit" variant="secondary">
         Search
       </Button>
@@ -64,5 +64,5 @@ export function SearchBox({
 }
 
 export function FilterBar({ children }: { children: ReactNode }) {
-  return <div className="mb-4 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-xs md:flex-row md:items-center">{children}</div>;
+  return <Card className="mb-4 flex flex-col gap-3 p-3 md:flex-row md:items-center">{children}</Card>;
 }

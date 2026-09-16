@@ -1,15 +1,32 @@
 'use client';
 
 import { UOM_LABELS, fromFils, type AddressDto, type RfqDto } from '@topflow/shared';
+import { FileText, ShoppingBasket, Trash } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { OrderSummary, retailTotals } from '@/components/cart/order-summary';
 import { ProductImage } from '@/components/catalog/product-card';
-import { Alert, Button, Card, CardHeader, EmptyState, Field, Input, LinkButton, PageHeader, Select, Textarea } from '@/components/ui';
+import {
+  Alert,
+  Button,
+  Card,
+  CardHeader,
+  Container,
+  EmptyState,
+  Field,
+  IconButton,
+  Input,
+  LinkButton,
+  PageHeader,
+  QuantityInput,
+  Select,
+  Skeleton,
+  Textarea,
+} from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
-import { clearCart, removeFromCart, setQuantity, useCart } from '@/lib/cart';
-import { aed } from '@/lib/format';
+import { clearCart, removeFromCart, setQuantity, useCart, useCartHydrated } from '@/lib/cart';
+import { aed, pluralize } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { useApiQuery } from '@/lib/use-api';
 
@@ -50,12 +67,15 @@ function RfqPanel() {
 
   return (
     <Card>
-      <CardHeader title="Request a trade quotation" description={`On behalf of ${activeMembership?.organizationName}. Trade prices are applied on your quotation.`} />
+      <CardHeader
+        title="Request a trade quotation"
+        description={`On behalf of ${activeMembership?.organizationName}. Trade prices are applied on your quotation.`}
+      />
       <div className="space-y-4 p-5">
-        <Field label="Project reference" htmlFor="projectReference" hint="Shown on the quotation and delivery paperwork">
+        <Field label="Project reference" htmlFor="projectReference" optional hint="Shown on the quotation and delivery paperwork">
           <Input id="projectReference" value={projectReference} onChange={(e) => setProjectReference(e.target.value)} placeholder="e.g. Dubai Hills — Phase 2" />
         </Field>
-        <Field label="Delivery site" htmlFor="site">
+        <Field label="Delivery site" htmlFor="site" optional>
           <Select id="site" value={addressId} onChange={(e) => setAddressId(e.target.value)}>
             <option value="">To be confirmed</option>
             {sites.data?.map((site) => (
@@ -65,10 +85,10 @@ function RfqPanel() {
             ))}
           </Select>
         </Field>
-        <Field label="Required by" htmlFor="requiredBy">
+        <Field label="Required by" htmlFor="requiredBy" optional>
           <Input id="requiredBy" type="date" value={requiredBy} onChange={(e) => setRequiredBy(e.target.value)} />
         </Field>
-        <Field label="Notes for our sales team" htmlFor="notes">
+        <Field label="Notes for our sales team" htmlFor="notes" optional>
           <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
         </Field>
         {error && <Alert tone="danger">{error}</Alert>}
@@ -82,105 +102,155 @@ function RfqPanel() {
 
 export default function CartPage() {
   const router = useRouter();
-  const { lines, itemCount } = useCart();
+  const { lines } = useCart();
+  const hydrated = useCartHydrated();
   const session = useSession();
   const tradeOnlyLines = lines.filter((line) => line.isTradeOnly);
   const totals = retailTotals(lines);
+  const trade = Boolean(session.activeMembership);
+
+  if (!hydrated) {
+    return (
+      <Container className="py-8 sm:py-10">
+        <p role="status" className="sr-only">
+          Loading your basket…
+        </p>
+        <Skeleton className="h-9 w-56" />
+        <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
+          <Skeleton className="h-64 w-full rounded-xl" />
+          <Skeleton className="h-64 w-full rounded-xl" />
+        </div>
+      </Container>
+    );
+  }
 
   if (lines.length === 0) {
     return (
-      <div className="mx-auto max-w-xl px-4 py-20">
+      <Container className="py-12 sm:py-16">
         <EmptyState
+          className="mx-auto max-w-2xl"
+          icon={<ShoppingBasket aria-hidden="true" />}
           title="Your basket is empty"
-          description="Browse the catalogue to add fittings, sprinklers, drip lines, valves and more."
-          action={<LinkButton href="/products">Browse the catalogue</LinkButton>}
+          description="Browse the catalogue to add fittings, sprinklers, drip lines, valves and more — or describe your project and our sales team will quote it."
+          action={
+            <>
+              <LinkButton href="/products">Browse the catalogue</LinkButton>
+              <LinkButton href="/quote" variant="secondary">
+                Describe your project
+              </LinkButton>
+            </>
+          }
         />
-      </div>
+      </Container>
     );
   }
 
   const checkout = () => router.push(session.status === 'authenticated' ? '/checkout' : '/login?next=/checkout');
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+    <Container className="py-8 sm:py-10">
       <PageHeader
         eyebrow="Basket"
         title="Your basket"
-        description={`${itemCount} item${itemCount === 1 ? '' : 's'} · buy online, or send the basket as a quote request for project pricing`}
+        description={`${pluralize(lines.length, 'product')} · request a quote for your best price, or check out at listed prices`}
       />
-      <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
-        <Card className="h-fit min-w-0 overflow-hidden">
-          <ul className="divide-y divide-slate-100">
+
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
+        <Card className="min-w-0 overflow-hidden">
+          <h2 className="sr-only">Products in your basket</h2>
+          <ul className="divide-y divide-slate-200">
             {lines.map((line, index) => (
-              <li key={line.productId} className="flex flex-wrap items-center gap-4 p-4 sm:flex-nowrap">
-                <Link href={`/products/${line.slug}`} tabIndex={-1} aria-hidden="true" className="size-16 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white">
-                  <ProductImage product={{ imageUrl: line.imageUrl ?? null, name: line.name }} className="size-full object-contain p-1.5" />
+              <li key={line.productId} className="flex gap-4 p-4 sm:p-5">
+                <Link
+                  href={`/products/${line.slug}`}
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  className="size-16 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-white sm:size-20"
+                >
+                  <ProductImage product={{ imageUrl: line.imageUrl ?? null, name: line.name }} alt="" className="size-full object-contain p-1.5" />
                 </Link>
                 <div className="min-w-0 flex-1">
-                  <p className="font-mono text-[11px] text-slate-500">{line.sku}</p>
-                  <Link href={`/products/${line.slug}`} className="font-medium text-ink-900 hover:text-brand-600">
-                    {line.name}
-                  </Link>
-                  <p className="text-xs text-slate-500">
-                    {aed(line.retailPrice)} / {UOM_LABELS[line.uom]} incl. VAT
-                    {line.isTradeOnly && <span className="ml-2 font-medium text-brand-700">Trade only</span>}
-                  </p>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-mono text-xs text-slate-600">{line.sku}</p>
+                      <Link href={`/products/${line.slug}`} className="line-clamp-2 font-medium text-ink-900 hover:text-brand-700">
+                        {line.name}
+                      </Link>
+                      <p className="mt-0.5 text-xs text-slate-600">
+                        Listed price {aed(line.retailPrice)} / {UOM_LABELS[line.uom]} incl. VAT
+                        {line.isTradeOnly && <span className="ml-2 font-medium text-brand-700">Trade only</span>}
+                      </p>
+                    </div>
+                    <IconButton label={`Remove ${line.name}`} size="sm" onClick={() => removeFromCart(line.productId)}>
+                      <Trash aria-hidden="true" />
+                    </IconButton>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <QuantityInput
+                        id={`basket-quantity-${line.productId}`}
+                        label={`Quantity of ${line.name}`}
+                        size="sm"
+                        value={line.quantity}
+                        min={line.minOrderQty}
+                        onChange={(quantity) => setQuantity(line.productId, quantity)}
+                      />
+                      <span className="text-sm text-slate-600">{UOM_LABELS[line.uom]}</span>
+                    </div>
+                    <p className="font-semibold tabular-nums text-ink-900">
+                      <span className="sr-only">Line total: </span>
+                      {aed(fromFils(totals.lines[index]?.lineTotalFils ?? 0))}
+                    </p>
+                  </div>
                 </div>
-                <Input
-                  type="number"
-                  min={line.minOrderQty}
-                  value={line.quantity}
-                  onChange={(e) => setQuantity(line.productId, Math.max(line.minOrderQty, Number(e.target.value)))}
-                  className="w-20"
-                  aria-label={`Quantity for ${line.name}`}
-                />
-                <p className="w-28 text-right font-semibold tabular-nums text-ink-900">{aed(fromFils(totals.lines[index]?.lineTotalFils ?? 0))}</p>
-                <Button variant="ghost" size="sm" onClick={() => removeFromCart(line.productId)}>
-                  Remove
-                </Button>
               </li>
             ))}
           </ul>
         </Card>
 
         <div className="space-y-6">
-          <Card className="p-6">
-            <h2 className="mb-4 font-display text-xl text-ink-900">Order summary</h2>
-            <OrderSummary lines={lines} />
+          {!trade && (
+            <Card tone="brand" className="p-5 sm:p-6">
+              <p className="eyebrow text-brand-700">Best price</p>
+              <h2 className="heading-3 mt-2">Request a quote for this basket</h2>
+              <p className="mt-2 text-sm leading-relaxed text-slate-700">
+                Catalogue prices marked ≈ are approximate market prices. Our sales team replies with a formal quotation for your quantities — project
+                quantities are priced individually.
+              </p>
+              <LinkButton href="/quote" size="lg" className="mt-5 w-full">
+                <FileText aria-hidden="true" />
+                Request a quote (best price)
+              </LinkButton>
+            </Card>
+          )}
+
+          <Card className="p-5 sm:p-6">
+            <h2 className="heading-3">{trade ? 'Order summary' : 'Or buy now at listed prices'}</h2>
+            <div className="mt-4">
+              <OrderSummary lines={lines} />
+            </div>
             {tradeOnlyLines.length > 0 ? (
-              <div className="mt-5">
-                <Alert tone="warning">Trade-only items can only be supplied on quotation. Remove them to check out online.</Alert>
-              </div>
+              <Alert tone="warning" className="mt-5">
+                Trade-only items can only be supplied on quotation. Remove them to check out online.
+              </Alert>
             ) : (
-              <Button className="mt-5 w-full" size="lg" onClick={checkout}>
-                {session.activeMembership ? 'Buy now as a personal order' : 'Checkout'}
+              <Button size="lg" variant="secondary" className="mt-5 w-full" onClick={checkout}>
+                {trade ? 'Buy now as a personal order' : 'Checkout at listed prices'}
               </Button>
             )}
-          </Card>
-
-          {session.activeMembership ? (
-            <RfqPanel />
-          ) : (
-            <Card className="bg-brand-50 p-6">
-              <p className="eyebrow text-brand-700">Best price</p>
-              <h2 className="mt-2 font-display text-xl text-ink-900">Request a quote for this basket</h2>
-              <p className="mt-2 text-sm leading-relaxed text-slate-700">
-                Prices shown are indicative. Send the basket to our sales team and we will reply with a formal quotation, usually at a better price
-                for larger quantities.
-              </p>
-              <LinkButton href="/quote" variant="dark" className="mt-5 w-full">
-                Request a quote
-              </LinkButton>
+            {!trade && (
               <p className="mt-4 text-center text-xs text-slate-600">
                 Buying for a business?{' '}
-                <Link href="/register?type=business" className="font-medium text-brand-700 hover:underline">
+                <Link href="/register?type=business" className="font-medium text-brand-700 underline-offset-4 hover:underline">
                   Open a trade account
                 </Link>
               </p>
-            </Card>
-          )}
+            )}
+          </Card>
+
+          {trade && <RfqPanel />}
         </div>
       </div>
-    </div>
+    </Container>
   );
 }

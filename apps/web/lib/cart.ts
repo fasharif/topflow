@@ -119,3 +119,8 @@ export function useCart(): { lines: CartLine[]; itemCount: number } {
   const current = useSyncExternalStore(cartStore.subscribe, cartStore.getSnapshot, cartStore.getServerSnapshot);
   return { lines: current, itemCount: current.reduce((sum, line) => sum + line.quantity, 0) };
 }
+
+/** False until the basket has been read from localStorage (on the server and during hydration it is always empty). */
+export function useCartHydrated(): boolean {
+  return useSyncExternalStore(cartStore.subscribe, () => hydrated, () => false);
+}

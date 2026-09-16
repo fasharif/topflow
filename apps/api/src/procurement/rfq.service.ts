@@ -24,7 +24,7 @@ import {
 } from '@topflow/shared';
 import { AuditAction } from '../audit/audit-actions';
 import { AuditService } from '../audit/audit.service';
-import { uaeDate } from '../common/dates';
+import { todayInUae, uaeDate } from '../common/dates';
 import { NumberingService } from '../common/numbering.service';
 import type {
   AuthenticatedUser,
@@ -134,16 +134,22 @@ export class RfqService {
   /**
    * A visitor on the public website asks for a quotation. There is no account or organization:
    * sales replies to the contact details, and a formal quotation can follow once the customer
-   * has an account.
+   * has an account. Visitors may send basket items, or only describe a project.
    */
   async createFromWebsite(
     input: CreateWebsiteQuoteRequestInput,
     meta: RequestMeta,
   ): Promise<WebsiteQuoteReceiptDto> {
+    if (input.requiredBy && input.requiredBy < todayInUae()) {
+      throw new BadRequestException(
+        'Choose a required-by date from today onwards',
+      );
+    }
     // Trade-only items are hidden from the public catalog, so they cannot be requested here.
-    const lines = await this.resolveLines(input.items, {
-      includeTradeOnly: false,
-    });
+    const lines =
+      input.items.length > 0
+        ? await this.resolveLines(input.items, { includeTradeOnly: false })
+        : [];
 
     const rfq = await this.prisma.$transaction(async (tx) => {
       const number = await this.numbering.next(DocumentType.QUOTE_REQUEST, tx);
@@ -156,6 +162,9 @@ export class RfqService {
           contactEmail: input.email,
           contactPhone: input.phone,
           companyName: input.companyName,
+          preferredContact: input.preferredContact,
+          projectReference: input.projectReference,
+          requiredBy: input.requiredBy ? uaeDate(input.requiredBy) : null,
           shippingAddress: input.emirate ? EMIRATE_LABELS[input.emirate] : null,
           notes: input.notes,
           items: { create: lines.map(toItemRow) },

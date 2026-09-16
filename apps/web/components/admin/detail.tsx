@@ -1,4 +1,5 @@
 import { EMIRATE_LABELS, OrderChannel, RFQ_SOURCE_LABELS, RfqSource, type AddressSnapshot } from '@topflow/shared';
+import { Lock, SearchX } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Alert, Badge, Button, EmptyState, LinkButton, cx } from '@/components/ui';
 
@@ -36,12 +37,12 @@ export interface DetailItem {
 /** Label/value pairs for detail sidebars. Empty values render as an em dash. */
 export function DetailList({ items, className }: { items: DetailItem[]; className?: string }) {
   return (
-    <dl className={cx('divide-y divide-slate-100 text-sm', className)}>
+    <dl className={cx('divide-y divide-slate-200 text-sm', className)}>
       {items
         .filter((item) => !item.hidden)
         .map((item) => (
           <div key={item.label} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-2.5 first:pt-0 last:pb-0">
-            <dt className="text-slate-500">{item.label}</dt>
+            <dt className="text-slate-600">{item.label}</dt>
             <dd className="min-w-0 break-words text-right font-medium text-ink-900">{item.value ?? '—'}</dd>
           </div>
         ))}
@@ -67,7 +68,7 @@ export function AddressBlock({ address, fallback }: { address: AddressSnapshot |
 
 /** Small uppercase section label used inside cards. */
 export function SectionLabel({ children }: { children: ReactNode }) {
-  return <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{children}</p>;
+  return <p className="eyebrow mb-2 text-slate-600">{children}</p>;
 }
 
 /** Failed `useApiQuery` result: friendly not-found / forbidden states, otherwise an alert with retry. */
@@ -89,8 +90,10 @@ export function QueryError({
       {backLabel}
     </LinkButton>
   ) : undefined;
-  if (error.status === 404) return <EmptyState title="Not found" description={error.message} action={back} />;
-  if (error.status === 403) return <EmptyState title="You don't have access to this" description={error.message} action={back} />;
+  if (error.status === 404) return <EmptyState title="Not found" description={error.message} action={back} icon={<SearchX aria-hidden="true" />} />;
+  if (error.status === 403) {
+    return <EmptyState title="You don't have access to this" description={error.message} action={back} icon={<Lock aria-hidden="true" />} />;
+  }
   return (
     <Alert tone="danger" title={title}>
       <p>{error.message}</p>

@@ -1,28 +1,38 @@
 # Top Flow — customer mobile app
 
-The retail app for Top Flow, a UAE supplier of irrigation and flow-control products. Customers browse the catalog, keep a cart, check out with delivery and pay on delivery, then follow their orders. Built with Expo SDK 57 (Expo Router, React Native 0.86, React 19, TypeScript) against the Top Flow v2 API.
+The retail app for Top Flow, a UAE supplier of irrigation and flow-control products. Customers browse the catalog, keep a cart, check out with delivery and pay on delivery, then follow their orders. Built with Expo SDK 57 (Expo Router, React Native 0.86, React 19, TypeScript) against the Top Flow v2 API, with sign-in by Supabase Auth.
 
-Company (trade) ordering, quotations and approvals live in the web trade portal. Anyone can ask for a quote on the products in their cart from the app, with or without an account.
+Company (trade) ordering, quotations and approvals live in the web trade portal. Anyone can ask for a quote from the app, with or without an account: on the products in their cart, or as a project enquiry described in words.
 
 ## Run it
 
 1. Install the monorepo from the repository root: `npm install`.
 2. Build the shared contracts. Metro consumes the compiled output in `packages/shared/dist`:
    `npm run build -w @topflow/shared`
-3. Point the app at the API and the web app in `apps/mobile/.env`:
+3. Copy `apps/mobile/.env.example` to `apps/mobile/.env` and fill in your values:
    ```
    EXPO_PUBLIC_API_URL=http://192.168.1.20:3000
-   EXPO_PUBLIC_WEB_URL=https://web-tau-two-31.vercel.app
+   EXPO_PUBLIC_WEB_URL=https://your-web-app.example.com
+   EXPO_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+   EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your-key
    ```
-   `EXPO_PUBLIC_WEB_URL` is the origin of the Top Flow web app (trailing slashes are ignored). Product photos are served by the web app, not the API, and the catalogue stores most of them as site-relative paths such as `/catalog/products/y-type-disc-filter.webp`, so the app loads them from this origin (`src/lib/assets.ts`). Absolute `http(s)` image URLs are used as they are. Without the variable, products with relative image paths show a placeholder.
 
-   The API URL must be reachable **from the phone or emulator**, not just from your computer:
-   - Physical device: use your computer's LAN IP, with the device on the same network.
-   - Android emulator: `http://10.0.2.2:3000` reaches the host machine.
-   - Different network: expose the API through a tunnel (for example cloudflared or ngrok) and use the HTTPS URL.
+   | Variable | Purpose |
+   | --- | --- |
+   | `EXPO_PUBLIC_API_URL` | Origin of the Top Flow API. |
+   | `EXPO_PUBLIC_WEB_URL` | Origin of the Top Flow web app (trailing slashes are ignored). It serves product photos, and the `/auth/confirm` page that sign-up confirmation and password recovery emails open. |
+   | `EXPO_PUBLIC_SUPABASE_URL` | URL of the Supabase project that owns sign-in. For the local Supabase CLI stack, use `http://<your LAN IP>:54321`. |
+   | `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | The project's publishable key (Supabase dashboard > Project Settings > API Keys, or `supabase status` locally). Publishable keys are meant to ship in apps. |
 
-   `EXPO_PUBLIC_*` values are inlined at build time. Restart with `npx expo start --clear` after changing them, and never put secrets in them.
-4. Start Expo from `apps/mobile`: `npx expo start`, then open the app on a device, simulator or development build.
+   - The API and Supabase URLs must be reachable **from the phone or emulator**, not just from your computer:
+     - Physical device: use your computer's LAN IP, with the device on the same network.
+     - Android emulator: `10.0.2.2` reaches the host machine, for example `http://10.0.2.2:3000`.
+     - Different network: expose the service through a tunnel (for example cloudflared or ngrok) and use the HTTPS URL.
+   - Product photos: the catalogue stores most of them as site-relative paths such as `/catalog/products/y-type-disc-filter.webp`, so the app loads them from `EXPO_PUBLIC_WEB_URL` (`src/lib/assets.ts`). Absolute `http(s)` image URLs are used as they are. Without the variable, products with relative image paths show a placeholder.
+   - Auth emails: add `<EXPO_PUBLIC_WEB_URL>/auth/confirm` to the Supabase redirect allow-list (dashboard > Authentication > URL Configuration, or `additional_redirect_urls` in `supabase/config.toml`). Otherwise, or without `EXPO_PUBLIC_WEB_URL`, Supabase sends people to its Site URL instead.
+   - Without the two Supabase variables, browsing, the cart and quote requests still work. The app logs a setup error at startup, and the sign-in forms show what to set.
+   - `EXPO_PUBLIC_*` values are inlined at build time. Restart with `npx expo start --clear` after changing them, and never put secrets in them.
+4. Start Expo from `apps/mobile`: `npx expo start`, then open the app on a device, simulator or development build. `expo-crypto` and Expo UI (the date picker) are native modules included in Expo Go; rebuild existing development builds after pulling this change.
 
 Type-check from the repository root: `npx tsc --noEmit -p apps/mobile`.
 
@@ -38,28 +48,49 @@ _layout.tsx              Root Stack: theme, session bootstrap, splash screen
 │  ├─ orders/_layout.tsx Stack inside the Orders tab
 │  │  ├─ index.tsx       Order history
 │  │  └─ [id].tsx        Order detail, progress, timeline, cancellation
-│  └─ account.tsx        Profile, trade memberships, sign out
+│  └─ account.tsx        Profile, trade memberships, contact details, sign out
 ├─ product/[slug].tsx    Product detail, pushed over the tabs
-├─ quote-request.tsx     Modal: request a quote for the cart (no account needed)
-├─ login.tsx             Modal
-└─ register.tsx          Modal
+├─ quote-request.tsx     Modal: quote for the cart, or a project enquiry (no account needed)
+├─ login.tsx             Modal: sign in, or request a password reset link
+└─ register.tsx          Modal: create an account, then confirm the email address
 ```
 
 Route strings are built in `src/lib/routes.ts`. Typed routes are enabled, and `.expo/types/router.d.ts` is regenerated by `expo start`.
 
-### Sessions and secure token storage (`src/lib/session.ts`, `src/lib/api.ts`)
+### Authentication (`src/lib/supabase.ts`, `src/lib/session.ts`, `src/lib/http.ts`)
 
-- Auth calls send `x-client-platform: mobile`, so the API returns the refresh token in the response body instead of a browser cookie.
-- The **access token is kept in memory only**.
-- The **refresh token is stored with `expo-secure-store`** (iOS Keychain or Android Keystore; key `topflow.refresh`, `WHEN_UNLOCKED_THIS_DEVICE_ONLY`). SecureStore does not support web, so on web the token stays in memory and the session ends with the tab.
-- On launch, `bootstrapSession()` exchanges the stored refresh token for a new session. Refresh tokens rotate, and the new token is persisted before the session is used.
-- When the API rejects the token, the stored token is deleted and the user is signed out. When the API cannot be reached, the token is kept and the restore is retried when the app returns to the foreground.
-- `api(path, { auth: true })` adds the bearer token. On a 401 it refreshes once and replays the request. Concurrent callers share a single in-flight refresh.
-- Errors surface as `ApiError` (`status`, `message`, `details`) using the API's `{ statusCode, message, details }` body.
+Supabase Auth owns identities, passwords, sessions, email confirmation and password recovery. The API keeps authorization: it verifies `Authorization: Bearer <Supabase access token>` on every request, and its only auth endpoint, `GET /auth/me`, returns the Top Flow account (`AuthUser`). The API creates that account from the Supabase user metadata (`full_name`, `phone_number`) the first time it sees the user.
+
+**Client and storage.** `getSupabase()` returns the app's single Supabase client, created on first use with `autoRefreshToken`, `persistSession` and `detectSessionInUrl: false`. It throws a setup message when the Supabase variables are missing. The session (a few kilobytes) is stored encrypted, following the "LargeSecureStore" pattern from the Supabase docs:
+- Every write generates a fresh random 256-bit key with `expo-crypto` and encrypts the session with AES-CTR (`aes-js`).
+- The ciphertext goes to AsyncStorage. The key goes to SecureStore (iOS Keychain or Android Keystore, `WHEN_UNLOCKED_THIS_DEVICE_ONLY`), because SecureStore platforms may reject values over about 2 KB.
+- A backup restored to another device has no key and cannot decrypt the session, so the customer signs in again.
+- Decrypted values are cached in memory while the app runs.
+- SecureStore does not support web, so there the session stays in memory and ends with the tab.
+
+**Refresh.** Supabase refreshes the access token shortly before it expires, and rotates the refresh token. On iOS and Android its refresh timer runs only while the app is in the foreground: an `AppState` listener calls `startAutoRefresh()` and `stopAutoRefresh()`, as in the Supabase React Native guide. `getSession()` also refreshes an expiring token before an API call. Supabase requests time out after 20 seconds, like API calls.
+
+**Session store.** `bootstrapSession()` subscribes to `supabase.auth.onAuthStateChange` and loads `GET /auth/me` for each signed-in identity. `useSession()` exposes one of four states:
+- `loading`: restoring the saved session, or loading the account of a new sign-in.
+- `authenticated`: `user` is the Top Flow account.
+- `anonymous`: signed out. If the API refuses the account (403 `ACCOUNT_DISABLED`, 409 `ACCOUNT_CONFLICT`), the session is ended and `error` explains why.
+- `unavailable`: signed in, but the account could not be loaded (offline, or the API is down). The session is kept. Loading is retried when the app returns to the foreground, after a token refresh, or with **Try again**.
+
+**Flows.**
+- **Sign in:** `signInWithPassword`. The form closes once the account has loaded; if it cannot be loaded, the device is signed out again and the form shows why. An unconfirmed address gets a **Resend confirmation email** action.
+- **Create account:** `signUp` with `options.data = { full_name, phone_number }` and `emailRedirectTo: <EXPO_PUBLIC_WEB_URL>/auth/confirm?next=/account`. When email confirmation is on, sign-up returns no session and the app shows "Check your email to confirm your account", with a resend action. Supabase answers the same way for an address that is already registered.
+- **Forgot password:** `resetPasswordForEmail(email, { redirectTo: <EXPO_PUBLIC_WEB_URL>/auth/confirm?next=/account/security })`. The confirmation is the same whether or not an account exists; only a connection failure is reported. The new password is chosen on the web app.
+- **Sign out:** the app shows the customer as signed out straight away, then calls `supabase.auth.signOut()`, which uses Supabase's default global scope and ends the user's other sessions too. If Supabase cannot be reached, the stored session is still deleted from the device.
+
+**API calls.** `api(path, { auth: true })` sends the bearer token from `supabase.auth.getSession()` and fails with a 401 `ApiError` when signed out. `auth: 'optional'` sends it only when signed in; public quote requests use it.
+- On a 401, the request is replayed once if Supabase refreshed the token while it was in flight. Otherwise the app signs out on this device, and an optional-auth request is retried without a token.
+- Errors surface as `ApiError` (`status`, `message`, `code`, `details`), read from the API's `ApiErrorBody`.
+
+**Upgrading from the previous auth.** Earlier versions kept a refresh token from the retired `/auth/*` endpoints under the SecureStore key `topflow.refresh`. It is deleted at startup, and those customers sign in again once.
 
 ### Shared contracts (`@topflow/shared`)
 
-DTO types, enum labels, the order workflow (`ORDER_PROGRESS`), money helpers and Zod schemas all come from `packages/shared`, so the app stays in lockstep with the API and the web app. Forms validate with the same schemas the API uses (`loginSchema`, `registerSchema`, `addressSchema`, `cancelOrderSchema`, `createWebsiteQuoteRequestSchema`).
+DTO types, enum labels, the order workflow (`ORDER_PROGRESS`), money helpers, error codes and Zod schemas all come from `packages/shared`, so the app stays in lockstep with the API and the web app. Forms validate with the same schemas the API uses: `loginSchema`, `registerSchema`, `forgotPasswordSchema`, `addressSchema`, `cancelOrderSchema` and `createWebsiteQuoteRequestSchema`.
 
 ### Cart and server-side pricing (`src/lib/cart.ts`)
 
@@ -68,11 +99,40 @@ DTO types, enum labels, the order workflow (`ORDER_PROGRESS`), money helpers and
 - These totals are **only a preview**. Checkout sends product IDs, quantities, the address ID and the payment method, and the API re-prices every line, delivery and VAT.
 - Stock (409) and minimum-order or availability (422) problems come back as API messages and are shown to the customer.
 
-### Price ranges and quote requests (`src/components/product-price.tsx`, `src/app/quote-request.tsx`)
+### Prices and quote requests (`src/components/product-price.tsx`, `src/app/quote-request.tsx`)
 
-- When a product has a catalogue `priceRange`, product cards and the product page lead with the approximate VAT-inclusive range ("AED 12.00 – 15.00", *Approx. price incl. VAT*), then the online price charged at checkout (`retailPrice`) and an invitation to request a quote. Products without a range show the online price only.
-- **Request a quote** is offered on the Cart tab and on the product page, which first adds the product at its minimum order quantity when it is not in the cart yet. The modal summarises the cart; collects name, email, phone, and optionally company, emirate and notes (prefilled from the signed-in account); validates with `createWebsiteQuoteRequestSchema`; and posts to the public `POST /quote-requests` endpoint. The confirmation shows the reference number, and the cart is only cleared if the customer chooses to.
+**Prices.** Consumer prices match the web storefront.
+- With a catalogue `priceRange`, product cards and the product page show:
+  - the label **Approx. price**
+  - the VAT-inclusive range, for example "≈ AED 22.05 – 30.45" (a single amount when both ends match)
+  - the unit, for example "per pc · incl. VAT" (from `UOM_LABELS`)
+  - the note "Request a quote for your best price"
+- The product page also lists the online price charged at checkout (`retailPrice`).
+- Products without a range show the online price, for example "per pc · incl. VAT".
+
+**Quote requests.** Offered from three places:
+- the Cart tab
+- the product page, which first adds the product at its minimum order quantity
+- the empty cart (**Request a project quote**)
+
+The form has two modes:
+- **Basket:** the cart's products, each with an optional note of up to 300 characters.
+- **Project enquiry** (empty basket): no products, and a description of what is needed of at least `PROJECT_ENQUIRY_MIN_LENGTH` (20) characters.
+
+Both modes collect:
+- name, email and phone, prefilled from the signed-in account
+- optional company
+- preferred contact: a segmented choice of phone call, WhatsApp or email
+- project reference
+- required-by date: Expo UI's native calendar, which cannot pick a past date; web gets a `YYYY-MM-DD` field
+- emirate and notes
+
+The form validates with `createWebsiteQuoteRequestSchema` and posts to the public `POST /quote-requests`, with the access token when signed in. The confirmation shows the reference number, and the cart is only cleared if the customer chooses to.
+
+**Contact details.** `src/constants/company.ts` mirrors `apps/web/lib/company.ts`: phone +971 56 109 1235, WhatsApp (wa.me/971561091235) and info@topflow.ae. There is no street address yet, so the app says "Serving all seven Emirates". The details appear on the Account tab, the quote request form and its confirmation.
 
 ### UI
 
-Brand tokens live in `src/constants/theme.ts` and follow topflow.ae: a warm cream canvas, white surfaces, a deep green accent (`#014D41`) and green-black text, with text and button colours at WCAG AA contrast. The token names (`navy`, `blue`, `blueInk`, `blueTint`) predate the green palette and are kept so imports stay stable. Product photos are shown whole (`contentFit="contain"`) on white. Shared primitives are in `src/components/ui`: button, text field, badge, card, quantity stepper, and loading/empty/error states. Only React Native, Expo and safe-area APIs are used, with no third-party UI kit. Touch targets are at least 44 pt and icon-only buttons carry accessibility labels.
+Brand tokens live in `src/constants/theme.ts` and follow topflow.ae: a warm cream canvas, white surfaces, a deep green accent (`#014D41`) and green-black text, with text and button colours at WCAG AA contrast. The token names (`navy`, `blue`, `blueInk`, `blueTint`) predate the green palette and are kept so imports stay stable. Product photos are shown whole (`contentFit="contain"`) on white.
+
+Shared primitives are in `src/components/ui`: button, text field, segmented control, badge, card, confirmation card, quantity stepper, and loading/empty/error states. Only React Native, Expo (including Expo UI's date picker) and safe-area APIs are used, with no third-party UI kit. Touch targets are at least 44 pt and icon-only buttons carry accessibility labels.

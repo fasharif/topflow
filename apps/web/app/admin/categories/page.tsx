@@ -1,6 +1,7 @@
 'use client';
 
 import { Permission, type CategoryDto } from '@topflow/shared';
+import { CornerDownRight, FolderTree } from 'lucide-react';
 import { useState } from 'react';
 import { RequirePermission, useCan } from '@/components/admin-catalog/access';
 import { CategoryForm } from '@/components/admin-catalog/category-form';
@@ -64,7 +65,7 @@ function CategoriesManager() {
       >
         <Td className="min-w-56">
           <div className="flex items-start gap-2" style={depth > 1 ? { paddingLeft: `${(depth - 1) * 1.25}rem` } : undefined}>
-            {depth > 0 && <span aria-hidden="true" className="mt-0.5 ml-1.5 h-2 w-3 shrink-0 rounded-bl-sm border-b border-l border-slate-300" />}
+            {depth > 0 && <CornerDownRight aria-hidden="true" className="mt-0.5 ml-1 size-4 shrink-0 text-slate-400" />}
             <div className="min-w-0">
               <p className={cx('text-ink-900', depth === 0 ? 'font-semibold' : 'font-medium')}>
                 {category.name}
@@ -90,19 +91,18 @@ function CategoriesManager() {
             </Button>
             {canDelete && (
               <ConfirmButton
-                variant="ghost"
-                className="text-red-600! hover:bg-red-50! hover:text-red-700!"
+                variant="danger-ghost"
                 title={`Delete “${category.name}”?`}
                 description={
                   <>
                     {lines > 0 ? (
                       <p>
                         Its {pluralize(lines, 'product line')} will move to the top level with their products. Products filed directly under this
-                        category stay in the catalog but become uncategorised.
+                        category stay in the catalogue but become uncategorised.
                       </p>
                     ) : (
                       <p>
-                        Products in this category stay in the catalog but become uncategorised
+                        Products in this category stay in the catalogue but become uncategorised
                         {products > 0 ? ` (it has ${pluralize(products, 'published product')})` : ''}.
                       </p>
                     )}
@@ -128,10 +128,14 @@ function CategoriesManager() {
         {error && <LoadError title="We couldn't refresh categories" error={error} onRetry={reload} />}
 
         {data.length === 0 ? (
-          <EmptyState title="No categories yet" description="Create the first category with the form. Products can then be assigned to it." />
+          <EmptyState
+            icon={<FolderTree aria-hidden="true" />}
+            title="No categories yet"
+            description="Create the first category with the form. Products can then be assigned to it."
+          />
         ) : (
           <>
-            <div className="flex items-center gap-2 text-sm text-slate-500" aria-live="polite">
+            <div className="flex items-center gap-2 text-sm text-slate-600" aria-live="polite">
               {pluralize(groups.length, 'category', 'categories')} · {pluralize(lineTotal, 'product line')}
               {loading && <Spinner className="size-4 text-brand-600" />}
             </div>
@@ -163,7 +167,7 @@ function CategoriesManager() {
         )}
       </div>
 
-      <div className="lg:sticky lg:top-6">
+      <div className="lg:sticky lg:top-30">
         <CategoryForm
           key={editing ? `edit-${editing.id}` : `new-${createdCount}`}
           category={editing}

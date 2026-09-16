@@ -13,11 +13,12 @@ import {
   type Paginated,
   type RfqDto,
 } from '@topflow/shared';
+import { Banknote, Boxes, Building, ClipboardList, Hourglass, LayoutDashboard, Package, RefreshCw, Send } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { ChannelBadge, QueryError } from '@/components/admin/detail';
 import { OrderStatusBadge, PaymentStatusBadge } from '@/components/status-badge';
-import { Badge, Button, Card, CardHeader, EmptyState, LinkButton, LoadingBlock, PageHeader, Stat, Table, Td, Th, cx } from '@/components/ui';
+import { ArrowLink, Badge, Button, Card, CardHeader, EmptyState, LinkButton, LoadingBlock, PageHeader, Stat, Table, Td, Th, cx } from '@/components/ui';
 import { aed, formatDate, pluralize } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { useApiQuery } from '@/lib/use-api';
@@ -27,18 +28,18 @@ const RFQ_STATUSES = enumValues(RfqStatus);
 const WEBSITE_RFQS_HREF = `/admin/rfqs?source=${RfqSource.WEBSITE}`;
 
 const ORDER_BAR_COLORS: Record<OrderStatus, string> = {
-  PENDING_PAYMENT: 'bg-amber-400',
+  PENDING_PAYMENT: 'bg-warning-500',
   CONFIRMED: 'bg-brand-500',
-  PROCESSING: 'bg-sky-400',
-  DISPATCHED: 'bg-indigo-400',
-  DELIVERED: 'bg-emerald-500',
+  PROCESSING: 'bg-flow-400',
+  DISPATCHED: 'bg-flow-600',
+  DELIVERED: 'bg-success-500',
   CANCELLED: 'bg-slate-300',
 };
 
 const RFQ_BAR_COLORS: Record<RfqStatus, string> = {
   SUBMITTED: 'bg-brand-500',
-  IN_REVIEW: 'bg-sky-400',
-  QUOTED: 'bg-emerald-500',
+  IN_REVIEW: 'bg-flow-400',
+  QUOTED: 'bg-success-500',
   CLOSED: 'bg-slate-400',
   CANCELLED: 'bg-slate-300',
 };
@@ -83,20 +84,12 @@ function StatusBars<S extends string>({
   );
 }
 
-function StatLink({ href, children }: { href: string; children: ReactNode }) {
+function SectionTitle({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
   return (
-    <Link href={href} className="font-medium text-brand-700 hover:underline">
-      {children}
-    </Link>
-  );
-}
-
-function SectionHeading({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
-  return (
-    <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+    <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h2 className="text-base font-semibold text-ink-900">{title}</h2>
-        {description && <p className="text-sm text-slate-500">{description}</p>}
+        <h2 className="heading-3 text-ink-900">{title}</h2>
+        {description && <p className="mt-0.5 text-sm text-slate-600">{description}</p>}
       </div>
       {action}
     </div>
@@ -126,34 +119,49 @@ function Dashboard({
   return (
     <div className="space-y-8">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <Stat label="Revenue · last 30 days" value={aed(stats.revenueLast30Days)} hint="Order totals incl. VAT, excluding cancellations" tone="brand" />
-        <Stat label="Orders · last 30 days" value={stats.ordersLast30Days} hint={canOrders ? <StatLink href="/admin/orders">View all orders →</StatLink> : 'Retail and trade'} />
+        <Stat
+          label="Revenue · last 30 days"
+          value={aed(stats.revenueLast30Days)}
+          hint="Order totals incl. VAT, excluding cancellations"
+          tone="brand"
+          icon={<Banknote aria-hidden="true" />}
+        />
+        <Stat
+          label="Orders · last 30 days"
+          value={stats.ordersLast30Days}
+          hint={canOrders ? <ArrowLink href="/admin/orders">View all orders</ArrowLink> : 'Retail and trade'}
+          icon={<Package aria-hidden="true" />}
+        />
         <Stat
           label="Open RFQs"
           value={openRfqs}
-          hint={canRfqs ? <StatLink href="/admin/rfqs?status=SUBMITTED">New requests →</StatLink> : 'Submitted or in review, from the trade portal and website'}
+          hint={canRfqs ? <ArrowLink href="/admin/rfqs?status=SUBMITTED">New requests</ArrowLink> : 'Submitted or in review, from the trade portal and website'}
+          icon={<ClipboardList aria-hidden="true" />}
         />
         <Stat
           label="Quotations awaiting response"
           value={stats.quotationsAwaitingResponse}
-          hint={canQuotations ? <StatLink href="/admin/quotations?status=SENT">Sent to customers →</StatLink> : 'Sent to customers'}
+          hint={canQuotations ? <ArrowLink href="/admin/quotations?status=SENT">Sent to customers</ArrowLink> : 'Sent to customers'}
+          icon={<Send aria-hidden="true" />}
         />
         <Stat
           label="Pending customer approval"
           value={stats.quotationsPendingApproval}
           hint={
             canQuotations ? (
-              <StatLink href="/admin/quotations?status=PENDING_APPROVAL">Waiting on the buyer’s approver →</StatLink>
+              <ArrowLink href="/admin/quotations?status=PENDING_APPROVAL">Waiting on the buyer’s approver</ArrowLink>
             ) : (
               'Waiting on the buyer’s approver'
             )
           }
+          icon={<Hourglass aria-hidden="true" />}
         />
         <Stat
           label="Organizations to verify"
           value={stats.pendingOrganizations}
           tone={stats.pendingOrganizations > 0 ? 'warning' : 'neutral'}
-          hint={canOrganizations ? <StatLink href="/admin/organizations">Review trade accounts →</StatLink> : 'Trade accounts pending verification'}
+          hint={canOrganizations ? <ArrowLink href="/admin/organizations">Review trade accounts</ArrowLink> : 'Trade accounts pending verification'}
+          icon={<Building aria-hidden="true" />}
         />
       </div>
 
@@ -182,7 +190,7 @@ function Dashboard({
             />
           </div>
           {canRfqs && (
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-slate-100 px-5 py-3 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-slate-200 px-5 py-3 text-sm">
               <span className="text-slate-600">
                 Website enquiries
                 {newWebsiteRfqs !== null && (
@@ -194,14 +202,14 @@ function Dashboard({
                   </>
                 )}
               </span>
-              <StatLink href={WEBSITE_RFQS_HREF}>View website requests →</StatLink>
+              <ArrowLink href={WEBSITE_RFQS_HREF}>View website requests</ArrowLink>
             </div>
           )}
         </Card>
       </div>
 
       <section>
-        <SectionHeading
+        <SectionTitle
           title="Recent orders"
           description="The latest orders across all channels."
           action={
@@ -213,7 +221,7 @@ function Dashboard({
           }
         />
         {stats.recentOrders.length === 0 ? (
-          <EmptyState title="No orders yet" description="Orders placed online or accepted from quotations appear here." />
+          <EmptyState title="No orders yet" description="Orders placed online or accepted from quotations appear here." icon={<Package aria-hidden="true" />} />
         ) : (
           <Table>
             <thead>
@@ -261,7 +269,7 @@ function Dashboard({
       </section>
 
       <section>
-        <SectionHeading
+        <SectionTitle
           title="Low stock"
           description="Active products at or below their reorder threshold."
           action={
@@ -273,7 +281,7 @@ function Dashboard({
           }
         />
         {stats.lowStockProducts.length === 0 ? (
-          <EmptyState title="Stock levels look healthy" description="Every active product is above its reorder threshold." />
+          <EmptyState title="Stock levels look healthy" description="Every active product is above its reorder threshold." icon={<Boxes aria-hidden="true" />} />
         ) : (
           <Table>
             <thead>
@@ -291,8 +299,8 @@ function Dashboard({
                   <Td className="font-mono text-xs text-slate-500">{product.sku}</Td>
                   <Td className="font-medium text-ink-900">{product.name}</Td>
                   <Td className="whitespace-nowrap text-right tabular-nums">
-                    <span className={cx('font-semibold', product.stockQuantity === 0 ? 'text-red-700' : 'text-amber-700')}>{product.stockQuantity}</span>
-                    <span className="text-slate-400"> / {product.lowStockThreshold}</span>
+                    <span className={cx('font-semibold', product.stockQuantity === 0 ? 'text-danger-700' : 'text-warning-700')}>{product.stockQuantity}</span>
+                    <span className="text-slate-500"> / {product.lowStockThreshold}</span>
                   </Td>
                   <Td>{product.stockQuantity === 0 ? <Badge tone="danger">Out of stock</Badge> : <Badge tone="warning">Low</Badge>}</Td>
                   {canCatalog && (
@@ -328,7 +336,11 @@ export default function AdminDashboardPage() {
     return (
       <>
         <PageHeader eyebrow="Back office" title={firstName ? `Welcome, ${firstName}` : 'Welcome'} />
-        <EmptyState title="Welcome to the Top Flow back office" description="Use the navigation to open the areas your role has access to." />
+        <EmptyState
+          title="Welcome to the Top Flow back office"
+          description="Use the navigation to open the areas your role has access to."
+          icon={<LayoutDashboard aria-hidden="true" />}
+        />
       </>
     );
   }
@@ -347,6 +359,7 @@ export default function AdminDashboardPage() {
         actions={
           data ? (
             <Button variant="secondary" size="sm" loading={loading} onClick={refresh}>
+              {!loading && <RefreshCw aria-hidden="true" />}
               Refresh
             </Button>
           ) : undefined

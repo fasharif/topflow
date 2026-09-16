@@ -9,6 +9,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
+import { AccountUnavailable } from '@/components/account-unavailable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState, ErrorState, InlineError, LoadingState } from '@/components/ui/states';
@@ -29,6 +30,7 @@ export default function OrdersScreen() {
   const session = useSession();
 
   if (session.status === 'loading') return <LoadingState />;
+  if (session.status === 'unavailable') return <AccountUnavailable message={session.error} />;
   if (!session.user) {
     return (
       <EmptyState

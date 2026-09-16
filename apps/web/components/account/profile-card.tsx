@@ -4,6 +4,7 @@ import { updateProfileSchema, type AuthUser } from '@topflow/shared';
 import { useState, type FormEvent } from 'react';
 import { Alert, Badge, Button, Card, CardHeader, Field, Input } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
+import { resendConfirmation } from '@/lib/auth/actions';
 import { apiFieldErrors, zodFieldErrors, type FieldErrors } from '@/lib/forms';
 import { updateUser } from '@/lib/session';
 
@@ -104,10 +105,15 @@ export function EmailVerificationNotice({ email }: { email: string }) {
     setStatus('sending');
     setError(null);
     try {
-      await api<void>('/auth/email/verification', { method: 'POST' });
-      setStatus('sent');
-    } catch (err) {
-      setError(errorMessage(err));
+      const result = await resendConfirmation({ email });
+      if (result.ok) {
+        setStatus('sent');
+      } else {
+        setError(result.error);
+        setStatus('idle');
+      }
+    } catch {
+      setError('We could not send the email. Please try again.');
       setStatus('idle');
     }
   };
@@ -115,18 +121,18 @@ export function EmailVerificationNotice({ email }: { email: string }) {
   return (
     <Alert tone="warning" title="Please confirm your email address">
       <p>
-        We sent a verification link to <span className="font-medium">{email}</span>. Confirming it keeps your account secure and makes sure order
+        We sent a confirmation link to <span className="font-medium">{email}</span>. Confirming it keeps your account secure and makes sure order
         updates reach you.
       </p>
       {status === 'sent' ? (
         <p className="mt-3 font-medium">A new link is on its way — check your inbox and spam folder.</p>
       ) : (
         <Button variant="secondary" size="sm" className="mt-3" loading={status === 'sending'} onClick={resend}>
-          Resend verification email
+          Resend confirmation email
         </Button>
       )}
       {error && (
-        <p className="mt-2 text-red-700" role="alert">
+        <p className="mt-2 text-danger-700" role="alert">
           {error}
         </p>
       )}

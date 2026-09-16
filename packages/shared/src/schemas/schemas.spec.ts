@@ -1,10 +1,20 @@
 import { OrgRole, UnitOfMeasure } from '../enums';
-import { registerBusinessSchema, loginSchema, changePasswordSchema } from './auth';
+import {
+  changePasswordSchema,
+  loginSchema,
+  newPasswordSchema,
+  registerBusinessSchema,
+  signUpMetadataSchema,
+} from './auth';
 import { createProductSchema, productQuerySchema, updateProductSchema } from './catalog';
 import { moneySchema, optionalText } from './common';
 import { checkoutSchema } from './orders';
-import { inviteMemberSchema } from './organizations';
-import { createQuotationSchema, respondQuotationSchema } from './procurement';
+import { acceptInvitationSchema, inviteMemberSchema } from './organizations';
+import {
+  createQuotationSchema,
+  createWebsiteQuoteRequestSchema,
+  respondQuotationSchema,
+} from './procurement';
 
 const PRODUCT_ID = '3f0c8a52-7f7e-4d9a-9a52-0c2b5d3f1a11';
 
@@ -33,6 +43,29 @@ describe('request schemas', () => {
   it('rejects reusing the current password', () => {
     const result = changePasswordSchema.safeParse({ currentPassword: 'Irrigate2026', newPassword: 'Irrigate2026' });
     expect(result.success).toBe(false);
+  });
+
+  it('requires the new password to be typed twice identically', () => {
+    expect(newPasswordSchema.safeParse({ password: 'Irrigate2026', confirmPassword: 'Irrigate2027' }).success).toBe(
+      false,
+    );
+    expect(newPasswordSchema.safeParse({ password: 'Irrigate2026', confirmPassword: 'Irrigate2026' }).success).toBe(
+      true,
+    );
+  });
+
+  it('reads the profile stored as Supabase user metadata at sign-up', () => {
+    const metadata = signUpMetadataSchema.parse({
+      full_name: 'Jane Doe',
+      organization: { name: 'Oasis Landscaping', type: 'LANDSCAPING', tradeLicenseNumber: 'DED-1234' },
+    });
+    expect(metadata).toMatchObject({ full_name: 'Jane Doe', organization: { name: 'Oasis Landscaping' } });
+  });
+
+  it('only needs the token to accept an invitation', () => {
+    expect(acceptInvitationSchema.parse({ token: 'x'.repeat(43), password: 'ignored' })).toEqual({
+      token: 'x'.repeat(43),
+    });
   });
 
   it('normalises money input to two decimals and rejects negatives', () => {
@@ -66,6 +99,23 @@ describe('request schemas', () => {
     expect(checkoutSchema.safeParse(base).success).toBe(false);
     const parsed = checkoutSchema.parse({ ...base, addressId: PRODUCT_ID });
     expect(parsed.items[0]).toEqual({ productId: PRODUCT_ID, quantity: 2 });
+  });
+
+  it('accepts a website project enquiry without products only when it is described', () => {
+    const visitor = { name: 'Jane Doe', email: 'jane@oasis.ae', phone: '+971 50 123 4567' };
+    expect(createWebsiteQuoteRequestSchema.safeParse({ ...visitor, notes: 'Too short' }).success).toBe(false);
+    const enquiry = createWebsiteQuoteRequestSchema.parse({
+      ...visitor,
+      notes: 'Drip irrigation for a 2,000 m² villa garden in Al Barsha',
+      preferredContact: 'WHATSAPP',
+      requiredBy: '2026-10-01',
+    });
+    expect(enquiry).toMatchObject({ items: [], preferredContact: 'WHATSAPP', requiredBy: '2026-10-01' });
+    const basket = createWebsiteQuoteRequestSchema.parse({
+      ...visitor,
+      items: [{ productId: PRODUCT_ID, quantity: 12, notes: 'Hunter or equivalent' }],
+    });
+    expect(basket.items[0]).toEqual({ productId: PRODUCT_ID, quantity: 12, notes: 'Hunter or equivalent' });
   });
 
   it('links quotations to an RFQ or a customer', () => {

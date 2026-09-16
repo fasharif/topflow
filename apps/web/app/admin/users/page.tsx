@@ -63,10 +63,10 @@ function UsersList() {
     setNotice(null);
     if (change.kind === 'role') {
       const updated = await save(change.user, { role: change.role });
-      setNotice(`${updated.fullName} is now ${ROLE_LABELS[updated.role]}. They have been signed out and must sign in again.`);
+      setNotice(`${updated.fullName} is now ${ROLE_LABELS[updated.role]}. The new permissions apply immediately.`);
     } else {
       const updated = await save(change.user, { isActive: false });
-      setNotice(`${updated.fullName}'s account is deactivated and signed out on every device.`);
+      setNotice(`${updated.fullName}'s account is suspended and can no longer sign in.`);
     }
   };
 
@@ -177,15 +177,21 @@ function UsersList() {
                           label={`Account active: ${user.fullName}`}
                           onChange={(checked) => (checked ? reactivate(user) : setPending({ user, kind: 'deactivate' }))}
                         />
-                        <span className={cx('text-xs', user.isActive ? 'text-emerald-700' : 'text-slate-500')}>{user.isActive ? 'Active' : 'Deactivated'}</span>
+                        <span className={cx('text-xs', user.isActive ? 'text-success-700' : 'text-slate-500')}>{user.isActive ? 'Active' : 'Suspended'}</span>
                       </div>
                     </Td>
                     <Td className="whitespace-nowrap">
-                      {user.emailVerified ? <Badge tone="success">Verified</Badge> : <Badge tone="warning">Not verified</Badge>}
+                      {user.emailVerified ? (
+                        <Badge tone="success">Verified</Badge>
+                      ) : user.lastLoginAt ? (
+                        <Badge tone="warning">Not verified</Badge>
+                      ) : (
+                        <Badge tone="info">Invitation sent</Badge>
+                      )}
                     </Td>
                     <Td className="min-w-48">
                       {user.organizations.length === 0 ? (
-                        <span className="text-slate-400">—</span>
+                        <span className="text-slate-500">—</span>
                       ) : (
                         <ul className="space-y-0.5">
                           {user.organizations.map((org) => (
@@ -199,7 +205,7 @@ function UsersList() {
                         </ul>
                       )}
                     </Td>
-                    <Td className="whitespace-nowrap text-slate-600">{user.lastLoginAt ? formatDateTime(user.lastLoginAt) : <span className="text-slate-400">Never</span>}</Td>
+                    <Td className="whitespace-nowrap text-slate-600">{user.lastLoginAt ? formatDateTime(user.lastLoginAt) : <span className="text-slate-500">Never</span>}</Td>
                     <Td className="whitespace-nowrap text-slate-600">{formatDate(user.createdAt)}</Td>
                   </tr>
                 );
@@ -217,7 +223,7 @@ function UsersList() {
       <PageHeader
         eyebrow="Administration"
         title="Users"
-        description="Customer and staff accounts. Role changes and deactivation sign the person out of every device."
+        description="Customer and staff accounts. Role changes apply immediately; suspending an account blocks sign-in everywhere."
         actions={
           !creating && (
             <Button
@@ -226,7 +232,7 @@ function UsersList() {
                 setCreating(true);
               }}
             >
-              Create staff account
+              Invite staff member
             </Button>
           )
         }
@@ -238,7 +244,7 @@ function UsersList() {
             onCancel={() => setCreating(false)}
             onCreated={(user) => {
               setCreating(false);
-              setNotice(`Staff account created for ${user.fullName} (${ROLE_LABELS[user.role]}). Share the temporary password with them securely.`);
+              setNotice(`Invitation sent to ${user.email}. ${user.fullName} joins as ${ROLE_LABELS[user.role]} once they accept it.`);
               reload();
             }}
           />
@@ -278,7 +284,7 @@ function UsersList() {
 
       {pending && (
         <ConfirmDialog
-          title={pending.kind === 'role' ? `Change ${pending.user.fullName}'s role?` : `Deactivate ${pending.user.fullName}?`}
+          title={pending.kind === 'role' ? `Change ${pending.user.fullName}'s role?` : `Suspend ${pending.user.fullName}?`}
           description={
             pending.kind === 'role' ? (
               <>
@@ -286,18 +292,18 @@ function UsersList() {
                   From <strong className="text-ink-900">{ROLE_LABELS[pending.user.role]}</strong> to{' '}
                   <strong className="text-ink-900">{ROLE_LABELS[pending.role]}</strong>. {roleSummary(pending.role)}
                 </p>
-                <p>They will be signed out of every device and need to sign in again.</p>
+                <p>The new permissions apply to their next action, on every device.</p>
               </>
             ) : (
               <>
-                <p>They will be signed out of every device and can&apos;t sign in until the account is reactivated.</p>
+                <p>They lose access immediately and can&apos;t sign in until the account is reactivated.</p>
                 {pending.user.organizations.length > 0 && (
                   <p>Their organization memberships are kept ({pending.user.organizations.map((org) => org.name).join(', ')}).</p>
                 )}
               </>
             )
           }
-          confirmLabel={pending.kind === 'role' ? 'Change role' : 'Deactivate account'}
+          confirmLabel={pending.kind === 'role' ? 'Change role' : 'Suspend account'}
           tone={pending.kind === 'role' && pending.role !== Role.ADMIN ? 'primary' : 'danger'}
           onConfirm={() => confirmPending(pending)}
           onClose={() => setPending(null)}

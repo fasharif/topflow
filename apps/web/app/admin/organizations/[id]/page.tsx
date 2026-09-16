@@ -10,7 +10,7 @@ import {
   type MemberDto,
   type OrganizationDto,
 } from '@topflow/shared';
-import Link from 'next/link';
+import { BadgePercent, Building, CalendarClock, Users, Wallet } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 import { RequirePermission } from '@/components/admin-catalog/access';
@@ -19,7 +19,7 @@ import { formatPercent } from '@/components/admin-catalog/helpers';
 import { LoadError } from '@/components/admin-catalog/list-controls';
 import { OrganizationReviewForm } from '@/components/admin-catalog/organization-review-form';
 import { OrgStatusBadge } from '@/components/status-badge';
-import { Alert, Button, Card, CardHeader, EmptyState, LinkButton, LoadingBlock, PageHeader, Stat, Table, Td, Th, cx } from '@/components/ui';
+import { Alert, BackLink, Button, Card, CardHeader, EmptyState, LinkButton, LoadingBlock, PageHeader, Stat, Table, Td, Th, cx } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { aed, formatDate, formatDateTime, pluralize } from '@/lib/format';
 import { useApiQuery } from '@/lib/use-api';
@@ -30,7 +30,7 @@ interface OrganizationDetail {
 }
 
 function DetailRow({ label, value, mono, href }: { label: string; value: string | null; mono?: boolean; href?: string }) {
-  let content: ReactNode = <span className="text-slate-400">Not provided</span>;
+  let content: ReactNode = <span className="text-slate-500">Not provided</span>;
   if (value) {
     content = href ? (
       <a href={href} className="text-brand-700 hover:underline">
@@ -42,7 +42,7 @@ function DetailRow({ label, value, mono, href }: { label: string; value: string 
   }
   return (
     <div className="px-5 py-3 sm:grid sm:grid-cols-3 sm:gap-4">
-      <dt className="text-sm text-slate-500">{label}</dt>
+      <dt className="text-sm text-slate-600">{label}</dt>
       <dd className={cx('mt-1 text-sm break-words text-ink-900 sm:col-span-2 sm:mt-0', mono && value && 'font-mono')}>{content}</dd>
     </div>
   );
@@ -62,6 +62,7 @@ function OrganizationDetailView({ id }: { id: string }) {
     if (error && (error.status === 404 || error.status === 400)) {
       return (
         <EmptyState
+          icon={<Building aria-hidden="true" />}
           title="Organization not found"
           description="It may have been removed, or the link is incorrect."
           action={<LinkButton href="/admin/organizations">Back to organizations</LinkButton>}
@@ -109,12 +110,8 @@ function OrganizationDetailView({ id }: { id: string }) {
 
   return (
     <div aria-busy={loading}>
+      <BackLink href="/admin/organizations">Organizations</BackLink>
       <PageHeader
-        eyebrow={
-          <Link href="/admin/organizations" className="hover:underline">
-            ← Organizations
-          </Link>
-        }
         title={organization.name}
         description={
           <span className="flex flex-wrap items-center gap-2">
@@ -172,17 +169,17 @@ function OrganizationDetailView({ id }: { id: string }) {
       </div>
 
       <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Stat label="Payment terms" value={PAYMENT_TERMS_LABELS[organization.paymentTerms]} />
-        <Stat label="Credit limit" value={aed(organization.creditLimit)} />
-        <Stat label="Trade discount" value={formatPercent(organization.discountRate)} hint="off list prices" />
-        <Stat label="Members" value={members.length} />
+        <Stat label="Payment terms" value={PAYMENT_TERMS_LABELS[organization.paymentTerms]} icon={<CalendarClock aria-hidden="true" />} />
+        <Stat label="Credit limit" value={aed(organization.creditLimit)} icon={<Wallet aria-hidden="true" />} />
+        <Stat label="Trade discount" value={formatPercent(organization.discountRate)} hint="off list prices" icon={<BadgePercent aria-hidden="true" />} />
+        <Stat label="Members" value={members.length} icon={<Users aria-hidden="true" />} />
       </div>
 
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
         <div className="min-w-0 space-y-6">
           <Card>
             <CardHeader title="Company details" description="As submitted by the organization owner." />
-            <dl className="divide-y divide-slate-100">
+            <dl className="divide-y divide-slate-200">
               <DetailRow label="Trading name" value={organization.name} />
               <DetailRow label="Legal name" value={organization.legalName} />
               <DetailRow label="Business type" value={ORG_TYPE_LABELS[organization.type]} />
@@ -195,11 +192,11 @@ function OrganizationDetailView({ id }: { id: string }) {
           </Card>
 
           <section aria-labelledby="members-heading">
-            <div className="mb-3 flex items-baseline justify-between gap-3">
-              <h2 id="members-heading" className="text-base font-semibold text-ink-900">
+            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <h2 id="members-heading" className="heading-4 text-ink-900">
                 Members
               </h2>
-              <p className="text-sm text-slate-500">Approval limits are managed by the organization&apos;s owners.</p>
+              <p className="text-sm text-slate-600">Approval limits are managed by the organization&apos;s owners.</p>
             </div>
             {members.length === 0 ? (
               <EmptyState title="No members" description="Nobody has joined this organization yet." />
@@ -236,7 +233,7 @@ function OrganizationDetailView({ id }: { id: string }) {
           </section>
         </div>
 
-        <div className="lg:sticky lg:top-6">
+        <div className="lg:sticky lg:top-30">
           <OrganizationReviewForm key={reviewKey} organization={organization} onSaved={onReviewSaved} />
         </div>
       </div>

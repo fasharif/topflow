@@ -1,4 +1,5 @@
 import { ORDER_PROGRESS, ORDER_STATUS_LABELS, OrderStatus, type OrderDto, type OrderEventDto } from '@topflow/shared';
+import { Check } from 'lucide-react';
 import { cx } from '@/components/ui';
 import { formatDateTime } from '@/lib/format';
 
@@ -28,26 +29,20 @@ export function OrderProgress({ order }: { order: Pick<OrderDto, 'status' | 'eve
             {index > 0 && (
               <span
                 aria-hidden="true"
-                className={cx('absolute right-1/2 top-3.5 hidden h-0.5 w-full sm:block', index <= currentIndex ? 'bg-brand-600' : 'bg-slate-200')}
+                className={cx('absolute right-1/2 top-3.5 hidden h-0.5 w-full sm:block', index <= currentIndex ? 'bg-brand-600' : 'bg-slate-300')}
               />
             )}
             <span
               className={cx(
-                'relative grid size-7 shrink-0 place-items-center rounded-full text-xs font-semibold',
-                done ? 'bg-brand-600 text-white' : 'border-2 border-slate-200 bg-white text-slate-400',
+                'relative grid size-7 shrink-0 place-items-center rounded-full text-xs font-semibold tabular-nums',
+                done ? 'bg-brand-600 text-white' : 'border-2 border-slate-300 bg-white text-slate-500',
                 current && 'ring-4 ring-brand-100',
               )}
             >
-              {done ? (
-                <svg viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
-                  <path d="M5 10.5l3 3 7-7" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              ) : (
-                index + 1
-              )}
+              {done ? <Check aria-hidden="true" className="size-4" /> : index + 1}
             </span>
             <span className="sm:mt-2 sm:px-1">
-              <span className={cx('block text-sm font-medium', done ? 'text-ink-900' : 'text-slate-500')}>
+              <span className={cx('block text-sm font-medium', done ? 'text-ink-900' : 'text-slate-600')}>
                 {ORDER_STATUS_LABELS[step]}
                 {done && <span className="sr-only"> (completed)</span>}
               </span>
@@ -63,7 +58,7 @@ export function OrderProgress({ order }: { order: Pick<OrderDto, 'status' | 'eve
 /** Status history, newest first. */
 export function OrderTimeline({ events }: { events: OrderEventDto[] }) {
   if (events.length === 0) {
-    return <p className="px-5 py-4 text-sm text-slate-500">No activity recorded yet.</p>;
+    return <p className="px-5 py-4 text-sm text-slate-600">No activity recorded yet.</p>;
   }
   const newestFirst = [...events].reverse();
   return (
