@@ -53,7 +53,7 @@ How these products differ from the imported ones:
 - **Specifications** are typical for each product type and size: flow, head, pressure, dimensions and materials.
 - **Prices** are estimates from UAE retail and trade prices for comparable products, using the same range rule as the rest of the catalogue.
 - **Availability:** every added product is "On order" with no stock. Staff record real stock in the back office, and online checkout only sells what is in stock.
-- **Photos:** none yet. The storefront shows a placeholder until Top Flow adds photos.
+- **Pictures:** a drawn illustration of the product type (`apps/web/public/catalog/illustrations/`), not a photograph of the item a customer receives. Every one of these products is flagged as needing a real photograph in [docs/PRODUCT-PHOTOS.md](../../../../docs/PRODUCT-PHOTOS.md), which also explains why no third-party photography is used and what to ask suppliers for.
 
 Before these products are sold to real customers, Top Flow should confirm each specification and price against its supplier's data sheet and price list, then update the file or the back office.
 

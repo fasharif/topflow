@@ -1,5 +1,5 @@
 {
-  "source": "Top Flow catalogue (topflow.ae), imported with Top Flow’s approval on 2026-09-15. Indicative price ranges researched from UAE and international list prices. Curated on 2026-09-17 to irrigation, water management and farm supplies: out-of-scope categories and duplicate listings removed, variant names made unique. Extended on 2026-09-17 with typical products of the UAE irrigation and farm-supply market (TF- codes in the lines listed in data/README.md): their specifications are typical for each product type and their prices are estimates, both to be confirmed against supplier data.",
+  "source": "Top Flow catalogue (topflow.ae), imported with Top Flow’s approval on 2026-09-15. Indicative price ranges researched from UAE and international list prices. Curated on 2026-09-17 to irrigation, water management and farm supplies: out-of-scope categories and duplicate listings removed, variant names made unique. Extended on 2026-09-17 with typical products of the UAE irrigation and farm-supply market (TF- codes in the lines listed in data/README.md): their specifications are typical for each product type and their prices are estimates, both to be confirmed against supplier data. Products without a photo show a drawn illustration of the product type (catalog/illustrations), not a photo of the actual item.",
   "categories": [
     {
       "slug": "electrofusion-hdpe-fittings",
@@ -77,7 +77,7 @@
           "slug": "impact-sprinklers-rain-guns",
           "name": "Impact Sprinklers & Rain Guns",
           "description": "Impact sprinklers, tripod stands and long-throw rain guns for farms, nurseries, dust control and temporary irrigation.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/impact-sprinkler-plastic.webp",
           "displayOrder": 7
         }
       ]
@@ -142,21 +142,21 @@
           "slug": "drip-irrigation-kits",
           "name": "Drip Irrigation Kits",
           "description": "Ready-to-install kits for home gardens, trees, date palms and small farm plots, with pipe, emitters, fittings and a filter.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/garden-drip-kit.webp",
           "displayOrder": 7
         },
         {
           "slug": "drip-tape",
           "name": "Drip Tape",
           "description": "Thin-wall drip tape and start connectors for seasonal vegetable and field crops.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/drip-tape-roll.webp",
           "displayOrder": 8
         },
         {
           "slug": "micro-sprinklers",
           "name": "Micro Sprinklers",
           "description": "Rotating micro-sprinklers, micro-jets and microtube for orchards, nurseries and ground cover.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/rotating-micro-sprinkler.webp",
           "displayOrder": 9
         }
       ]
@@ -228,7 +228,7 @@
           "slug": "installation-tools",
           "name": "Installation Tools",
           "description": "Hole punches, pipe cutters and fitting wrenches for fast, clean PE pipe installation.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/drip-hole-punch.webp",
           "displayOrder": 8
         }
       ]
@@ -272,35 +272,35 @@
           "slug": "irrigation-controllers",
           "name": "Irrigation Controllers",
           "description": "Indoor, outdoor, modular, Wi-Fi, battery-operated and two-wire controllers that run irrigation zones on schedule.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/indoor-controller.webp",
           "displayOrder": 4
         },
         {
           "slug": "rain-soil-flow-sensors",
           "name": "Rain, Soil & Flow Sensors",
           "description": "Rain, soil-moisture and flow sensors that stop irrigation when it is not needed and shut down zones with a leak.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/rain-sensor.webp",
           "displayOrder": 5
         },
         {
           "slug": "control-cable-connectors",
           "name": "Control Cable & Connectors",
           "description": "Direct-burial control cable, waterproof wire connectors and DC latching solenoids for wiring valves to controllers.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/control-cable.webp",
           "displayOrder": 6
         },
         {
           "slug": "ball-gate-check-valves",
           "name": "Ball, Gate & Check Valves",
           "description": "PVC ball valves, gate and butterfly valves, and check valves for isolating and protecting mains and zones.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/pvc-ball-valve.webp",
           "displayOrder": 7
         },
         {
           "slug": "pressure-regulators-meters",
           "name": "Pressure Regulators & Meters",
           "description": "Pressure regulators, gauges and water meters that keep zones at the right pressure and measure what the network uses.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/preset-pressure-regulator.webp",
           "displayOrder": 8
         }
       ]
@@ -330,21 +330,21 @@
           "slug": "screen-filters",
           "name": "Screen Filters",
           "description": "Plastic and steel screen filters with stainless-steel mesh for well, municipal and tank water.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/plastic-screen-filter.webp",
           "displayOrder": 2
         },
         {
           "slug": "sand-media-filters",
           "name": "Sand Media Filters",
           "description": "Epoxy-coated steel sand media filters, and filtration sand, for water from reservoirs, canals and treated effluent.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/sand-media-filter.webp",
           "displayOrder": 3
         },
         {
           "slug": "hydrocyclone-sand-separators",
           "name": "Hydrocyclone Sand Separators",
           "description": "Hydrocyclones that spin sand and silt out of well water before the main filter.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/hydrocyclone-separator.webp",
           "displayOrder": 4
         }
       ]
@@ -353,42 +353,42 @@
       "slug": "pumps-water-supply",
       "name": "Pumps & Water Supply",
       "description": "Surface, borehole and solar pumps, booster sets, pressure and storage tanks, and pump controls that lift, store and pressurise water for farms, villas and landscape networks.",
-      "imageUrl": null,
+      "imageUrl": "/catalog/illustrations/centrifugal-surface-pump.webp",
       "displayOrder": 6,
       "lines": [
         {
           "slug": "surface-pumps-booster-sets",
           "name": "Surface Pumps & Booster Sets",
           "description": "Centrifugal, end-suction and stainless-steel multistage pumps, and packaged booster sets, for lifting water from tanks and wells and pressurising irrigation lines.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/centrifugal-surface-pump.webp",
           "displayOrder": 0
         },
         {
           "slug": "borehole-submersible-pumps",
           "name": "Borehole Submersible Pumps",
           "description": "4-inch and 6-inch submersible pumps with stainless-steel pump ends for boreholes and deep wells.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/borehole-submersible-pump.webp",
           "displayOrder": 1
         },
         {
           "slug": "solar-pumping",
           "name": "Solar Pumping",
           "description": "Solar pump inverters and solar pump kits that run irrigation pumps from PV panels on off-grid farms and remote plots.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/solar-pump-inverter.webp",
           "displayOrder": 2
         },
         {
           "slug": "pressure-storage-tanks",
           "name": "Pressure & Storage Tanks",
           "description": "Membrane pressure tanks that cut pump cycling, and UV-stabilised polyethylene tanks for storing irrigation water.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/vertical-pressure-tank.webp",
           "displayOrder": 3
         },
         {
           "slug": "pump-controls-accessories",
           "name": "Pump Controls & Accessories",
           "description": "Electronic pressure controls, starter panels, float switches and foot valves that automate pumps and protect them from running dry.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/electronic-pressure-control.webp",
           "displayOrder": 4
         }
       ]
@@ -397,35 +397,35 @@
       "slug": "fertigation",
       "name": "Fertigation",
       "description": "Venturi injectors, proportional dosers, fertiliser tanks and EC/pH control for feeding crops and landscapes through the irrigation system.",
-      "imageUrl": null,
+      "imageUrl": "/catalog/illustrations/venturi-bypass-kit.webp",
       "displayOrder": 7,
       "lines": [
         {
           "slug": "venturi-injectors",
           "name": "Venturi Injectors",
           "description": "Venturi fertiliser injectors and bypass kits that draw nutrient solution into the line from the pressure difference, with no power or moving parts.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/venturi-injector.webp",
           "displayOrder": 0
         },
         {
           "slug": "dosing-pumps",
           "name": "Dosing Pumps",
           "description": "Water-powered proportional dosers and electric dosing pumps for accurate injection of nutrients and acids.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/proportional-doser.webp",
           "displayOrder": 1
         },
         {
           "slug": "fertiliser-tanks",
           "name": "Fertiliser Tanks",
           "description": "Bypass pressure tanks for batch fertigation and chemical-resistant tanks for mixing stock solutions.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/bypass-fertiliser-tank.webp",
           "displayOrder": 2
         },
         {
           "slug": "ec-ph-control",
           "name": "EC & pH Control",
           "description": "Meters and controllers that keep nutrient strength and pH within the range the crop needs.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/ec-ph-meter.webp",
           "displayOrder": 3
         }
       ]
@@ -434,35 +434,35 @@
       "slug": "greenhouse-nursery",
       "name": "Greenhouse & Nursery",
       "description": "Shade and insect nets, greenhouse film, evaporative cooling, misting and nursery containers for protected cultivation in the UAE climate.",
-      "imageUrl": null,
+      "imageUrl": "/catalog/illustrations/shade-net-green.webp",
       "displayOrder": 8,
       "lines": [
         {
           "slug": "shade-insect-nets",
           "name": "Shade & Insect Nets",
           "description": "UV-stabilised HDPE shade nets and fine-mesh insect nets for greenhouses, nurseries and shade houses.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/shade-net-green.webp",
           "displayOrder": 0
         },
         {
           "slug": "greenhouse-film-fixings",
           "name": "Greenhouse Film & Fixings",
           "description": "UV-stabilised greenhouse film, with aluminium lock channel and wiggle wire to fix film and nets to the frame.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/greenhouse-film-roll.webp",
           "displayOrder": 1
         },
         {
           "slug": "cooling-misting",
           "name": "Cooling & Misting",
           "description": "Evaporative cooling pads, foggers and misting lines that lower greenhouse temperature and raise humidity.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/evaporative-cooling-pad.webp",
           "displayOrder": 2
         },
         {
           "slug": "nursery-containers-media",
           "name": "Nursery Containers & Media",
           "description": "Seedling trays, nursery pots, coco peat grow bags and ground cover for propagation and container growing.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/seedling-tray.webp",
           "displayOrder": 3
         }
       ]
@@ -471,35 +471,35 @@
       "slug": "hoses-watering",
       "name": "Hoses & Watering",
       "description": "Garden and heavy-duty hoses, layflat and suction hose, hose reels, spray guns and connectors for hand watering, tank filling and temporary supply lines.",
-      "imageUrl": null,
+      "imageUrl": "/catalog/illustrations/garden-hose-green.webp",
       "displayOrder": 9,
       "lines": [
         {
           "slug": "garden-rubber-hoses",
           "name": "Garden & Rubber Hoses",
           "description": "Reinforced PVC and rubber hoses for daily hand watering of villas, parks and nurseries.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/garden-hose-green.webp",
           "displayOrder": 0
         },
         {
           "slug": "layflat-suction-hoses",
           "name": "Layflat & Suction Hoses",
           "description": "Layflat discharge hose, spiral suction hose and cam-lock couplings for pumps, tank transfer and temporary mains.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/layflat-hose.webp",
           "displayOrder": 1
         },
         {
           "slug": "hose-reels",
           "name": "Hose Reels",
           "description": "Mobile and wall-mounted hose reels that keep hoses tidy, kink-free and out of the sun.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/hose-reel-cart.webp",
           "displayOrder": 2
         },
         {
           "slug": "spray-guns-connectors",
           "name": "Spray Guns & Connectors",
           "description": "Spray guns and click-fit hose connectors for hand watering.",
-          "imageUrl": null,
+          "imageUrl": "/catalog/illustrations/spray-gun.webp",
           "displayOrder": 3
         }
       ]
@@ -2656,7 +2656,7 @@
         "agriculture",
         "farm"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/impact-sprinkler-plastic.webp"
     },
     {
       "sku": "TF-SPR-IMP-BR-075",
@@ -2681,7 +2681,7 @@
         "brass",
         "farm"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/impact-sprinkler-brass.webp"
     },
     {
       "sku": "TF-SPR-TRIPOD-075",
@@ -2706,7 +2706,7 @@
         "stand",
         "farm"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/sprinkler-tripod-stand.webp"
     },
     {
       "sku": "TF-SPR-GUN-150",
@@ -2731,7 +2731,7 @@
         "agriculture",
         "dust-control"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/rain-gun.webp"
     },
     {
       "sku": "TF-SPR-GUN-200",
@@ -2756,7 +2756,7 @@
         "agriculture",
         "farm"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/rain-gun.webp"
     },
     {
       "sku": "WS-THR-F",
@@ -3296,7 +3296,7 @@
         "garden",
         "dripper"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/garden-drip-kit.webp"
     },
     {
       "sku": "TF-DRP-KIT-T10",
@@ -3321,7 +3321,7 @@
         "tree",
         "orchard"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/tree-drip-ring-kit.webp"
     },
     {
       "sku": "TF-DRP-KIT-PALM10",
@@ -3346,7 +3346,7 @@
         "palm",
         "tree"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/palm-bubbler-kit.webp"
     },
     {
       "sku": "TF-DRP-KIT-FARM-1000",
@@ -3371,7 +3371,7 @@
         "farm",
         "drip-tape"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/farm-drip-kit.webp"
     },
     {
       "sku": "TF-DRP-TAPE-6-20",
@@ -3396,7 +3396,7 @@
         "vegetables",
         "farm"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/drip-tape-roll.webp"
     },
     {
       "sku": "TF-DRP-TAPE-8-30",
@@ -3421,7 +3421,7 @@
         "vegetables",
         "farm"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/drip-tape-roll.webp"
     },
     {
       "sku": "TF-DRP-TAPE-SC-16",
@@ -3446,7 +3446,7 @@
         "connector",
         "fitting"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/drip-tape-start-connector.webp"
     },
     {
       "sku": "TF-DRP-MSP-ROT",
@@ -3471,7 +3471,7 @@
         "orchard",
         "nursery"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/rotating-micro-sprinkler.webp"
     },
     {
       "sku": "TF-DRP-MSP-JET",
@@ -3496,7 +3496,7 @@
         "micro-sprinkler",
         "nursery"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/micro-jet-spray.webp"
     },
     {
       "sku": "TF-DRP-MTUBE-47",
@@ -3521,7 +3521,7 @@
         "tube",
         "micro"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/microtube-coil.webp"
     },
     {
       "sku": "TF-PIPE-01",
@@ -3596,7 +3596,7 @@
         "irrigation",
         "pipes"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/slotted-drainage-pipe.webp"
     },
     {
       "sku": "TF-PIPE-05",
@@ -5603,7 +5603,7 @@
         "drip",
         "installation"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/drip-hole-punch.webp"
     },
     {
       "sku": "TF-TL-CUT-42",
@@ -5628,7 +5628,7 @@
         "pipe",
         "installation"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/pe-pipe-cutter.webp"
     },
     {
       "sku": "TF-TL-WRENCH-SET",
@@ -5653,7 +5653,7 @@
         "compression",
         "installation"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/compression-wrench-set.webp"
     },
     {
       "sku": "WS-ISCV-1-1-2IN",
@@ -6086,7 +6086,7 @@
         "irrigation",
         "automation"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/indoor-controller.webp"
     },
     {
       "sku": "TF-CTL-OUT-8",
@@ -6111,7 +6111,7 @@
         "irrigation",
         "outdoor"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/outdoor-controller.webp"
     },
     {
       "sku": "TF-CTL-MOD-6",
@@ -6136,7 +6136,7 @@
         "irrigation",
         "commercial"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/modular-controller.webp"
     },
     {
       "sku": "TF-CTL-MOD-EXP4",
@@ -6161,7 +6161,7 @@
         "expansion",
         "irrigation"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/controller-expansion-module.webp"
     },
     {
       "sku": "TF-CTL-WIFI-8",
@@ -6186,7 +6186,7 @@
         "smart",
         "irrigation"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/wifi-controller.webp"
     },
     {
       "sku": "TF-CTL-BAT-1",
@@ -6211,7 +6211,7 @@
         "dc",
         "irrigation"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/battery-controller.webp"
     },
     {
       "sku": "TF-CTL-2W-50",
@@ -6236,7 +6236,7 @@
         "commercial",
         "decoder"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/two-wire-controller.webp"
     },
     {
       "sku": "TF-CTL-2W-DEC-1",
@@ -6261,7 +6261,7 @@
         "controller",
         "valve"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/two-wire-decoder.webp"
     },
     {
       "sku": "TF-SNS-RAIN",
@@ -6286,7 +6286,7 @@
         "controller",
         "water-saving"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/rain-sensor.webp"
     },
     {
       "sku": "TF-SNS-SOIL",
@@ -6311,7 +6311,7 @@
         "moisture",
         "water-saving"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/soil-moisture-sensor.webp"
     },
     {
       "sku": "TF-SNS-FLOW-100",
@@ -6336,7 +6336,7 @@
         "controller",
         "leak"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/flow-sensor.webp"
     },
     {
       "sku": "TF-CBL-7C-150",
@@ -6361,7 +6361,7 @@
         "controller",
         "valve"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/control-cable.webp"
     },
     {
       "sku": "TF-CBL-WC-30",
@@ -6386,7 +6386,7 @@
         "waterproof",
         "valve"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/waterproof-wire-connectors.webp"
     },
     {
       "sku": "TF-SOL-DC-9V",
@@ -6411,7 +6411,7 @@
         "battery",
         "valve"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/dc-latching-solenoid.webp"
     },
     {
       "sku": "TF-VLV-PVC-BV-100",
@@ -6436,7 +6436,7 @@
         "pvc",
         "isolation"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/pvc-ball-valve.webp"
     },
     {
       "sku": "TF-VLV-PVC-BV-200",
@@ -6461,7 +6461,7 @@
         "pvc",
         "isolation"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/pvc-ball-valve.webp"
     },
     {
       "sku": "TF-VLV-GV-DN100",
@@ -6486,7 +6486,7 @@
         "isolation",
         "mains"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/gate-valve.webp"
     },
     {
       "sku": "TF-VLV-BFV-DN100",
@@ -6511,7 +6511,7 @@
         "isolation",
         "mains"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/butterfly-valve.webp"
     },
     {
       "sku": "TF-VLV-CHK-BR-100",
@@ -6536,7 +6536,7 @@
         "brass",
         "backflow"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/brass-swing-check-valve.webp"
     },
     {
       "sku": "TF-PRV-075-14",
@@ -6561,7 +6561,7 @@
         "drip",
         "valve"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/preset-pressure-regulator.webp"
     },
     {
       "sku": "TF-PRV-100-21",
@@ -6586,7 +6586,7 @@
         "spray",
         "valve"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/preset-pressure-regulator.webp"
     },
     {
       "sku": "TF-PRV-BR-ADJ-100",
@@ -6611,7 +6611,7 @@
         "brass",
         "valve"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/brass-pressure-reducing-valve.webp"
     },
     {
       "sku": "TF-PRV-HYD-300",
@@ -6636,7 +6636,7 @@
         "hydraulic",
         "valve"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/hydraulic-pressure-reducing-valve.webp"
     },
     {
       "sku": "TF-GAU-063-10",
@@ -6661,7 +6661,7 @@
         "meter",
         "filter"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/pressure-gauge.webp"
     },
     {
       "sku": "TF-MTR-MJ-100",
@@ -6686,7 +6686,7 @@
         "flow",
         "metering"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/multi-jet-water-meter.webp"
     },
     {
       "sku": "TF-MTR-WLT-DN80",
@@ -6711,7 +6711,7 @@
         "woltman",
         "flow"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/woltman-water-meter.webp"
     },
     {
       "sku": "WSI-F020-Y",
@@ -7124,7 +7124,7 @@
         "drip",
         "filtration"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/plastic-screen-filter.webp"
     },
     {
       "sku": "TF-FLT-SCR-200",
@@ -7149,7 +7149,7 @@
         "farm",
         "filtration"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/plastic-screen-filter.webp"
     },
     {
       "sku": "TF-FLT-SCR-ST-300",
@@ -7174,7 +7174,7 @@
         "steel",
         "filtration"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/steel-screen-filter.webp"
     },
     {
       "sku": "TF-FLT-MED-24",
@@ -7199,7 +7199,7 @@
         "media",
         "filtration"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/sand-media-filter.webp"
     },
     {
       "sku": "TF-FLT-MED-48",
@@ -7224,7 +7224,7 @@
         "media",
         "farm"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/sand-media-filter.webp"
     },
     {
       "sku": "TF-FLT-SAND-25",
@@ -7249,7 +7249,7 @@
         "filter",
         "filtration"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/silica-sand-bag.webp"
     },
     {
       "sku": "TF-FLT-HYC-200",
@@ -7274,7 +7274,7 @@
         "sand",
         "separator"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/hydrocyclone-separator.webp"
     },
     {
       "sku": "TF-FLT-HYC-300",
@@ -7299,7 +7299,7 @@
         "sand",
         "farm"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/hydrocyclone-separator.webp"
     },
     {
       "sku": "TF-PMP-CS-050",
@@ -7324,7 +7324,7 @@
         "surface",
         "water-supply"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/centrifugal-surface-pump.webp"
     },
     {
       "sku": "TF-PMP-CS-100",
@@ -7349,7 +7349,7 @@
         "surface",
         "water-supply"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/centrifugal-surface-pump.webp"
     },
     {
       "sku": "TF-PMP-CS-200",
@@ -7374,7 +7374,7 @@
         "surface",
         "transfer"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/centrifugal-surface-pump.webp"
     },
     {
       "sku": "TF-PMP-ES-300-3P",
@@ -7399,7 +7399,7 @@
         "three-phase",
         "farm"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/end-suction-pump.webp"
     },
     {
       "sku": "TF-PMP-MS-110",
@@ -7424,7 +7424,7 @@
         "booster",
         "stainless"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/multistage-pump.webp"
     },
     {
       "sku": "TF-PMP-BST-110",
@@ -7449,7 +7449,7 @@
         "pressure",
         "tank"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/pressure-booster-set.webp"
     },
     {
       "sku": "TF-PMP-SUB4-150",
@@ -7474,7 +7474,7 @@
         "borehole",
         "well"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/borehole-submersible-pump.webp"
     },
     {
       "sku": "TF-PMP-SUB4-300-3P",
@@ -7499,7 +7499,7 @@
         "borehole",
         "three-phase"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/borehole-submersible-pump.webp"
     },
     {
       "sku": "TF-PMP-SUB6-750-3P",
@@ -7524,7 +7524,7 @@
         "borehole",
         "farm"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/borehole-submersible-pump.webp"
     },
     {
       "sku": "TF-SOL-INV-220",
@@ -7549,7 +7549,7 @@
         "pump",
         "off-grid"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/solar-pump-inverter.webp"
     },
     {
       "sku": "TF-SOL-KIT-SUB4-1100",
@@ -7574,7 +7574,7 @@
         "submersible",
         "off-grid"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/solar-submersible-pump-kit.webp"
     },
     {
       "sku": "TF-TNK-PRS-100V",
@@ -7599,7 +7599,7 @@
         "pump",
         "membrane"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/vertical-pressure-tank.webp"
     },
     {
       "sku": "TF-TNK-PE-500G",
@@ -7624,7 +7624,7 @@
         "storage",
         "polyethylene"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/polyethylene-water-tank.webp"
     },
     {
       "sku": "TF-TNK-PE-1000G",
@@ -7649,7 +7649,7 @@
         "storage",
         "polyethylene"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/polyethylene-water-tank.webp"
     },
     {
       "sku": "TF-PMP-EPC-10",
@@ -7674,7 +7674,7 @@
         "controller",
         "dry-run"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/electronic-pressure-control.webp"
     },
     {
       "sku": "TF-PMP-DOL-55",
@@ -7699,7 +7699,7 @@
         "panel",
         "three-phase"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/pump-starter-panel.webp"
     },
     {
       "sku": "TF-PMP-FLT-5M",
@@ -7724,7 +7724,7 @@
         "pump",
         "tank"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/float-level-switch.webp"
     },
     {
       "sku": "TF-PMP-FV-150",
@@ -7749,7 +7749,7 @@
         "pump",
         "brass"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/brass-foot-valve.webp"
     },
     {
       "sku": "TF-FRT-VEN-075",
@@ -7774,7 +7774,7 @@
         "injector",
         "fertiliser"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/venturi-injector.webp"
     },
     {
       "sku": "TF-FRT-VEN-100",
@@ -7799,7 +7799,7 @@
         "injector",
         "fertiliser"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/venturi-injector.webp"
     },
     {
       "sku": "TF-FRT-VEN-200",
@@ -7824,7 +7824,7 @@
         "injector",
         "farm"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/venturi-injector.webp"
     },
     {
       "sku": "TF-FRT-VEN-KIT-100",
@@ -7849,7 +7849,7 @@
         "kit",
         "flow-meter"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/venturi-bypass-kit.webp"
     },
     {
       "sku": "TF-FRT-DOS-W25",
@@ -7874,7 +7874,7 @@
         "dosing",
         "proportional"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/proportional-doser.webp"
     },
     {
       "sku": "TF-FRT-DOS-E10",
@@ -7899,7 +7899,7 @@
         "pump",
         "acid"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/electric-dosing-pump.webp"
     },
     {
       "sku": "TF-FRT-TNK-BP-060",
@@ -7924,7 +7924,7 @@
         "fertiliser",
         "bypass"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/bypass-fertiliser-tank.webp"
     },
     {
       "sku": "TF-FRT-TNK-BP-120",
@@ -7949,7 +7949,7 @@
         "fertiliser",
         "bypass"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/bypass-fertiliser-tank.webp"
     },
     {
       "sku": "TF-FRT-TNK-MIX-500",
@@ -7974,7 +7974,7 @@
         "mixing",
         "fertiliser"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/fertiliser-mixing-tank.webp"
     },
     {
       "sku": "TF-FRT-MTR-ECPH",
@@ -7999,7 +7999,7 @@
         "ec",
         "ph"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/ec-ph-meter.webp"
     },
     {
       "sku": "TF-FRT-CTL-2CH",
@@ -8024,7 +8024,7 @@
         "ec",
         "ph"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/fertigation-controller.webp"
     },
     {
       "sku": "TF-GH-SHN-50G-2X50",
@@ -8049,7 +8049,7 @@
         "greenhouse",
         "nursery"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/shade-net-green.webp"
     },
     {
       "sku": "TF-GH-SHN-70B-4X50",
@@ -8074,7 +8074,7 @@
         "greenhouse",
         "nursery"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/shade-net-black.webp"
     },
     {
       "sku": "TF-GH-INS-50M-3X100",
@@ -8099,7 +8099,7 @@
         "greenhouse",
         "mesh"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/insect-net.webp"
     },
     {
       "sku": "TF-GH-FLM-200-9X50",
@@ -8124,7 +8124,7 @@
         "cover",
         "polyethylene"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/greenhouse-film-roll.webp"
     },
     {
       "sku": "TF-GH-LCK-2M",
@@ -8149,7 +8149,7 @@
         "profile",
         "fixing"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/aluminium-lock-channel.webp"
     },
     {
       "sku": "TF-GH-WGL-2M",
@@ -8173,7 +8173,7 @@
         "wiggle-wire",
         "fixing"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/wiggle-wire.webp"
     },
     {
       "sku": "TF-GH-PAD-150",
@@ -8198,7 +8198,7 @@
         "pad",
         "evaporative"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/evaporative-cooling-pad.webp"
     },
     {
       "sku": "TF-GH-FOG-4W",
@@ -8223,7 +8223,7 @@
         "misting",
         "humidity"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/cross-fogger.webp"
     },
     {
       "sku": "TF-GH-MST-KIT-20",
@@ -8248,7 +8248,7 @@
         "greenhouse",
         "nursery"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/misting-line-kit.webp"
     },
     {
       "sku": "TF-NUR-TRY-128",
@@ -8273,7 +8273,7 @@
         "nursery",
         "propagation"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/seedling-tray.webp"
     },
     {
       "sku": "TF-NUR-POT-5G",
@@ -8298,7 +8298,7 @@
         "container",
         "planter"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/nursery-pot.webp"
     },
     {
       "sku": "TF-NUR-GB-100",
@@ -8323,7 +8323,7 @@
         "hydroponic",
         "greenhouse"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/coco-peat-grow-bag.webp"
     },
     {
       "sku": "TF-NUR-GC-100-2X100",
@@ -8348,7 +8348,7 @@
         "nursery",
         "greenhouse"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/ground-cover-roll.webp"
     },
     {
       "sku": "TF-HOS-PVC-12-30",
@@ -8373,7 +8373,7 @@
         "watering",
         "pvc"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/garden-hose-green.webp"
     },
     {
       "sku": "TF-HOS-PVC-34-30",
@@ -8398,7 +8398,7 @@
         "watering",
         "pvc"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/garden-hose-green.webp"
     },
     {
       "sku": "TF-HOS-RUB-34-50",
@@ -8423,7 +8423,7 @@
         "watering",
         "heavy-duty"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/rubber-hose-black.webp"
     },
     {
       "sku": "TF-HOS-LF-2-100",
@@ -8448,7 +8448,7 @@
         "discharge",
         "pump"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/layflat-hose.webp"
     },
     {
       "sku": "TF-HOS-LF-3-100",
@@ -8473,7 +8473,7 @@
         "discharge",
         "farm"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/layflat-hose.webp"
     },
     {
       "sku": "TF-HOS-SUC-2",
@@ -8498,7 +8498,7 @@
         "pump",
         "pvc"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/spiral-suction-hose.webp"
     },
     {
       "sku": "TF-HOS-CAM-2",
@@ -8523,7 +8523,7 @@
         "hose",
         "pump"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/camlock-coupling-set.webp"
     },
     {
       "sku": "TF-HOS-REEL-CART",
@@ -8548,7 +8548,7 @@
         "cart",
         "watering"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/hose-reel-cart.webp"
     },
     {
       "sku": "TF-HOS-REEL-AUTO-20",
@@ -8573,7 +8573,7 @@
         "wall-mounted",
         "watering"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/wall-hose-reel.webp"
     },
     {
       "sku": "TF-HOS-GUN-8P",
@@ -8598,7 +8598,7 @@
         "nozzle",
         "watering"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/spray-gun.webp"
     },
     {
       "sku": "TF-HOS-CON-SET",
@@ -8623,7 +8623,7 @@
         "fitting",
         "watering"
       ],
-      "imageUrl": null
+      "imageUrl": "/catalog/illustrations/hose-connector-set.webp"
     },
     {
       "sku": "WS-CPS-2000-CONVEX",
