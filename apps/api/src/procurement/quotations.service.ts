@@ -18,6 +18,7 @@ import {
   QuotationResponse,
   QuotationStatus,
   RFQ_TRANSITIONS,
+  RfqSource,
   RfqStatus,
   VAT_RATE_BPS,
   assertTransition,
@@ -38,6 +39,7 @@ import {
   type QuotationLineInput,
   type QuotationQuery,
   type QuotationSummaryDto,
+  type RespondPersonalQuotationInput,
   type RespondQuotationInput,
   type UpdateQuotationInput,
 } from '@topflow/shared';
@@ -58,6 +60,10 @@ import { MailService } from '../mail/mail.service';
 import { approvalRequestEmail, quotationSentEmail } from '../mail/templates';
 import { OrderWriter } from '../orders/order-writer.service';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  AddressBookService,
+  addressSnapshot,
+} from '../users/address-book.service';
 import {
   quotationInclude,
   quotationSummaryInclude,
@@ -101,6 +107,7 @@ export class QuotationsService {
     private readonly pdf: QuotationPdfService,
     private readonly audit: AuditService,
     private readonly mail: MailService,
+    private readonly addressBook: AddressBookService,
     @InjectConfig() private readonly config: AppConfig,
   ) {}
 
@@ -139,6 +146,11 @@ export class QuotationsService {
         }
         organizationId = rfq.organizationId;
         customerId = input.customerId ?? rfq.requestedById;
+        if (!customerId && rfq.source === RfqSource.WEBSITE) {
+          throw new BadRequestException(
+            'Link this website request to a customer account before creating a quotation',
+          );
+        }
       }
       if (!customerId)
         throw new BadRequestException('A customer contact is required');
@@ -390,7 +402,8 @@ export class QuotationsService {
         dto.displayNumber,
         formatMoney(dto.total),
         new Date(dto.validUntil).toDateString(),
-        `${this.config.app.publicUrl}/business/quotations/${id}`,
+        // Organization quotations are answered in the trade portal, personal ones in the account.
+        `${this.config.app.publicUrl}/${sent.organizationId ? 'business' : 'account'}/quotations/${id}`,
       ),
     );
     return dto;
@@ -718,17 +731,160 @@ export class QuotationsService {
     return this.orgGet(ctx, id);
   }
 
+  // ─── Customer (individual) side ─────────────────────────────────────────
+
+  async personalList(
+    actor: AuthenticatedUser,
+    query: QuotationQuery,
+  ): Promise<Paginated<QuotationSummaryDto>> {
+    return this.list(
+      {
+        ...this.filters(query),
+        customerId: actor.id,
+        organizationId: null,
+        status:
+          query.status && query.status !== QuotationStatus.DRAFT
+            ? query.status
+            : { not: QuotationStatus.DRAFT },
+      },
+      query,
+    );
+  }
+
+  async personalGet(
+    actor: AuthenticatedUser,
+    id: string,
+  ): Promise<QuotationDto> {
+    const quotation = await this.prisma.quotation.findFirst({
+      where: {
+        id,
+        customerId: actor.id,
+        organizationId: null,
+        status: { not: QuotationStatus.DRAFT },
+      },
+      include: quotationInclude,
+    });
+    if (!quotation) throw new NotFoundException('Quotation not found');
+    return toQuotationDto(quotation, { includeInternal: false });
+  }
+
+  /**
+   * An individual customer answers a quotation addressed to them personally. There is no approval
+   * step: accepting creates a retail order, paid on delivery to the address they chose.
+   */
+  async personalRespond(
+    actor: AuthenticatedUser,
+    id: string,
+    input: RespondPersonalQuotationInput,
+    meta: RequestMeta,
+  ): Promise<QuotationDto> {
+    const quotation = await this.openQuotation(
+      { id, customerId: actor.id, organizationId: null },
+      QuotationStatus.SENT,
+    );
+    const displayNumber = quotationDisplayNumber(
+      quotation.number,
+      quotation.revision,
+    );
+    const now = new Date();
+
+    if (input.action === QuotationResponse.ACCEPT) {
+      if (!input.addressId) {
+        throw new BadRequestException('Choose a delivery address');
+      }
+      const address = addressSnapshot(
+        await this.addressBook.get({ userId: actor.id }, input.addressId),
+      );
+      const order = await this.prisma.$transaction(async (tx) => {
+        const accepted = await tx.quotation.update({
+          where: { id },
+          data: {
+            status: QuotationStatus.ACCEPTED,
+            respondedAt: now,
+            respondedById: actor.id,
+            responseNote: input.note ?? null,
+            approvedById: actor.id,
+            approvedAt: now,
+          },
+          include: forOrderInclude,
+        });
+        const created = await this.orders.createFromQuotation(
+          tx,
+          accepted,
+          actor.id,
+          meta,
+          address,
+        );
+        await this.closeRfq(tx, accepted.quoteRequestId);
+        await this.recordPersonalResponse(tx, id, actor, meta, {
+          action: input.action,
+          orderNumber: created.orderNumber,
+        });
+        return created;
+      });
+      this.sendMail(this.config.company.email, {
+        subject: `Quotation accepted: ${displayNumber} → order ${order.orderNumber}`,
+        text: `${actor.fullName} accepted ${displayNumber}. Order ${order.orderNumber} is confirmed, with payment on delivery.\n\n${this.config.app.publicUrl}/admin/orders/${order.id}`,
+      });
+    } else {
+      const rejecting = input.action === QuotationResponse.REJECT;
+      await this.prisma.$transaction(async (tx) => {
+        await tx.quotation.update({
+          where: { id },
+          data: {
+            status: rejecting
+              ? QuotationStatus.REJECTED
+              : QuotationStatus.REVISION_REQUESTED,
+            respondedAt: now,
+            respondedById: actor.id,
+            responseNote: input.note,
+          },
+        });
+        if (rejecting) {
+          await this.closeRfq(tx, quotation.quoteRequestId);
+        } else if (quotation.quoteRequestId) {
+          const rfq = await tx.quoteRequest.findUnique({
+            where: { id: quotation.quoteRequestId },
+          });
+          if (
+            rfq &&
+            canTransition(RFQ_TRANSITIONS, rfq.status, RfqStatus.IN_REVIEW)
+          ) {
+            await tx.quoteRequest.update({
+              where: { id: rfq.id },
+              data: { status: RfqStatus.IN_REVIEW },
+            });
+          }
+        }
+        await this.recordPersonalResponse(tx, id, actor, meta, {
+          action: input.action,
+        });
+      });
+      this.sendMail(this.config.company.email, {
+        subject: `${rejecting ? 'Quotation rejected' : 'Revision requested'}: ${displayNumber} (${actor.fullName})`,
+        text: `${actor.fullName} ${rejecting ? 'rejected the quotation' : 'asked for changes'}:\n\n${input.note}\n\n${this.config.app.publicUrl}/admin/quotations/${id}`,
+      });
+    }
+    return this.personalGet(actor, id);
+  }
+
   // ─── Documents ──────────────────────────────────────────────────────────
 
+  /**
+   * Renders the quotation PDF. Staff may render any quotation; customers only issued ones, scoped
+   * to their organization or, for personal quotations, to themselves.
+   */
   async renderPdf(
     id: string,
-    organizationId?: string,
+    scope?: { organizationId: string } | { customerId: string },
   ): Promise<{ filename: string; buffer: Buffer }> {
     const quotation = await this.prisma.quotation.findFirst({
       where: {
         id,
-        ...(organizationId && {
-          organizationId,
+        ...(scope && {
+          ...('customerId' in scope
+            ? { customerId: scope.customerId, organizationId: null }
+            : { organizationId: scope.organizationId }),
           status: { not: QuotationStatus.DRAFT },
         }),
       },
@@ -844,17 +1000,25 @@ export class QuotationsService {
     return org?.status === OrgStatus.ACTIVE ? money(org.discountRate) : null;
   }
 
-  private async openQuotationForOrg(
+  private openQuotationForOrg(
     ctx: OrganizationContext,
     id: string,
     expected: QuotationStatus,
   ) {
+    return this.openQuotation(
+      { id, organizationId: ctx.organizationId },
+      expected,
+    );
+  }
+
+  /** A quotation the customer may act on: issued to them, in the expected state and still valid. */
+  private async openQuotation(
+    scope: Prisma.QuotationWhereInput & { id: string },
+    expected: QuotationStatus,
+  ) {
+    const { id } = scope;
     const quotation = await this.prisma.quotation.findFirst({
-      where: {
-        id,
-        organizationId: ctx.organizationId,
-        status: { not: QuotationStatus.DRAFT },
-      },
+      where: { ...scope, status: { not: QuotationStatus.DRAFT } },
     });
     if (!quotation) throw new NotFoundException('Quotation not found');
     if (quotation.status !== expected) {
@@ -901,6 +1065,26 @@ export class QuotationsService {
         entityType: 'Quotation',
         entityId: id,
         organizationId: ctx.organizationId,
+        userId: actor.id,
+        ipAddress: meta.ipAddress,
+        details,
+      },
+      tx,
+    );
+  }
+
+  private recordPersonalResponse(
+    tx: Tx,
+    id: string,
+    actor: AuthenticatedUser,
+    meta: RequestMeta,
+    details: Prisma.InputJsonObject,
+  ): Promise<void> {
+    return this.audit.record(
+      {
+        action: AuditAction.QUOTATION_RESPONDED,
+        entityType: 'Quotation',
+        entityId: id,
         userId: actor.id,
         ipAddress: meta.ipAddress,
         details,

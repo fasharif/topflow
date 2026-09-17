@@ -5,7 +5,9 @@ import {
   PAYMENT_METHOD_LABELS,
   PAYMENT_TERMS_LABELS,
   PaymentMethod,
+  PaymentStatus,
   cancelOrderSchema,
+  isCustomerCancellable,
   quotationDisplayNumber,
   type OrderDto,
   type OrganizationDto,
@@ -209,6 +211,16 @@ function OrderView({ initial }: { initial: OrderDto }) {
                 </DetailItem>
               )}
             </DetailList>
+            {/* Paid orders are cancelled by Top Flow, so the refund is arranged at the same time. */}
+            {isCustomerCancellable(order.status, PaymentStatus.UNPAID) && order.paymentStatus === PaymentStatus.PAID && (
+              <p className="border-t border-slate-200 p-5 text-sm leading-relaxed text-slate-600">
+                This order has been paid, so it can no longer be cancelled here.{' '}
+                <Link href="/contact" className="font-semibold text-brand-700 underline-offset-4 hover:underline">
+                  Contact Top Flow
+                </Link>{' '}
+                to cancel it and arrange the refund.
+              </p>
+            )}
           </Card>
 
           {order.canCancel && (

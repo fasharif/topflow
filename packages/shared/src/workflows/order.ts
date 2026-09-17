@@ -1,4 +1,4 @@
-import { OrderStatus } from '../enums';
+import { OrderStatus, PaymentStatus } from '../enums';
 import { Permission } from '../permissions';
 import type { TransitionMap } from './state-machine';
 
@@ -39,7 +39,16 @@ export const ORDER_PROGRESS: readonly OrderStatus[] = [
   OrderStatus.DELIVERED,
 ];
 
-/** Customers may cancel their own order until the warehouse starts picking it. */
-export function isCustomerCancellable(status: OrderStatus): boolean {
-  return status === OrderStatus.PENDING_PAYMENT || status === OrderStatus.CONFIRMED;
+/**
+ * Customers may cancel their own order until the warehouse starts picking it — and only while no
+ * payment has been recorded. Once Top Flow holds the money, the order is cancelled by Top Flow so
+ * that the refund is arranged with it.
+ */
+export function isCustomerCancellable(status: OrderStatus, paymentStatus: PaymentStatus): boolean {
+  return paymentStatus !== PaymentStatus.PAID && (status === OrderStatus.PENDING_PAYMENT || status === OrderStatus.CONFIRMED);
+}
+
+/** A cancelled order whose payment was received still owes the customer a refund. */
+export function isRefundDue(status: OrderStatus, paymentStatus: PaymentStatus): boolean {
+  return status === OrderStatus.CANCELLED && paymentStatus === PaymentStatus.PAID;
 }

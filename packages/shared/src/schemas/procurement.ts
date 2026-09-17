@@ -147,3 +147,42 @@ export const approvalDecisionSchema = z.object({
   note: optionalText(1000),
 });
 export type ApprovalDecisionInput = z.infer<typeof approvalDecisionSchema>;
+
+// ─── Website requests and individual customers ────────────────────────────
+
+/**
+ * Staff choose the account a website request's quotation is addressed to: an existing customer —
+ * optionally quoting for one of their organizations — or, without `customerId`, a new account for
+ * the request's contact, who is emailed an invitation to choose a password.
+ */
+export const assignRfqCustomerSchema = z
+  .object({
+    customerId: idSchema.optional(),
+    organizationId: idSchema.optional(),
+  })
+  .refine((data) => data.organizationId === undefined || data.customerId !== undefined, {
+    error: 'Choose the customer before one of their organizations',
+    path: ['organizationId'],
+  });
+export type AssignRfqCustomerInput = z.infer<typeof assignRfqCustomerSchema>;
+
+/**
+ * An individual customer's response to a quotation addressed to them personally. Accepting turns it
+ * into a delivery order, so it needs an address from their address book; rejections and revision
+ * requests must explain why.
+ */
+export const respondPersonalQuotationSchema = z
+  .object({
+    action: z.enum(QuotationResponse),
+    addressId: idSchema.optional(),
+    note: optionalText(1000),
+  })
+  .refine((data) => data.action !== QuotationResponse.ACCEPT || data.addressId !== undefined, {
+    error: 'Choose a delivery address',
+    path: ['addressId'],
+  })
+  .refine((data) => data.action === QuotationResponse.ACCEPT || (data.note?.length ?? 0) >= 3, {
+    error: 'Please add a short note explaining your decision',
+    path: ['note'],
+  });
+export type RespondPersonalQuotationInput = z.infer<typeof respondPersonalQuotationSchema>;

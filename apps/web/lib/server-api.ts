@@ -14,9 +14,11 @@ export class ServerApiError extends Error {
 }
 
 /**
- * Server Component data access for public, cacheable data (catalog, categories). Talks to the
- * API server-to-server; responses are cached and revalidated in the background. The internal
- * secret identifies this app's server, so cached page renders are not rate limited as one shopper.
+ * Server Component data access for public catalogue data. Talks to the API server-to-server. Cached
+ * responses are revalidated in the background, so the first request after a quiet period still gets
+ * the old copy: pass `revalidate: 0` for anything shoppers act on (products, prices, stock) and keep
+ * caching for slow-changing lists such as categories. The internal secret identifies this app's
+ * server, so page renders are not rate limited as one shopper.
  */
 export async function serverApi<T>(path: string, options: { revalidate?: number; searchParams?: URLSearchParams } = {}): Promise<T> {
   const query = options.searchParams?.toString();

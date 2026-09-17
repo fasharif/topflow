@@ -3,6 +3,7 @@ import {
   checkoutSchema,
   orderQuerySchema,
   recordPaymentSchema,
+  recordRefundSchema,
   updateOrderStatusSchema,
 } from '@topflow/shared';
 import { createZodDto } from 'nestjs-zod';
@@ -14,3 +15,4 @@ export class UpdateOrderStatusDto extends createZodDto(
 ) {}
 export class CancelOrderDto extends createZodDto(cancelOrderSchema) {}
 export class RecordPaymentDto extends createZodDto(recordPaymentSchema) {}
+export class RecordRefundDto extends createZodDto(recordRefundSchema) {}

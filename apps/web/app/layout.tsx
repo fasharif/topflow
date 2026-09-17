@@ -13,7 +13,7 @@ const plexMono = IBM_Plex_Mono({ variable: '--font-plex-mono', subsets: ['latin'
 
 const TITLE = 'Top Flow Hub — Irrigation & flow-control supplies, UAE';
 const DESCRIPTION =
-  'TopFlow Hub is Top Flow’s supply platform for irrigation and flow-control products in the UAE: electrofusion and HDPE fittings, sprinklers and rotors, drip irrigation, valves and filtration. See approximate prices including VAT and request a formal quotation.';
+  'TopFlow Hub is Top Flow’s supply platform for irrigation and flow-control products in the UAE: electrofusion and HDPE fittings, sprinklers and rotors, drip irrigation, valves and controllers, filtration, pumps, fertigation, greenhouse supplies and hoses. See approximate prices including VAT and request a formal quotation.';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

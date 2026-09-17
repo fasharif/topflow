@@ -128,7 +128,7 @@ export function DocumentTotals({
       {discountFils > 0 && (
         <>
           <TotalRow label="List value" value={aed(fromFils(toFils(subtotal) + discountFils))} />
-          <TotalRow label="Trade discount" value={`− ${aed(discountTotal)}`} valueClassName="font-medium tabular-nums text-success-700" />
+          <TotalRow label="Discount" value={`− ${aed(discountTotal)}`} valueClassName="font-medium tabular-nums text-success-700" />
         </>
       )}
       <TotalRow label="Subtotal (excl. VAT)" value={aed(subtotal)} />

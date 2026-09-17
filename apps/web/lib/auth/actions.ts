@@ -48,6 +48,10 @@ function invalid(issues: readonly Issue[]): { ok: false; error: string; fieldErr
 }
 
 function authErrorMessage(error: AuthError): string {
+  // Supabase could not be reached or failed on its side: never show a raw network error.
+  if (error.name === 'AuthRetryableFetchError' || (error.status ?? 0) >= 500) {
+    return 'We could not reach the sign-in service. Please try again in a minute.';
+  }
   switch (error.code) {
     case 'invalid_credentials':
       return 'Incorrect email or password.';

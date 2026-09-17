@@ -34,6 +34,7 @@ import {
   type OrderSummaryDto,
   type Paginated,
   type RecordPaymentInput,
+  type RecordRefundInput,
   type UpdateOrderStatusInput,
 } from '@topflow/shared';
 import { AuditAction } from '../audit/audit-actions';
@@ -44,7 +45,7 @@ import type {
   OrganizationContext,
   RequestMeta,
 } from '../common/request-context';
-import { pageArgs, paginated } from '../common/serialization';
+import { money, pageArgs, paginated } from '../common/serialization';
 import { InjectConfig } from '../config/config.module';
 import type { AppConfig } from '../config/env';
 import { MailService } from '../mail/mail.service';
@@ -468,6 +469,67 @@ export class OrdersService {
     return this.adminGet(user, id);
   }
 
+  /**
+   * Records the refund of a cancelled order that had already been paid — the only way the payment
+   * status becomes Refunded. The refund itself is made in the bank; this closes the order's money
+   * trail, tells the customer, and leaves the reference in the timeline and the audit log.
+   */
+  async recordRefund(
+    user: AuthenticatedUser,
+    id: string,
+    input: RecordRefundInput,
+    meta: RequestMeta,
+  ): Promise<OrderDto> {
+    const order = await this.findOne({ id });
+    if (order.paymentStatus === PaymentStatus.REFUNDED)
+      throw new ConflictException(
+        'A refund has already been recorded for this order',
+      );
+    if (order.paymentStatus !== PaymentStatus.PAID)
+      throw new ConflictException(
+        'This order has no recorded payment, so there is nothing to refund',
+      );
+    if (order.status !== OrderStatus.CANCELLED)
+      throw new ConflictException(
+        'Cancel the order first: refunds are recorded against cancelled orders',
+      );
+
+    const amount = money(order.totalAmount);
+    const reference = input.refundReference?.trim() || null;
+    await this.prisma.$transaction(async (tx) => {
+      await tx.order.update({
+        where: { id },
+        data: { paymentStatus: PaymentStatus.REFUNDED },
+      });
+      await this.writer.recordEvent(
+        tx,
+        id,
+        OrderStatus.CANCELLED,
+        OrderStatus.CANCELLED,
+        user.id,
+        `Refund of AED ${amount} recorded${reference ? ` (${reference})` : ''}${input.note ? `. ${input.note}` : ''}`,
+      );
+      await this.audit.record(
+        {
+          action: AuditAction.ORDER_REFUND_RECORDED,
+          entityType: 'Order',
+          entityId: id,
+          organizationId: order.organizationId,
+          userId: user.id,
+          ipAddress: meta.ipAddress,
+          details: { amount, reference, note: input.note ?? null },
+        },
+        tx,
+      );
+    });
+    this.notifyCustomer(
+      order,
+      'Refunded',
+      `We have refunded AED ${amount}${reference ? ` (reference ${reference})` : ''}. Please allow a few working days for it to reach your account.${input.note ? `\n\n${input.note}` : ''}`,
+    );
+    return this.adminGet(user, id);
+  }
+
   // ─── Internals ──────────────────────────────────────────────────────────
 
   /**
@@ -508,11 +570,18 @@ export class OrdersService {
         ? nextStatuses(ORDER_TRANSITIONS, order.status).includes(
             OrderStatus.CANCELLED,
           )
-        : isCustomerCancellable(order.status) &&
+        : isCustomerCancellable(order.status, order.paymentStatus) &&
           (viewer.kind === 'customer' || hasOrgApprovalRights(viewer.ctx));
     if (!allowed) {
+      // Money already received: Top Flow cancels the order, so the refund is arranged with it.
+      const paidButOtherwiseCancellable =
+        viewer.kind !== 'staff' &&
+        order.paymentStatus === PaymentStatus.PAID &&
+        isCustomerCancellable(order.status, PaymentStatus.UNPAID);
       throw new ConflictException(
-        `A ${ORDER_STATUS_LABELS[order.status].toLowerCase()} order can no longer be cancelled`,
+        paidButOtherwiseCancellable
+          ? 'This order has already been paid. Contact Top Flow to cancel it and arrange the refund.'
+          : `A ${ORDER_STATUS_LABELS[order.status].toLowerCase()} order can no longer be cancelled`,
       );
     }
     await this.prisma.$transaction(async (tx) => {
@@ -545,7 +614,13 @@ export class OrdersService {
         tx,
       );
     });
-    this.notifyCustomer(order, 'Cancelled', reason);
+    this.notifyCustomer(
+      order,
+      'Cancelled',
+      order.paymentStatus === PaymentStatus.PAID
+        ? `${reason}\n\nYou have paid AED ${money(order.totalAmount)} for this order. We will refund it and confirm once it has been sent.`
+        : reason,
+    );
     return this.reload(order.id, viewer);
   }
 
@@ -564,7 +639,7 @@ export class OrdersService {
       });
     }
     const canCancel =
-      isCustomerCancellable(order.status) &&
+      isCustomerCancellable(order.status, order.paymentStatus) &&
       (viewer.kind === 'customer' || hasOrgApprovalRights(viewer.ctx));
     return toOrderDto(order, { allowedTransitions: [], canCancel });
   }

@@ -4,9 +4,11 @@
  * unless SEED_FORCE=true.
  *
  * - The catalogue in prisma/data/topflow-catalogue.json is Top Flow's product range with
- *   indicative price ranges. Products that are no longer listed are unpublished, never deleted
- *   (set SEED_KEEP_UNLISTED=true to leave them untouched). Re-running refreshes content and
- *   prices but keeps live stock levels. SEED_ACCOUNTS=false refreshes only the catalogue.
+ *   indicative price ranges. Products that are no longer listed are unpublished by default
+ *   (SEED_KEEP_UNLISTED=true leaves them untouched). SEED_PRUNE_UNLISTED=true deletes them
+ *   instead — order, quotation and request lines keep their own copy of each product — together
+ *   with the categories the file no longer lists. Re-running refreshes content and prices but
+ *   keeps live stock levels. SEED_ACCOUNTS=false refreshes only the catalogue.
  * - SEED_PROFILE=demo (the default) adds fictional staff, a retail customer, two trade customers
  *   and sample documents (SEED_DEMO_DOCUMENTS=false skips the RFQs, quotations and orders).
  *   SEED_PROFILE=production adds only the staff roles and one retail test customer, and never
@@ -83,8 +85,10 @@ const ACCOUNT_EMAILS = {
   customer: accountEmail('SEED_CUSTOMER_EMAIL', 'customer@example.com'),
 };
 
+// SEED_IDENTITIES=false never touches Supabase Auth, even when its credentials are configured — for a
+// test database that shares the local Supabase stack with the development database.
 const supabaseAdmin =
-  process.env.SUPABASE_URL && process.env.SUPABASE_SECRET_KEY
+  process.env.SEED_IDENTITIES !== 'false' && process.env.SUPABASE_URL && process.env.SUPABASE_SECRET_KEY
     ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, {
         auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
       })
@@ -284,16 +288,32 @@ async function seedCatalogue() {
     });
   }
 
+  const listed = catalogue.products.map((p) => p.sku);
+  if (process.env.SEED_PRUNE_UNLISTED === 'true') {
+    // Order, quotation and request lines keep their own copy of the product, so deleting is safe.
+    const deleted = (await prisma.product.deleteMany({ where: { sku: { notIn: listed } } })).count;
+    const stale = await prisma.category.findMany({ where: { slug: { notIn: [...categoryIds.keys()] } }, select: { id: true, parentId: true } });
+    let deletedCategories = 0;
+    // Product lines go before their parent categories; anything still in use stays.
+    for (const category of stale.sort((a, b) => Number(b.parentId !== null) - Number(a.parentId !== null))) {
+      const inUse = (await prisma.product.count({ where: { categoryId: category.id } })) + (await prisma.category.count({ where: { parentId: category.id } }));
+      if (inUse === 0) {
+        await prisma.category.delete({ where: { id: category.id } });
+        deletedCategories++;
+      }
+    }
+    return { categories: categoryIds.size, products: listed.length, unlisted: `${deleted} unlisted product(s) and ${deletedCategories} unlisted categories deleted` };
+  }
   const retired =
     process.env.SEED_KEEP_UNLISTED === 'true'
       ? 0
       : (
           await prisma.product.updateMany({
-            where: { isActive: true, sku: { notIn: catalogue.products.map((p) => p.sku) } },
+            where: { isActive: true, sku: { notIn: listed } },
             data: { isActive: false },
           })
         ).count;
-  return { categories: categoryIds.size, products: catalogue.products.length, retired };
+  return { categories: categoryIds.size, products: listed.length, unlisted: `${retired} unlisted product(s) unpublished` };
 }
 
 /**
@@ -671,7 +691,7 @@ async function main() {
   }
 
   console.log(
-    `Seeded (${PROFILE} profile) ${catalog.categories} categories and ${catalog.products} products (${catalog.retired} unlisted product(s) unpublished), ` +
+    `Seeded (${PROFILE} profile) ${catalog.categories} categories and ${catalog.products} products (${catalog.unlisted}), ` +
       `${describeAccounts()}, ${organizations} demo organization(s) and ${documents} new demo document(s).`,
   );
 }

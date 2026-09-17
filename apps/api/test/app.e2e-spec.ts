@@ -692,6 +692,242 @@ describe('TopFlow Hub API (e2e)', () => {
         })
         .expect(400);
     });
+
+    it('turns a website request into a quotation the visitor accepts as a retail order', async () => {
+      const item = await product('AX-EFS-002');
+      const email = unique('homeowner');
+      const receipt = (
+        await http()
+          .post('/quote-requests')
+          .send({
+            name: 'Home Owner',
+            email,
+            phone: '+971 50 555 0177',
+            emirate: 'DUBAI',
+            items: [{ productId: item.id, quantity: 6 }],
+          })
+          .expect(201)
+      ).body as WebsiteQuoteReceiptDto;
+
+      const sales = await sessionFor('sales@topflow.ae');
+      const inbox = (
+        await http()
+          .get('/admin/rfqs')
+          .query({ source: 'WEBSITE', search: receipt.number })
+          .set(bearer(sales))
+          .expect(200)
+      ).body as Paginated<RfqDto>;
+      const rfqId = inbox.items[0].id;
+      const lines = [{ productId: item.id, quantity: 6 }];
+
+      // Without a customer account there is nobody to address a quotation to.
+      const unlinked = (
+        await http().get(`/admin/rfqs/${rfqId}`).set(bearer(sales)).expect(200)
+      ).body as RfqDto;
+      expect(unlinked).toMatchObject({
+        requestedBy: null,
+        contactAccount: null,
+      });
+      await http()
+        .post('/admin/quotations')
+        .set(bearer(sales))
+        .send({ quoteRequestId: rfqId, items: lines })
+        .expect(400);
+
+      // Sales invite the contact, which creates their customer account.
+      const linked = (
+        await http()
+          .post(`/admin/rfqs/${rfqId}/customer`)
+          .set(bearer(sales))
+          .send({})
+          .expect(200)
+      ).body as RfqDto;
+      expect(linked).toMatchObject({
+        organization: null,
+        requestedBy: { fullName: 'Home Owner', email },
+      });
+      expect(identities.invitations.at(-1)).toMatchObject({
+        email,
+        fullName: 'Home Owner',
+      });
+      await http()
+        .post(`/admin/rfqs/${rfqId}/customer`)
+        .set(bearer(sales))
+        .send({})
+        .expect(409);
+
+      const draft = (
+        await http()
+          .post('/admin/quotations')
+          .set(bearer(sales))
+          .send({ quoteRequestId: rfqId, items: lines, deliveryFee: '25.00' })
+          .expect(201)
+      ).body as QuotationDto;
+      expect(draft.organization).toBeNull();
+      const sent = (
+        await http()
+          .post(`/admin/quotations/${draft.id}/send`)
+          .set(bearer(sales))
+          .expect(200)
+      ).body as QuotationDto;
+      expect(mail.lastMessageTo(email)?.text).toContain(
+        `/account/quotations/${draft.id}`,
+      );
+
+      // The customer signs in through the invitation and finds the quotation in their account.
+      const identity = identities.identityFor(email);
+      if (!identity) throw new Error(`No identity was invited for ${email}`);
+      const customer = await sessionWith({ id: identity.id, email });
+      const mine = (
+        await http().get('/me/quotations').set(bearer(customer)).expect(200)
+      ).body as Paginated<QuotationDto>;
+      expect(mine.items.map((quotation) => quotation.id)).toEqual([draft.id]);
+      const pdf = await http()
+        .get(`/me/quotations/${draft.id}/pdf`)
+        .set(bearer(customer))
+        .expect(200);
+      expect(pdf.headers['content-type']).toContain('application/pdf');
+      const stranger = await sessionFor('customer@example.com');
+      await http()
+        .get(`/me/quotations/${draft.id}`)
+        .set(bearer(stranger))
+        .expect(404);
+
+      // Accepting needs a delivery address, then creates a confirmed retail order paid on delivery.
+      await http()
+        .post(`/me/quotations/${draft.id}/respond`)
+        .set(bearer(customer))
+        .send({ action: 'ACCEPT' })
+        .expect(400);
+      const address = (
+        await http()
+          .post('/me/addresses')
+          .set(bearer(customer))
+          .send({
+            label: 'Villa',
+            contactName: 'Home Owner',
+            phoneNumber: '+971 50 555 0177',
+            line1: 'Villa 7, Street 12',
+            area: 'Al Barsha',
+            city: 'Dubai',
+            emirate: 'DUBAI',
+            isDefault: true,
+          })
+          .expect(201)
+      ).body as AddressDto;
+      const accepted = (
+        await http()
+          .post(`/me/quotations/${draft.id}/respond`)
+          .set(bearer(customer))
+          .send({ action: 'ACCEPT', addressId: address.id })
+          .expect(200)
+      ).body as QuotationDto;
+      expect(accepted.status).toBe('ACCEPTED');
+      expect(accepted.orderId).toBeTruthy();
+      const order = (
+        await http()
+          .get(`/me/orders/${accepted.orderId}`)
+          .set(bearer(customer))
+          .expect(200)
+      ).body as OrderDto;
+      expect(order).toMatchObject({
+        channel: 'RETAIL',
+        status: 'CONFIRMED',
+        paymentMethod: 'CASH_ON_DELIVERY',
+        totalAmount: sent.total,
+      });
+      expect(order.shippingAddress).toContain('Al Barsha');
+      await http()
+        .post(`/me/quotations/${draft.id}/respond`)
+        .set(bearer(customer))
+        .send({ action: 'ACCEPT', addressId: address.id })
+        .expect(409);
+      const closed = (
+        await http().get(`/admin/rfqs/${rfqId}`).set(bearer(sales)).expect(200)
+      ).body as RfqDto;
+      expect(closed.status).toBe('CLOSED');
+    });
+
+    it('links a website request to an existing trade customer and quotes their organization', async () => {
+      const item = await product('AX-EFS-002');
+      const receipt = (
+        await http()
+          .post('/quote-requests')
+          .send({
+            name: 'Khalid Al Mansoori',
+            email: 'owner@desertbloom.ae',
+            phone: '+971 55 700 1000',
+            companyName: 'Desert Bloom Landscaping',
+            items: [{ productId: item.id, quantity: 4 }],
+          })
+          .expect(201)
+      ).body as WebsiteQuoteReceiptDto;
+
+      const sales = await sessionFor('sales@topflow.ae');
+      const inbox = (
+        await http()
+          .get('/admin/rfqs')
+          .query({ source: 'WEBSITE', search: receipt.number })
+          .set(bearer(sales))
+          .expect(200)
+      ).body as Paginated<RfqDto>;
+      const rfqId = inbox.items[0].id;
+      const detail = (
+        await http().get(`/admin/rfqs/${rfqId}`).set(bearer(sales)).expect(200)
+      ).body as RfqDto;
+      const account = detail.contactAccount;
+      expect(account).toMatchObject({
+        email: 'owner@desertbloom.ae',
+        organizations: [
+          expect.objectContaining({ name: 'Desert Bloom Landscaping LLC' }),
+        ],
+      });
+      if (!account) throw new Error('The existing account was not matched');
+
+      // An address that already has an account is linked, never invited again.
+      await http()
+        .post(`/admin/rfqs/${rfqId}/customer`)
+        .set(bearer(sales))
+        .send({})
+        .expect(409);
+      const organizationId = account.organizations[0].id;
+      const linked = (
+        await http()
+          .post(`/admin/rfqs/${rfqId}/customer`)
+          .set(bearer(sales))
+          .send({ customerId: account.id, organizationId })
+          .expect(200)
+      ).body as RfqDto;
+      expect(linked.organization?.id).toBe(organizationId);
+
+      const draft = (
+        await http()
+          .post('/admin/quotations')
+          .set(bearer(sales))
+          .send({
+            quoteRequestId: rfqId,
+            items: [{ productId: item.id, quantity: 4 }],
+          })
+          .expect(201)
+      ).body as QuotationDto;
+      expect(draft.organization?.id).toBe(organizationId);
+      await http()
+        .post(`/admin/quotations/${draft.id}/send`)
+        .set(bearer(sales))
+        .expect(200);
+
+      const owner = await sessionFor('owner@desertbloom.ae');
+      await http()
+        .get(`/org/quotations/${draft.id}`)
+        .set(bearer(owner))
+        .set('x-organization-id', organizationId)
+        .expect(200);
+      // It belongs to the organization, so it is not a personal quotation.
+      await http()
+        .get(`/me/quotations/${draft.id}`)
+        .set(bearer(owner))
+        .expect(404);
+    });
   });
 
   describe('retail orders', () => {
@@ -753,6 +989,98 @@ describe('TopFlow Hub API (e2e)', () => {
       expect((await product('AX-EFS-002')).stockQuantity).toBe(
         fitting.stockQuantity - 2,
       );
+    });
+
+    it('leaves a paid order for Top Flow to cancel, then records the refund', async () => {
+      const customer = await sessionFor('customer@example.com');
+      const sales = await sessionFor('sales@topflow.ae');
+      const addresses = (
+        await http().get('/me/addresses').set(bearer(customer)).expect(200)
+      ).body as AddressDto[];
+      const fitting = await product('AX-EFS-001');
+
+      const order = (
+        await http()
+          .post('/me/orders')
+          .set(bearer(customer))
+          .send({
+            items: [{ productId: fitting.id, quantity: 1 }],
+            addressId: addresses[0].id,
+            paymentMethod: 'CASH_ON_DELIVERY',
+          })
+          .expect(201)
+      ).body as OrderDto;
+      expect(order.canCancel).toBe(true);
+
+      await http()
+        .post(`/admin/orders/${order.id}/payment`)
+        .set(bearer(sales))
+        .send({ paymentReference: 'E2E-BANK-77' })
+        .expect(200);
+
+      // Once Top Flow holds the money, the customer can no longer cancel on their own.
+      const blocked = await http()
+        .post(`/me/orders/${order.id}/cancel`)
+        .set(bearer(customer))
+        .send({ reason: 'Changed my mind' })
+        .expect(409);
+      expect(blocked.body.message).toMatch(/already been paid/i);
+      expect(
+        (await http().get(`/me/orders/${order.id}`).set(bearer(customer)))
+          .body as OrderDto,
+      ).toMatchObject({ paymentStatus: 'PAID', canCancel: false });
+
+      // A refund belongs to a cancelled order.
+      await http()
+        .post(`/admin/orders/${order.id}/refund`)
+        .set(bearer(sales))
+        .send({})
+        .expect(409);
+
+      const cancelled = (
+        await http()
+          .patch(`/admin/orders/${order.id}/status`)
+          .set(bearer(sales))
+          .send({
+            status: 'CANCELLED',
+            note: 'Supplier cannot deliver in time',
+          })
+          .expect(200)
+      ).body as OrderDto;
+      expect(cancelled.status).toBe('CANCELLED');
+      expect(cancelled.paymentStatus).toBe('PAID');
+      expect(mail.lastMessageTo('customer@example.com')?.text).toContain(
+        'refund',
+      );
+
+      const refunded = (
+        await http()
+          .post(`/admin/orders/${order.id}/refund`)
+          .set(bearer(sales))
+          .send({
+            refundReference: 'E2E-REFUND-77',
+            note: 'Bank transfer sent today',
+          })
+          .expect(200)
+      ).body as OrderDto;
+      expect(refunded.paymentStatus).toBe('REFUNDED');
+      expect(
+        refunded.events.some((event) => event.note?.includes('E2E-REFUND-77')),
+      ).toBe(true);
+      const email = mail.lastMessageTo('customer@example.com');
+      expect(email?.subject).toContain('Refunded');
+      expect(email?.text).toContain(refunded.totalAmount);
+
+      await http()
+        .post(`/admin/orders/${order.id}/refund`)
+        .set(bearer(sales))
+        .send({})
+        .expect(409);
+      await http()
+        .post(`/admin/orders/${order.id}/refund`)
+        .set(bearer(await sessionFor('warehouse@topflow.ae')))
+        .send({})
+        .expect(403);
     });
   });
 });

@@ -1,7 +1,8 @@
 'use client';
 
-import { EMIRATE_LABELS, OrderStatus, PAYMENT_METHOD_LABELS, type OrderDto } from '@topflow/shared';
+import { EMIRATE_LABELS, OrderStatus, PAYMENT_METHOD_LABELS, PaymentStatus, isCustomerCancellable, type OrderDto } from '@topflow/shared';
 import { PackageSearch } from 'lucide-react';
+import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense, useState, type ReactNode } from 'react';
 import { CancelOrderCard } from '@/components/account/cancel-order';
@@ -90,6 +91,16 @@ function PaymentCard({ order }: { order: OrderDto }) {
           <Detail label="Payment reference">
             <span className="font-mono">{order.paymentReference}</span>
           </Detail>
+        )}
+        {/* Paid orders are cancelled by Top Flow, so the refund is arranged at the same time. */}
+        {isCustomerCancellable(order.status, PaymentStatus.UNPAID) && order.paymentStatus === PaymentStatus.PAID && (
+          <p className="text-sm leading-relaxed text-slate-600">
+            You have paid for this order, so it can no longer be cancelled here.{' '}
+            <Link href="/contact" className="font-semibold text-brand-700 underline-offset-4 hover:underline">
+              Contact us
+            </Link>{' '}
+            and we will cancel it and refund you.
+          </p>
         )}
       </dl>
     </Card>

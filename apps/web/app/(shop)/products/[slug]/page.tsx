@@ -7,7 +7,7 @@ import { ServerApiError, serverApi } from '@/lib/server-api';
 
 async function loadProduct(slug: string): Promise<ProductDto | null> {
   try {
-    return await serverApi<ProductDto>(`/catalog/products/${encodeURIComponent(slug)}`, { revalidate: 60 });
+    return await serverApi<ProductDto>(`/catalog/products/${encodeURIComponent(slug)}`, { revalidate: 0 });
   } catch (error) {
     if (error instanceof ServerApiError && error.status === 404) return null;
     throw error;
@@ -19,7 +19,7 @@ async function loadRelated(product: ProductDto | null): Promise<ProductDto[]> {
   if (!product?.category) return [];
   const page = await serverApi<Paginated<ProductDto>>('/catalog/products', {
     searchParams: new URLSearchParams({ category: product.category.slug, pageSize: '5', sort: 'name' }),
-    revalidate: 120,
+    revalidate: 0,
   }).catch(() => null);
   return (page?.items ?? []).filter((item) => item.id !== product.id).slice(0, 4);
 }
@@ -27,9 +27,16 @@ async function loadRelated(product: ProductDto | null): Promise<ProductDto[]> {
 export async function generateMetadata({ params }: PageProps<'/products/[slug]'>): Promise<Metadata> {
   const { slug } = await params;
   const product = await loadProduct(slug).catch(() => null);
-  return product
-    ? { title: product.name, description: product.description ?? `${product.name} — ${product.sku}` }
-    : { title: 'Product' };
+  if (!product) return { title: 'Product' };
+  const description = product.description ?? `${product.name} — ${product.sku}`;
+  // Link previews (WhatsApp, email, social) show the product rather than the site-wide defaults.
+  const images = product.imageUrl ? [{ url: product.imageUrl, alt: product.name }] : undefined;
+  return {
+    title: product.name,
+    description,
+    openGraph: { type: 'website', siteName: 'Top Flow Hub', locale: 'en_AE', title: product.name, description, images },
+    twitter: { card: 'summary', title: product.name, description, images },
+  };
 }
 
 export default async function ProductPage({ params }: PageProps<'/products/[slug]'>) {

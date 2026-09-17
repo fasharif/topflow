@@ -8,6 +8,8 @@ export const AuditAction = {
 
   USER_UPDATED: 'users.updated',
   STAFF_CREATED: 'users.staff_created',
+  /** Sales created an account for a website contact so a quotation can be addressed to them. */
+  CUSTOMER_INVITED: 'users.customer_invited',
 
   ORGANIZATION_UPDATED: 'organizations.updated',
   ORGANIZATION_REVIEWED: 'organizations.reviewed',
@@ -25,6 +27,7 @@ export const AuditAction = {
 
   RFQ_SUBMITTED: 'procurement.rfq_submitted',
   RFQ_UPDATED: 'procurement.rfq_updated',
+  RFQ_CUSTOMER_ASSIGNED: 'procurement.rfq_customer_assigned',
   QUOTATION_CREATED: 'procurement.quotation_created',
   QUOTATION_UPDATED: 'procurement.quotation_updated',
   QUOTATION_SENT: 'procurement.quotation_sent',
@@ -36,5 +39,6 @@ export const AuditAction = {
   ORDER_STATUS_CHANGED: 'orders.status_changed',
   ORDER_CANCELLED: 'orders.cancelled',
   ORDER_PAYMENT_RECORDED: 'orders.payment_recorded',
+  ORDER_REFUND_RECORDED: 'orders.refund_recorded',
 } as const;
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];

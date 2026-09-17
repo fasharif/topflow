@@ -257,6 +257,17 @@ export interface RfqContactDto {
   preferredContact: ContactChannel | null;
 }
 
+/** Staff only: an existing account that uses a website request's contact email. */
+export interface RfqContactAccountDto {
+  id: string;
+  fullName: string;
+  email: string;
+  role: Role;
+  isActive: boolean;
+  /** Organizations a quotation could be addressed to instead of the person. */
+  organizations: OrganizationRef[];
+}
+
 export interface RfqDto {
   id: string;
   number: string;
@@ -264,6 +275,11 @@ export interface RfqDto {
   source: RfqSource;
   /** Present for website requests, which have no account or organization. */
   contact: RfqContactDto | null;
+  /**
+   * Staff only, for website requests not yet linked to a customer: the account already using the
+   * contact's email address, or null when there is none.
+   */
+  contactAccount?: RfqContactAccountDto | null;
   organization: OrganizationRef | null;
   requestedBy: UserRef | null;
   assignedTo: UserRef | null;

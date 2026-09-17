@@ -6,12 +6,14 @@ import {
   RFQ_TRANSITIONS,
   RfqSource,
   RfqStatus,
+  Role,
   hasPermission,
   updateRfqSchema,
+  type AssignRfqCustomerInput,
   type RfqDto,
   type UpdateRfqInput,
 } from '@topflow/shared';
-import { FileText, Mail, Phone, UserRound } from 'lucide-react';
+import { FileText, Mail, Phone, Send, UserRound } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
@@ -44,9 +46,9 @@ function statusActions(rfq: RfqDto): StatusAction[] {
     },
     { status: RfqStatus.CANCELLED, label: 'Cancel RFQ', confirm: 'Cancel this RFQ? This cannot be undone.' },
   ];
-  // Drafting a quotation moves an RFQ into review automatically. Requests that can't be quoted (such as
-  // website enquiries) need it done by hand before they can be closed. A quoted RFQ only returns to
-  // review through a revision request, so this is offered for new requests only.
+  // Drafting a quotation moves an RFQ into review automatically. Requests that are answered outside the
+  // platform need it done by hand before they can be closed. A quoted RFQ only returns to review through a
+  // revision request, so this is offered for new requests only.
   if (rfq.status === RfqStatus.SUBMITTED) actions.unshift({ status: RfqStatus.IN_REVIEW, label: 'Mark in review' });
   return actions.filter((action) => RFQ_TRANSITIONS[rfq.status].includes(action.status));
 }
@@ -72,11 +74,13 @@ function ContactItem({ label, wide, children }: { label: string; wide?: boolean;
   );
 }
 
-/** Who to reply to for a request sent from the public website, which has no account or organization. */
+/** Who to reply to for a request sent from the public website, which starts without an account. */
 function WebsiteEnquiryCard({ rfq }: { rfq: RfqDto }) {
   const { contact } = rfq;
   const title = 'Website enquiry';
-  const description = 'Sent from the public website without an account. Reply to the contact directly.';
+  const description = rfq.requestedBy
+    ? 'Sent from the public website. Quotations for it go to the linked customer account.'
+    : 'Sent from the public website without an account. Reply to the contact directly, or link a customer account to send a formal quotation.';
   const notes = (
     <div>
       <SectionLabel>Notes from the customer</SectionLabel>
@@ -149,6 +153,105 @@ function WebsiteEnquiryCard({ rfq }: { rfq: RfqDto }) {
   );
 }
 
+/**
+ * A quotation is addressed to a customer account, where the customer accepts it online. For a website
+ * request, staff link the account that already uses the contact's email — personally or for one of its
+ * organizations — or invite the contact, which creates the account and emails them a sign-in link.
+ */
+function CustomerLinkPanel({ rfq, onLinked }: { rfq: RfqDto; onLinked: (rfq: RfqDto) => void }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const { contact, contactAccount: account } = rfq;
+
+  if (!contact) {
+    return (
+      <EmptyState
+        title="A quotation needs a customer account"
+        description="This request has no contact details, so it can't be linked to a customer."
+        icon={<UserRound aria-hidden="true" />}
+      />
+    );
+  }
+
+  const contactName = contact.name || contact.email;
+  const link = async (key: string, body: AssignRfqCustomerInput) => {
+    setBusy(key);
+    setError(null);
+    try {
+      onLinked(await api<RfqDto>(`/admin/rfqs/${rfq.id}/customer`, { method: 'POST', body }));
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  let choice: ReactNode;
+  if (!account) {
+    choice = (
+      <>
+        <p className="text-sm text-slate-700">
+          No account uses <span className="font-medium text-ink-900">{contact.email}</span> yet. Inviting {contactName} creates their customer account and emails
+          them a link to choose a password, so they can accept the quotation online.
+        </p>
+        <Button size="sm" className="mt-3" loading={busy === 'invite'} disabled={busy !== null} onClick={() => void link('invite', {})}>
+          {busy !== 'invite' && <Send aria-hidden="true" />}
+          Invite {contactName}
+        </Button>
+      </>
+    );
+  } else if (account.role !== Role.CUSTOMER || !account.isActive) {
+    choice = (
+      <Alert tone="warning">
+        {account.email} belongs to {account.isActive ? 'a Top Flow staff account' : 'a suspended account'}, so it can’t receive quotations. Reply to the contact
+        directly instead.
+      </Alert>
+    );
+  } else {
+    choice = (
+      <>
+        <p className="text-sm text-slate-700">
+          <span className="font-medium text-ink-900">{account.fullName}</span> already has an account with {account.email}.
+          {account.organizations.length > 0 && ' Quote them personally, or for one of their organizations.'}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button size="sm" loading={busy === 'person'} disabled={busy !== null} onClick={() => void link('person', { customerId: account.id })}>
+            Quote {account.fullName}
+          </Button>
+          {account.organizations.map((organization) => (
+            <Button
+              key={organization.id}
+              size="sm"
+              variant="secondary"
+              loading={busy === organization.id}
+              disabled={busy !== null}
+              onClick={() => void link(organization.id, { customerId: account.id, organizationId: organization.id })}
+            >
+              Quote {organization.name}
+            </Button>
+          ))}
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start gap-3">
+        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-flow-50 text-flow-700">
+          <UserRound aria-hidden="true" className="size-5" />
+        </span>
+        <div className="min-w-0">
+          <h3 className="font-semibold text-ink-900">Link a customer account</h3>
+          <p className="mt-0.5 text-sm text-slate-600">A quotation is sent to a customer account, where the customer can accept it online.</p>
+        </div>
+      </div>
+      <div className="rounded-lg border border-slate-200 p-4">{choice}</div>
+      {error && <Alert tone="danger">{error}</Alert>}
+    </div>
+  );
+}
+
 function RfqDetail({ id }: { id: string }) {
   const { user } = useSession();
   const query = useApiQuery<RfqDto>(`/admin/rfqs/${id}`);
@@ -195,15 +298,13 @@ function RfqDetail({ id }: { id: string }) {
   if (!open) {
     noQuotation = <p className="text-sm text-slate-500">No quotation was issued for this request.</p>;
   } else if (!rfq.requestedBy) {
-    // A quotation is addressed to the requester's account, and the API rejects an RFQ without one.
-    noQuotation = (
+    // A quotation is addressed to a customer account, and the API rejects an RFQ without one.
+    noQuotation = website ? (
+      <CustomerLinkPanel rfq={rfq} onLinked={setUpdated} />
+    ) : (
       <EmptyState
         title="A quotation needs a customer account"
-        description={
-          website
-            ? 'This request came from the website, and a formal quotation needs a customer account. Reply by email or phone with prices, or ask the customer to register for a trade account and send the request from the trade portal.'
-            : 'The account that sent this request no longer exists, so a formal quotation can’t be issued for it.'
-        }
+        description="The account that sent this request no longer exists, so a formal quotation can’t be issued for it."
         icon={<UserRound aria-hidden="true" />}
       />
     );
@@ -211,7 +312,11 @@ function RfqDetail({ id }: { id: string }) {
     noQuotation = (
       <EmptyState
         title="No quotation yet"
-        description="Price the requested items — the organization’s trade discount is applied automatically — then send it to the customer."
+        description={
+          rfq.organization
+            ? `Price the requested items for ${rfq.organization.name} — their trade discount is applied automatically — then send it to the customer.`
+            : `Price the requested items, then send the quotation to ${rfq.requestedBy.fullName}’s account.`
+        }
         icon={<FileText aria-hidden="true" />}
         action={<LinkButton href={createHref}>Create quotation</LinkButton>}
       />
@@ -291,8 +396,8 @@ function RfqDetail({ id }: { id: string }) {
                       </Button>
                     ))}
                   </div>
-                  {website && rfq.status === RfqStatus.SUBMITTED && (
-                    <p className="mt-2 text-xs text-slate-500">Mark it in review while you’re in touch with the customer, then close it once they have a reply.</p>
+                  {website && rfq.status === RfqStatus.SUBMITTED && !rfq.requestedBy && (
+                    <p className="mt-2 text-xs text-slate-500">If you reply outside the platform, mark it in review, then close it once the customer has an answer.</p>
                   )}
                 </div>
               )}
@@ -308,7 +413,7 @@ function RfqDetail({ id }: { id: string }) {
                   { label: 'Source', value: RFQ_SOURCE_LABELS[rfq.source] },
                   {
                     label: 'Organization',
-                    hidden: website,
+                    hidden: website && !rfq.organization,
                     value:
                       rfq.organization && canReviewOrganizations ? (
                         <Link href={`/admin/organizations/${rfq.organization.id}`} className="text-brand-700 hover:underline">
@@ -319,8 +424,8 @@ function RfqDetail({ id }: { id: string }) {
                       ),
                   },
                   {
-                    label: 'Requested by',
-                    hidden: website,
+                    label: website ? 'Customer account' : 'Requested by',
+                    hidden: website && !rfq.requestedBy,
                     value: rfq.requestedBy ? (
                       <>
                         <span className="block">{rfq.requestedBy.fullName}</span>

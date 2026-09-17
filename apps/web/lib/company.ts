@@ -75,9 +75,11 @@ export const MAIN_CATEGORIES = [
   { slug: 'pipes-fittings', name: 'Pipes & Fittings' },
   { slug: 'valves-control', name: 'Valves & Control' },
   { slug: 'filtration', name: 'Filtration' },
-  { slug: 'landscaping-hardscape', name: 'Landscaping & Hardscape' },
+  { slug: 'pumps-water-supply', name: 'Pumps & Water Supply' },
+  { slug: 'fertigation', name: 'Fertigation' },
+  { slug: 'greenhouse-nursery', name: 'Greenhouse & Nursery' },
+  { slug: 'hoses-watering', name: 'Hoses & Watering' },
   { slug: 'specialty', name: 'Specialty' },
-  { slug: 'facilities-mep', name: 'Facilities & MEP' },
 ] as const;
 
 export type MainCategorySlug = (typeof MAIN_CATEGORIES)[number]['slug'];

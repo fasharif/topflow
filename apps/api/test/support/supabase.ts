@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { SignJWT } from 'jose';
 import type {
+  AccountInvitation,
   IdentityRecord,
-  StaffInvitation,
 } from '../../src/auth/identity-admin.service';
 
 export interface TestIdentity {
@@ -46,23 +46,19 @@ export function signAccessToken(identity: TestIdentity): Promise<string> {
 export class FakeIdentityAdmin {
   readonly isConfigured = true;
   readonly identities = new Map<string, IdentityRecord>();
-  readonly invitations: StaffInvitation[] = [];
+  readonly invitations: AccountInvitation[] = [];
   readonly suspended = new Set<string>();
 
   findIdentity(userId: string): Promise<IdentityRecord | null> {
     return Promise.resolve(this.identities.get(userId) ?? null);
   }
 
-  inviteStaff(invitation: StaffInvitation): Promise<string> {
-    const id = randomUUID();
-    this.invitations.push(invitation);
-    this.identities.set(id, {
-      id,
-      email: invitation.email,
-      emailConfirmed: false,
-      userMetadata: { full_name: invitation.fullName },
-    });
-    return Promise.resolve(id);
+  inviteStaff(invitation: AccountInvitation): Promise<string> {
+    return this.invite(invitation);
+  }
+
+  inviteCustomer(invitation: AccountInvitation): Promise<string> {
+    return this.invite(invitation);
   }
 
   setSuspended(userId: string, suspended: boolean): Promise<void> {
@@ -74,5 +70,24 @@ export class FakeIdentityAdmin {
   deleteIdentity(userId: string): Promise<void> {
     this.identities.delete(userId);
     return Promise.resolve();
+  }
+
+  /** The identity invited with this email address, as its first sign-in would present it. */
+  identityFor(email: string): IdentityRecord | undefined {
+    return [...this.identities.values()].find(
+      (identity) => identity.email === email,
+    );
+  }
+
+  private invite(invitation: AccountInvitation): Promise<string> {
+    const id = randomUUID();
+    this.invitations.push(invitation);
+    this.identities.set(id, {
+      id,
+      email: invitation.email,
+      emailConfirmed: false,
+      userMetadata: { full_name: invitation.fullName },
+    });
+    return Promise.resolve(id);
   }
 }

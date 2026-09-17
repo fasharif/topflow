@@ -16,7 +16,8 @@ export interface IdentityRecord {
   userMetadata: Record<string, unknown>;
 }
 
-export interface StaffInvitation {
+/** An invitation email: the recipient chooses their own password through its link. */
+export interface AccountInvitation {
   email: string;
   fullName: string;
   phoneNumber?: string;
@@ -29,8 +30,8 @@ const SUSPENSION_BAN_DURATION = '876000h';
 
 /**
  * Server-side Supabase Auth administration with the project's secret key, which never leaves
- * the API: reading identities, inviting staff and suspending accounts. Without the key (local
- * development and tests) reads return nothing and writes that need Supabase are refused.
+ * the API: reading identities, inviting staff and customers, and suspending accounts. Without the
+ * key (local development and tests) reads return nothing and writes that need Supabase are refused.
  */
 @Injectable()
 export class IdentityAdminService {
@@ -71,35 +72,25 @@ export class IdentityAdminService {
     };
   }
 
-  /** Emails a Supabase invitation (the colleague chooses their own password) and returns the identity id. */
-  async inviteStaff(invitation: StaffInvitation): Promise<string> {
-    const client = this.requireClient('Staff invitations');
-    const { data, error } = await client.auth.admin.inviteUserByEmail(
-      invitation.email,
-      {
-        data: {
-          full_name: invitation.fullName,
-          ...(invitation.phoneNumber && {
-            phone_number: invitation.phoneNumber,
-          }),
-        },
-        redirectTo: invitation.redirectTo,
-      },
+  /** Emails a staff invitation (the colleague chooses their own password) and returns the identity id. */
+  inviteStaff(invitation: AccountInvitation): Promise<string> {
+    return this.invite(
+      invitation,
+      'Staff invitations',
+      'An account with this email address already exists. Change its role from the user list instead.',
     );
-    if (error || !data.user) {
-      if (error?.code === 'email_exists' || error?.status === 422) {
-        throw new ConflictException(
-          'An account with this email address already exists. Change its role from the user list instead.',
-        );
-      }
-      this.logger.error(
-        `Supabase invitation for ${invitation.email} failed: ${error?.message ?? 'no user returned'}`,
-      );
-      throw new ServiceUnavailableException(
-        'The invitation could not be sent. Please try again.',
-      );
-    }
-    return data.user.id;
+  }
+
+  /**
+   * Emails a customer invitation — sent when sales quote a website request from someone without an
+   * account — and returns the identity id.
+   */
+  inviteCustomer(invitation: AccountInvitation): Promise<string> {
+    return this.invite(
+      invitation,
+      'Customer invitations',
+      'This email address already has a Top Flow sign-in. Ask the customer to sign in once, then link their account to the request.',
+    );
   }
 
   /** Suspends (or restores) sign-in for an identity so no new sessions can be created. */
@@ -132,6 +123,38 @@ export class IdentityAdminService {
         `Could not remove identity ${userId}: ${error.message}`,
       );
     }
+  }
+
+  private async invite(
+    invitation: AccountInvitation,
+    feature: string,
+    existsMessage: string,
+  ): Promise<string> {
+    const client = this.requireClient(feature);
+    const { data, error } = await client.auth.admin.inviteUserByEmail(
+      invitation.email,
+      {
+        data: {
+          full_name: invitation.fullName,
+          ...(invitation.phoneNumber && {
+            phone_number: invitation.phoneNumber,
+          }),
+        },
+        redirectTo: invitation.redirectTo,
+      },
+    );
+    if (error || !data.user) {
+      if (error?.code === 'email_exists' || error?.status === 422) {
+        throw new ConflictException(existsMessage);
+      }
+      this.logger.error(
+        `Supabase invitation for ${invitation.email} failed: ${error?.message ?? 'no user returned'}`,
+      );
+      throw new ServiceUnavailableException(
+        'The invitation could not be sent. Please try again.',
+      );
+    }
+    return data.user.id;
   }
 
   private requireClient(feature: string): SupabaseClient {

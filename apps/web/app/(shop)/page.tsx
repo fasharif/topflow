@@ -114,9 +114,9 @@ export default async function HomePage() {
     serverApi<CategoryDto[]>('/catalog/categories', { revalidate: 300 }).catch((): CategoryDto[] => []),
     serverApi<Paginated<ProductDto>>('/catalog/products', {
       searchParams: new URLSearchParams({ pageSize: '8', sort: 'name', stockStatus: 'IN_STOCK' }),
-      revalidate: 120,
+      revalidate: 0,
     }).catch(() => null),
-    serverApi<Paginated<ProductDto>>('/catalog/products', { searchParams: new URLSearchParams({ pageSize: '1' }), revalidate: 300 }).catch(() => null),
+    serverApi<Paginated<ProductDto>>('/catalog/products', { searchParams: new URLSearchParams({ pageSize: '1' }), revalidate: 0 }).catch(() => null),
   ]);
 
   const topLevel = categories.filter((category) => category.parentId === null && (category.productCount ?? 0) > 0);
@@ -138,8 +138,8 @@ export default async function HomePage() {
               Irrigation and flow-control supplies for projects across the UAE
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-slate-600">
-              Fittings, sprinklers, drip lines, valves and filtration for contractors, landscapers, facilities teams and homeowners. See approximate
-              prices including VAT, then request a formal quotation for your quantities.
+              Fittings, sprinklers, drip lines, valves, controllers, filtration, pumps and fertigation for contractors, farms, landscapers, facilities teams
+              and homeowners. See approximate prices including VAT, then request a formal quotation for your quantities.
             </p>
 
             <Form action="/products" role="search" className="mt-8 flex max-w-xl flex-col gap-2 sm:flex-row">

@@ -10,11 +10,13 @@ import {
   PaymentTerms,
   quotationDisplayNumber,
   toFils,
+  type AddressSnapshot,
 } from '@topflow/shared';
 import { AuditAction } from '../audit/audit-actions';
 import { AuditService } from '../audit/audit.service';
 import { NumberingService } from '../common/numbering.service';
 import type { RequestMeta } from '../common/request-context';
+import { formatAddress } from '../users/address-book.service';
 
 export type QuotationForOrder = Prisma.QuotationGetPayload<{
   include: { items: true; quoteRequest: true; organization: true };
@@ -51,24 +53,34 @@ export class OrderWriter {
   }
 
   /**
-   * Converts an accepted quotation into a B2B sales order, applying the organization's
-   * commercial terms:
+   * Converts an accepted quotation into a sales order.
+   *
+   * A quotation for an organization becomes a B2B order on its commercial terms:
    *  • PREPAID accounts → PENDING_PAYMENT (proforma, bank transfer)
    *  • credit accounts  → CONFIRMED on credit, unless outstanding unpaid orders plus this
    *    order would exceed the credit limit, in which case the order waits for payment.
+   * A quotation for an individual customer becomes a retail order, confirmed and paid on
+   * delivery to the address they chose when accepting (`delivery`).
    */
   async createFromQuotation(
     tx: Prisma.TransactionClient,
     quotation: QuotationForOrder,
     acceptedById: string,
     meta: RequestMeta,
+    delivery?: AddressSnapshot,
   ): Promise<CreatedOrder> {
     const org = quotation.organization;
+    let channel: OrderChannel = OrderChannel.B2B;
     let status: OrderStatus = OrderStatus.PENDING_PAYMENT;
     let paymentMethod: PaymentMethod = PaymentMethod.BANK_TRANSFER;
     let releaseNote = 'Awaiting advance payment (prepaid account)';
 
-    if (org && org.paymentTerms !== PaymentTerms.PREPAID) {
+    if (!quotation.organizationId) {
+      channel = OrderChannel.RETAIL;
+      status = OrderStatus.CONFIRMED;
+      paymentMethod = PaymentMethod.CASH_ON_DELIVERY;
+      releaseNote = 'Payment on delivery';
+    } else if (org && org.paymentTerms !== PaymentTerms.PREPAID) {
       const outstanding = await tx.order.aggregate({
         where: {
           organizationId: org.id,
@@ -93,7 +105,7 @@ export class OrderWriter {
     const order = await tx.order.create({
       data: {
         orderNumber,
-        channel: OrderChannel.B2B,
+        channel,
         status,
         userId: acceptedById,
         organizationId: quotation.organizationId,
@@ -108,9 +120,10 @@ export class OrderWriter {
         paymentMethod,
         purchaseOrderNumber: quotation.purchaseOrderNumber,
         projectReference: rfq?.projectReference ?? null,
-        shippingAddress:
-          rfq?.shippingAddress ?? 'Delivery site to be confirmed',
-        deliveryAddress: rfq?.deliveryAddress ?? undefined,
+        shippingAddress: delivery
+          ? formatAddress(delivery)
+          : (rfq?.shippingAddress ?? 'Delivery site to be confirmed'),
+        deliveryAddress: delivery ?? rfq?.deliveryAddress ?? undefined,
         notes: quotation.notes,
         confirmedAt: status === OrderStatus.CONFIRMED ? new Date() : null,
         items: {
@@ -148,6 +161,7 @@ export class OrderWriter {
         details: {
           orderNumber,
           quotationId: quotation.id,
+          channel,
           status,
           total: quotation.total.toString(),
         },
