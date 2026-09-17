@@ -10,11 +10,15 @@ import { Alert, Button, Card, EmptyState, Field, LinkButton, LoadingBlock, PageH
 import { aed, formatDate, pluralize } from '@/lib/format';
 import { useApiQuery } from '@/lib/use-api';
 
-/** Drafts never reach customers, so they are not offered as a filter. */
-const STATUS_OPTIONS = Object.entries(QUOTATION_STATUS_LABELS).filter(([value]) => value !== QuotationStatus.DRAFT);
+/**
+ * Drafts never reach customers, and internal approval only happens inside trade organizations, so neither is
+ * offered as a filter for personal quotations.
+ */
+const HIDDEN_STATUSES: readonly string[] = [QuotationStatus.DRAFT, QuotationStatus.PENDING_APPROVAL];
+const STATUS_OPTIONS = Object.entries(QUOTATION_STATUS_LABELS).filter(([value]) => !HIDDEN_STATUSES.includes(value));
 
 function isQuotationStatus(value: string | null): value is QuotationStatus {
-  return value !== null && value !== QuotationStatus.DRAFT && Object.hasOwn(QUOTATION_STATUS_LABELS, value);
+  return value !== null && !HIDDEN_STATUSES.includes(value) && Object.hasOwn(QUOTATION_STATUS_LABELS, value);
 }
 
 /** The status filter and page number live in the URL, so refresh and the back button keep the view. */
