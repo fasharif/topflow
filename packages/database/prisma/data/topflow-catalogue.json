@@ -1,5 +1,5 @@
 {
-  "source": "Top Flow catalogue (topflow.ae), imported with Top Flow’s approval on 2026-09-15. Indicative price ranges researched from UAE and international list prices. Curated on 2026-09-17 to irrigation, water management and farm supplies: out-of-scope categories and duplicate listings removed, variant names made unique.",
+  "source": "Top Flow catalogue (topflow.ae), imported with Top Flow’s approval on 2026-09-15. Indicative price ranges researched from UAE and international list prices. Curated on 2026-09-17 to irrigation, water management and farm supplies: out-of-scope categories and duplicate listings removed, variant names made unique. Extended on 2026-09-17 with typical products of the UAE irrigation and farm-supply market (TF- codes in the lines listed in data/README.md): their specifications are typical for each product type and their prices are estimates, both to be confirmed against supplier data.",
   "categories": [
     {
       "slug": "electrofusion-hdpe-fittings",
@@ -20,7 +20,7 @@
     {
       "slug": "sprinklers-rotors",
       "name": "Sprinklers & Rotors",
-      "description": "Gear-drive rotors, pop-up sprays, bubblers and the risers and swing joints that connect them, from villa lawns to sports fields and golf courses.",
+      "description": "Gear-drive rotors, pop-up sprays, bubblers, impact sprinklers and rain guns, with the risers and swing joints that connect them, from villa lawns to farms, sports fields and golf courses.",
       "imageUrl": "/catalog/products/ax-rb-sj-01.webp",
       "displayOrder": 1,
       "lines": [
@@ -72,13 +72,20 @@
           "description": "Adjustable and pressure-compensating bubblers, with stakes, for trees, shrubs and planters.",
           "imageUrl": "/catalog/products/ws-1600.webp",
           "displayOrder": 6
+        },
+        {
+          "slug": "impact-sprinklers-rain-guns",
+          "name": "Impact Sprinklers & Rain Guns",
+          "description": "Impact sprinklers, tripod stands and long-throw rain guns for farms, nurseries, dust control and temporary irrigation.",
+          "imageUrl": null,
+          "displayOrder": 7
         }
       ]
     },
     {
       "slug": "drip-irrigation",
       "name": "Drip Irrigation",
-      "description": "Pressure-compensating driplines, emitters and deep-root watering systems that put water exactly where plants need it and cut evaporation in the UAE heat.",
+      "description": "Pressure-compensating driplines, drip tape, emitters, micro-sprinklers, ready-made kits and deep-root watering systems that put water exactly where plants need it and cut evaporation in the UAE heat.",
       "imageUrl": "/catalog/products/ax-rb-d-01.webp",
       "displayOrder": 2,
       "lines": [
@@ -130,13 +137,34 @@
           "description": "Automatic end-of-line valves that flush debris out of driplines every time a zone starts.",
           "imageUrl": "/catalog/products/automatic-flush-valve.webp",
           "displayOrder": 6
+        },
+        {
+          "slug": "drip-irrigation-kits",
+          "name": "Drip Irrigation Kits",
+          "description": "Ready-to-install kits for home gardens, trees, date palms and small farm plots, with pipe, emitters, fittings and a filter.",
+          "imageUrl": null,
+          "displayOrder": 7
+        },
+        {
+          "slug": "drip-tape",
+          "name": "Drip Tape",
+          "description": "Thin-wall drip tape and start connectors for seasonal vegetable and field crops.",
+          "imageUrl": null,
+          "displayOrder": 8
+        },
+        {
+          "slug": "micro-sprinklers",
+          "name": "Micro Sprinklers",
+          "description": "Rotating micro-sprinklers, micro-jets and microtube for orchards, nurseries and ground cover.",
+          "imageUrl": null,
+          "displayOrder": 9
         }
       ]
     },
     {
       "slug": "pipes-fittings",
       "name": "Pipes & Fittings",
-      "description": "HDPE and LDPE pipe with compression, barbed, locking and quick-coupling fittings, clamp saddles and golf saddles for every connection on site.",
+      "description": "HDPE and LDPE pipe with compression, barbed, locking and quick-coupling fittings, clamp saddles, golf saddles and the tools to install them.",
       "imageUrl": "/catalog/products/hdpe-pipe.webp",
       "displayOrder": 3,
       "lines": [
@@ -195,13 +223,20 @@
           "description": "Fusible PE saddles that create a permanent swing-joint outlet on HDPE golf and sports-field mains.",
           "imageUrl": "/catalog/products/fusible-golf-saddle.webp",
           "displayOrder": 7
+        },
+        {
+          "slug": "installation-tools",
+          "name": "Installation Tools",
+          "description": "Hole punches, pipe cutters and fitting wrenches for fast, clean PE pipe installation.",
+          "imageUrl": null,
+          "displayOrder": 8
         }
       ]
     },
     {
       "slug": "valves-control",
       "name": "Valves & Control",
-      "description": "Commercial solenoid valves, air release valves, valve boxes and tap timers to zone, protect and automate an irrigation network.",
+      "description": "Controllers, sensors, solenoid and manual valves, pressure regulators, water meters and valve boxes to zone, protect and automate an irrigation network.",
       "imageUrl": "/catalog/products/solenoid-commercial-valve.webp",
       "displayOrder": 4,
       "lines": [
@@ -232,13 +267,48 @@
           "description": "A battery-powered tap timer for simple scheduled watering of gardens, terraces and balconies.",
           "imageUrl": "/catalog/products/digital-tap-timer.webp",
           "displayOrder": 3
+        },
+        {
+          "slug": "irrigation-controllers",
+          "name": "Irrigation Controllers",
+          "description": "Indoor, outdoor, modular, Wi-Fi, battery-operated and two-wire controllers that run irrigation zones on schedule.",
+          "imageUrl": null,
+          "displayOrder": 4
+        },
+        {
+          "slug": "rain-soil-flow-sensors",
+          "name": "Rain, Soil & Flow Sensors",
+          "description": "Rain, soil-moisture and flow sensors that stop irrigation when it is not needed and shut down zones with a leak.",
+          "imageUrl": null,
+          "displayOrder": 5
+        },
+        {
+          "slug": "control-cable-connectors",
+          "name": "Control Cable & Connectors",
+          "description": "Direct-burial control cable, waterproof wire connectors and DC latching solenoids for wiring valves to controllers.",
+          "imageUrl": null,
+          "displayOrder": 6
+        },
+        {
+          "slug": "ball-gate-check-valves",
+          "name": "Ball, Gate & Check Valves",
+          "description": "PVC ball valves, gate and butterfly valves, and check valves for isolating and protecting mains and zones.",
+          "imageUrl": null,
+          "displayOrder": 7
+        },
+        {
+          "slug": "pressure-regulators-meters",
+          "name": "Pressure Regulators & Meters",
+          "description": "Pressure regulators, gauges and water meters that keep zones at the right pressure and measure what the network uses.",
+          "imageUrl": null,
+          "displayOrder": 8
         }
       ]
     },
     {
       "slug": "filtration",
       "name": "Filtration",
-      "description": "Manual Y-type and automatic self-cleaning disc filters that keep sand and organic matter out of emitters and nozzles.",
+      "description": "Screen, disc, sand media and hydrocyclone filters that keep sand, algae and organic matter out of emitters and nozzles.",
       "imageUrl": "/catalog/products/y-type-disc-filter.webp",
       "displayOrder": 5,
       "lines": [
@@ -255,6 +325,182 @@
           "description": "Self-cleaning backflush disc filter units and multi-filter systems on grooved or flanged manifolds for high-flow projects.",
           "imageUrl": "/catalog/products/wsi-f050tb.webp",
           "displayOrder": 1
+        },
+        {
+          "slug": "screen-filters",
+          "name": "Screen Filters",
+          "description": "Plastic and steel screen filters with stainless-steel mesh for well, municipal and tank water.",
+          "imageUrl": null,
+          "displayOrder": 2
+        },
+        {
+          "slug": "sand-media-filters",
+          "name": "Sand Media Filters",
+          "description": "Epoxy-coated steel sand media filters, and filtration sand, for water from reservoirs, canals and treated effluent.",
+          "imageUrl": null,
+          "displayOrder": 3
+        },
+        {
+          "slug": "hydrocyclone-sand-separators",
+          "name": "Hydrocyclone Sand Separators",
+          "description": "Hydrocyclones that spin sand and silt out of well water before the main filter.",
+          "imageUrl": null,
+          "displayOrder": 4
+        }
+      ]
+    },
+    {
+      "slug": "pumps-water-supply",
+      "name": "Pumps & Water Supply",
+      "description": "Surface, borehole and solar pumps, booster sets, pressure and storage tanks, and pump controls that lift, store and pressurise water for farms, villas and landscape networks.",
+      "imageUrl": null,
+      "displayOrder": 6,
+      "lines": [
+        {
+          "slug": "surface-pumps-booster-sets",
+          "name": "Surface Pumps & Booster Sets",
+          "description": "Centrifugal, end-suction and stainless-steel multistage pumps, and packaged booster sets, for lifting water from tanks and wells and pressurising irrigation lines.",
+          "imageUrl": null,
+          "displayOrder": 0
+        },
+        {
+          "slug": "borehole-submersible-pumps",
+          "name": "Borehole Submersible Pumps",
+          "description": "4-inch and 6-inch submersible pumps with stainless-steel pump ends for boreholes and deep wells.",
+          "imageUrl": null,
+          "displayOrder": 1
+        },
+        {
+          "slug": "solar-pumping",
+          "name": "Solar Pumping",
+          "description": "Solar pump inverters and solar pump kits that run irrigation pumps from PV panels on off-grid farms and remote plots.",
+          "imageUrl": null,
+          "displayOrder": 2
+        },
+        {
+          "slug": "pressure-storage-tanks",
+          "name": "Pressure & Storage Tanks",
+          "description": "Membrane pressure tanks that cut pump cycling, and UV-stabilised polyethylene tanks for storing irrigation water.",
+          "imageUrl": null,
+          "displayOrder": 3
+        },
+        {
+          "slug": "pump-controls-accessories",
+          "name": "Pump Controls & Accessories",
+          "description": "Electronic pressure controls, starter panels, float switches and foot valves that automate pumps and protect them from running dry.",
+          "imageUrl": null,
+          "displayOrder": 4
+        }
+      ]
+    },
+    {
+      "slug": "fertigation",
+      "name": "Fertigation",
+      "description": "Venturi injectors, proportional dosers, fertiliser tanks and EC/pH control for feeding crops and landscapes through the irrigation system.",
+      "imageUrl": null,
+      "displayOrder": 7,
+      "lines": [
+        {
+          "slug": "venturi-injectors",
+          "name": "Venturi Injectors",
+          "description": "Venturi fertiliser injectors and bypass kits that draw nutrient solution into the line from the pressure difference, with no power or moving parts.",
+          "imageUrl": null,
+          "displayOrder": 0
+        },
+        {
+          "slug": "dosing-pumps",
+          "name": "Dosing Pumps",
+          "description": "Water-powered proportional dosers and electric dosing pumps for accurate injection of nutrients and acids.",
+          "imageUrl": null,
+          "displayOrder": 1
+        },
+        {
+          "slug": "fertiliser-tanks",
+          "name": "Fertiliser Tanks",
+          "description": "Bypass pressure tanks for batch fertigation and chemical-resistant tanks for mixing stock solutions.",
+          "imageUrl": null,
+          "displayOrder": 2
+        },
+        {
+          "slug": "ec-ph-control",
+          "name": "EC & pH Control",
+          "description": "Meters and controllers that keep nutrient strength and pH within the range the crop needs.",
+          "imageUrl": null,
+          "displayOrder": 3
+        }
+      ]
+    },
+    {
+      "slug": "greenhouse-nursery",
+      "name": "Greenhouse & Nursery",
+      "description": "Shade and insect nets, greenhouse film, evaporative cooling, misting and nursery containers for protected cultivation in the UAE climate.",
+      "imageUrl": null,
+      "displayOrder": 8,
+      "lines": [
+        {
+          "slug": "shade-insect-nets",
+          "name": "Shade & Insect Nets",
+          "description": "UV-stabilised HDPE shade nets and fine-mesh insect nets for greenhouses, nurseries and shade houses.",
+          "imageUrl": null,
+          "displayOrder": 0
+        },
+        {
+          "slug": "greenhouse-film-fixings",
+          "name": "Greenhouse Film & Fixings",
+          "description": "UV-stabilised greenhouse film, with aluminium lock channel and wiggle wire to fix film and nets to the frame.",
+          "imageUrl": null,
+          "displayOrder": 1
+        },
+        {
+          "slug": "cooling-misting",
+          "name": "Cooling & Misting",
+          "description": "Evaporative cooling pads, foggers and misting lines that lower greenhouse temperature and raise humidity.",
+          "imageUrl": null,
+          "displayOrder": 2
+        },
+        {
+          "slug": "nursery-containers-media",
+          "name": "Nursery Containers & Media",
+          "description": "Seedling trays, nursery pots, coco peat grow bags and ground cover for propagation and container growing.",
+          "imageUrl": null,
+          "displayOrder": 3
+        }
+      ]
+    },
+    {
+      "slug": "hoses-watering",
+      "name": "Hoses & Watering",
+      "description": "Garden and heavy-duty hoses, layflat and suction hose, hose reels, spray guns and connectors for hand watering, tank filling and temporary supply lines.",
+      "imageUrl": null,
+      "displayOrder": 9,
+      "lines": [
+        {
+          "slug": "garden-rubber-hoses",
+          "name": "Garden & Rubber Hoses",
+          "description": "Reinforced PVC and rubber hoses for daily hand watering of villas, parks and nurseries.",
+          "imageUrl": null,
+          "displayOrder": 0
+        },
+        {
+          "slug": "layflat-suction-hoses",
+          "name": "Layflat & Suction Hoses",
+          "description": "Layflat discharge hose, spiral suction hose and cam-lock couplings for pumps, tank transfer and temporary mains.",
+          "imageUrl": null,
+          "displayOrder": 1
+        },
+        {
+          "slug": "hose-reels",
+          "name": "Hose Reels",
+          "description": "Mobile and wall-mounted hose reels that keep hoses tidy, kink-free and out of the sun.",
+          "imageUrl": null,
+          "displayOrder": 2
+        },
+        {
+          "slug": "spray-guns-connectors",
+          "name": "Spray Guns & Connectors",
+          "description": "Spray guns and click-fit hose connectors for hand watering.",
+          "imageUrl": null,
+          "displayOrder": 3
         }
       ]
     },
@@ -263,7 +509,7 @@
       "name": "Specialty",
       "description": "Center-pivot sprinklers and drops for agriculture, and purple-coded pipe, fittings and valve boxes for recycled-water systems.",
       "imageUrl": "/catalog/products/super-spray-sprinkler.webp",
-      "displayOrder": 7,
+      "displayOrder": 10,
       "lines": [
         {
           "slug": "center-pivot-components",
@@ -273,8 +519,8 @@
           "displayOrder": 0
         },
         {
-          "slug": "recycled-water-drainage",
-          "name": "Recycled Water & Drainage",
+          "slug": "recycled-water",
+          "name": "Recycled Water (Purple)",
           "description": "Purple-identified pipe, valve boxes and fittings that make non-potable and recycled water lines easy to recognise on site.",
           "imageUrl": "/catalog/products/purple-striped-hdpe-pipe.webp",
           "displayOrder": 1
@@ -2388,6 +2634,131 @@
       "imageUrl": "/catalog/products/bubbler-stake-st.webp"
     },
     {
+      "sku": "TF-SPR-IMP-050",
+      "name": "Impact Sprinkler 1/2\" (Part or Full Circle)",
+      "category": "sprinklers-rotors",
+      "line": "impact-sprinklers-rain-guns",
+      "brand": "Top Flow",
+      "description": "A classic impact sprinkler for vegetable plots, nurseries and fodder patches.",
+      "specifications": {
+        "Size": "1/2\" BSP male · radius 9–12 m",
+        "Product line": "Impact Sprinklers & Rain Guns",
+        "Details": "Glass-filled plastic body with stainless-steel spring; adjustable arc from 20° to 360°; flow 0.6–1.2 m³/h at 2–4 bar; diffuser screw to shorten the throw"
+      },
+      "priceMin": "12.00",
+      "priceMax": "20.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "sprinkler",
+        "impact",
+        "agriculture",
+        "farm"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-SPR-IMP-BR-075",
+      "name": "Brass Impact Sprinkler 3/4\"",
+      "category": "sprinklers-rotors",
+      "line": "impact-sprinklers-rain-guns",
+      "brand": "Top Flow",
+      "description": "A durable brass sprinkler for fodder crops, orchards and dust suppression on unpaved areas.",
+      "specifications": {
+        "Size": "3/4\" BSP male · radius 14–18 m",
+        "Product line": "Impact Sprinklers & Rain Guns",
+        "Details": "Brass body and arm with stainless-steel spring; part or full circle; two nozzles; flow 1.5–3 m³/h at 3–4.5 bar"
+      },
+      "priceMin": "48.00",
+      "priceMax": "76.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "sprinkler",
+        "impact",
+        "brass",
+        "farm"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-SPR-TRIPOD-075",
+      "name": "Telescopic Tripod Stand for 3/4\" Sprinklers",
+      "category": "sprinklers-rotors",
+      "line": "impact-sprinklers-rain-guns",
+      "brand": "Top Flow",
+      "description": "Lifts an impact sprinkler above tall crops and makes it easy to move around the field.",
+      "specifications": {
+        "Size": "3/4\" female top thread · height 0.9–1.5 m",
+        "Product line": "Impact Sprinklers & Rain Guns",
+        "Details": "Galvanised steel folding legs; telescopic riser; hose tail inlet"
+      },
+      "priceMin": "62.00",
+      "priceMax": "98.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "sprinkler",
+        "tripod",
+        "stand",
+        "farm"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-SPR-GUN-150",
+      "name": "Rain Gun 1-1/2\" (Part Circle)",
+      "category": "sprinklers-rotors",
+      "line": "impact-sprinklers-rain-guns",
+      "brand": "Top Flow",
+      "description": "A long-throw sprinkler for fodder fields, dust control and watering large areas from a single position.",
+      "specifications": {
+        "Size": "1-1/2\" BSP female · radius 25–38 m",
+        "Product line": "Impact Sprinklers & Rain Guns",
+        "Details": "Aluminium and brass construction; adjustable part-circle arc; 24° trajectory; flow 8–25 m³/h at 3–6 bar"
+      },
+      "priceMin": "405.00",
+      "priceMax": "640.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "rain-gun",
+        "sprinkler",
+        "agriculture",
+        "dust-control"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-SPR-GUN-200",
+      "name": "Rain Gun 2\" (Part Circle)",
+      "category": "sprinklers-rotors",
+      "line": "impact-sprinklers-rain-guns",
+      "brand": "Top Flow",
+      "description": "A large rain gun for travelling irrigators and fixed installations covering big fodder and grass fields.",
+      "specifications": {
+        "Size": "2\" BSP female · radius 35–50 m",
+        "Product line": "Impact Sprinklers & Rain Guns",
+        "Details": "Aluminium and brass construction; adjustable part-circle arc; 24° trajectory; interchangeable nozzles; flow 20–50 m³/h at 4–7 bar"
+      },
+      "priceMin": "780.00",
+      "priceMax": "1250.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "rain-gun",
+        "sprinkler",
+        "agriculture",
+        "farm"
+      ],
+      "imageUrl": null
+    },
+    {
       "sku": "WS-THR-F",
       "name": "Thabit PC Dripline (Flat Emitter)",
       "category": "drip-irrigation",
@@ -2901,6 +3272,256 @@
         "drip"
       ],
       "imageUrl": "/catalog/products/automatic-flush-valve.webp"
+    },
+    {
+      "sku": "TF-DRP-KIT-G30",
+      "name": "Home Garden Drip Kit (30 Plants)",
+      "category": "drip-irrigation",
+      "line": "drip-irrigation-kits",
+      "brand": "Top Flow",
+      "description": "Everything needed to put drip watering on a villa garden bed or planter in an afternoon, connected to a tap.",
+      "specifications": {
+        "Size": "30 plants · 25 m of 16 mm pipe",
+        "Product line": "Drip Irrigation Kits",
+        "Details": "25 m of 16 mm LDPE pipe; 30 adjustable drippers (0–70 L/h) on stakes with 4 mm microtube; tap connector with 120-mesh filter; tees, elbows, end plugs and a hole punch"
+      },
+      "priceMin": "100.00",
+      "priceMax": "160.00",
+      "uom": "SET",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "drip",
+        "kit",
+        "garden",
+        "dripper"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-DRP-KIT-T10",
+      "name": "Tree Drip Ring Kit (10 Trees)",
+      "category": "drip-irrigation",
+      "line": "drip-irrigation-kits",
+      "brand": "Top Flow",
+      "description": "A ring of pressure-compensating dripline around each tree wets the whole root zone, for gardens and young orchards.",
+      "specifications": {
+        "Size": "10 trees · 16 mm dripline rings",
+        "Product line": "Drip Irrigation Kits",
+        "Details": "10 rings of 16 mm pressure-compensating dripline, 3 m each with six 4 L/h emitters; 10 barbed tees and stakes; 25 m of 16 mm LDPE feed pipe; end plugs and 120-mesh filter"
+      },
+      "priceMin": "150.00",
+      "priceMax": "235.00",
+      "uom": "SET",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "drip",
+        "kit",
+        "tree",
+        "orchard"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-DRP-KIT-PALM10",
+      "name": "Palm Bubbler Kit (10 Palms)",
+      "category": "drip-irrigation",
+      "line": "drip-irrigation-kits",
+      "brand": "Top Flow",
+      "description": "Basin irrigation for date palms and large trees, giving each tree basin a deep soak.",
+      "specifications": {
+        "Size": "10 palms · adjustable bubblers",
+        "Product line": "Drip Irrigation Kits",
+        "Details": "10 adjustable bubblers (up to 250 L/h) with stakes; 50 m of 16 mm LDPE pipe; 10 barbed take-off tees; end plugs and 120-mesh filter"
+      },
+      "priceMin": "165.00",
+      "priceMax": "260.00",
+      "uom": "SET",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "bubbler",
+        "kit",
+        "palm",
+        "tree"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-DRP-KIT-FARM-1000",
+      "name": "Farm Drip Kit 1,000 m²",
+      "category": "drip-irrigation",
+      "line": "drip-irrigation-kits",
+      "brand": "Top Flow",
+      "description": "A complete drip system for a 1,000 m² vegetable plot, with filtration and a fertiliser injector, ready to lay out.",
+      "specifications": {
+        "Size": "1,000 m² · rows 1 m apart",
+        "Product line": "Drip Irrigation Kits",
+        "Details": "1,000 m of 16 mm drip tape with 20 cm emitter spacing; 50 m of 40 mm PE sub-main; 40 start connectors with grommets; 1\" disc filter (120 mesh) and 1\" venturi injector; ball valves, pressure gauge and fittings"
+      },
+      "priceMin": "1150.00",
+      "priceMax": "1800.00",
+      "uom": "SET",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "drip",
+        "kit",
+        "farm",
+        "drip-tape"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-DRP-TAPE-6-20",
+      "name": "Drip Tape 16 mm 6 mil, 20 cm Spacing (2,000 m)",
+      "category": "drip-irrigation",
+      "line": "drip-tape",
+      "brand": "Top Flow",
+      "description": "Economical drip tape for short-season vegetables such as leafy greens, onions and melons.",
+      "specifications": {
+        "Size": "16 mm · 0.15 mm wall · 20 cm spacing · 2,000 m roll",
+        "Product line": "Drip Tape",
+        "Details": "Flat emitters welded inside the tape; 1.0 L/h per emitter at 1 bar; max operating pressure 1 bar; for one or two seasons on vegetable crops"
+      },
+      "priceMin": "240.00",
+      "priceMax": "380.00",
+      "uom": "ROLL",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "drip",
+        "drip-tape",
+        "vegetables",
+        "farm"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-DRP-TAPE-8-30",
+      "name": "Drip Tape 16 mm 8 mil, 30 cm Spacing (2,000 m)",
+      "category": "drip-irrigation",
+      "line": "drip-tape",
+      "brand": "Top Flow",
+      "description": "A heavier drip tape for tomatoes, peppers, cucumbers and other longer-season crops.",
+      "specifications": {
+        "Size": "16 mm · 0.20 mm wall · 30 cm spacing · 2,000 m roll",
+        "Product line": "Drip Tape",
+        "Details": "Flat emitters welded inside the tape; 1.6 L/h per emitter at 1 bar; max operating pressure 1.2 bar; heavier wall for longer runs and more than one season"
+      },
+      "priceMin": "280.00",
+      "priceMax": "445.00",
+      "uom": "ROLL",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "drip",
+        "drip-tape",
+        "vegetables",
+        "farm"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-DRP-TAPE-SC-16",
+      "name": "Drip Tape Start Connector with Grommet 16 mm (Box of 100)",
+      "category": "drip-irrigation",
+      "line": "drip-tape",
+      "brand": "Top Flow",
+      "description": "Connects each row of drip tape to the sub-main pipe without leaks.",
+      "specifications": {
+        "Size": "16 mm tape · box of 100",
+        "Product line": "Drip Tape",
+        "Details": "Take-off connector with rubber grommet for PE and PVC sub-mains; lock nut grips the tape securely; UV-stabilised polypropylene"
+      },
+      "priceMin": "55.00",
+      "priceMax": "86.00",
+      "uom": "BOX",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "drip",
+        "drip-tape",
+        "connector",
+        "fitting"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-DRP-MSP-ROT",
+      "name": "Rotating Micro-Sprinkler 360° on Stake",
+      "category": "drip-irrigation",
+      "line": "micro-sprinklers",
+      "brand": "Top Flow",
+      "description": "Wets a wide circle under fruit trees, in nurseries and on ground cover where drippers alone would not be enough.",
+      "specifications": {
+        "Size": "40–90 L/h · 60 cm stake",
+        "Product line": "Micro Sprinklers",
+        "Details": "Flow 40–90 L/h depending on nozzle; wetted diameter 5–8 m at 2 bar; 60 cm stake with 4/7 mm microtube and barbed connector; UV-stabilised plastic"
+      },
+      "priceMin": "3.00",
+      "priceMax": "4.50",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "micro-sprinkler",
+        "sprinkler",
+        "orchard",
+        "nursery"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-DRP-MSP-JET",
+      "name": "Micro-Jet Spray (90°, 180° or 360°)",
+      "category": "drip-irrigation",
+      "line": "micro-sprinklers",
+      "brand": "Top Flow",
+      "description": "Low-flow spray jets for planters, hedges, ground cover and nursery beds.",
+      "specifications": {
+        "Size": "90°, 180° or 360° pattern · 20–40 L/h",
+        "Product line": "Micro Sprinklers",
+        "Details": "Static spray jet with a fixed pattern; radius 1–2 m at 1.5–2 bar; barbed base for 4/7 mm microtube or stake mounting; colour-coded by pattern"
+      },
+      "priceMin": "1.00",
+      "priceMax": "1.50",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "micro-jet",
+        "spray",
+        "micro-sprinkler",
+        "nursery"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-DRP-MTUBE-47",
+      "name": "Microtube 4/7 mm (100 m)",
+      "category": "drip-irrigation",
+      "line": "micro-sprinklers",
+      "brand": "Top Flow",
+      "description": "Small-bore tube for taking water from a lateral to individual pots, planters and micro-sprinklers.",
+      "specifications": {
+        "Size": "4 mm ID × 7 mm OD · 100 m roll",
+        "Product line": "Micro Sprinklers",
+        "Details": "UV-stabilised polyethylene; connects drippers, micro-sprinklers and foggers to 16 mm laterals with barbed connectors"
+      },
+      "priceMin": "27.00",
+      "priceMax": "42.00",
+      "uom": "ROLL",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "microtube",
+        "drip",
+        "tube",
+        "micro"
+      ],
+      "imageUrl": null
     },
     {
       "sku": "TF-PIPE-01",
@@ -4960,6 +5581,81 @@
       "imageUrl": "/catalog/products/transition-elbow-acme.webp"
     },
     {
+      "sku": "TF-TL-PUNCH-4",
+      "name": "Drip Hole Punch 4 mm",
+      "category": "pipes-fittings",
+      "line": "installation-tools",
+      "brand": "Top Flow",
+      "description": "Makes clean holes in LDPE laterals for drippers and connectors, so they seal without leaks.",
+      "specifications": {
+        "Size": "4 mm hole · 12–20 mm PE pipe",
+        "Product line": "Installation Tools",
+        "Details": "Hardened steel punch tip with ergonomic grip; makes clean round holes for drippers, barbed connectors and microtube adaptors"
+      },
+      "priceMin": "14.00",
+      "priceMax": "22.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "tool",
+        "punch",
+        "drip",
+        "installation"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-TL-CUT-42",
+      "name": "PE Pipe Cutter up to 42 mm",
+      "category": "pipes-fittings",
+      "line": "installation-tools",
+      "brand": "Top Flow",
+      "description": "Square, clean cuts on PE and PVC pipe, so compression and barbed fittings seal properly.",
+      "specifications": {
+        "Size": "PE and PVC pipe up to 42 mm OD",
+        "Product line": "Installation Tools",
+        "Details": "Ratchet action with hardened steel blade; aluminium body; square, burr-free cuts on PE, PVC and PP pipe and drip tubing"
+      },
+      "priceMin": "39.00",
+      "priceMax": "62.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "tool",
+        "cutter",
+        "pipe",
+        "installation"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-TL-WRENCH-SET",
+      "name": "Compression Fitting Wrench Set (20–110 mm)",
+      "category": "pipes-fittings",
+      "line": "installation-tools",
+      "brand": "Top Flow",
+      "description": "Tightens compression fittings properly without damaging them, from 20 mm laterals to 110 mm mains.",
+      "specifications": {
+        "Size": "20–110 mm fittings",
+        "Product line": "Installation Tools",
+        "Details": "Glass-filled nylon spanners for compression fitting nuts; sizes for 20, 25, 32, 40, 50, 63, 75, 90 and 110 mm fittings; tightens without damaging the nuts"
+      },
+      "priceMin": "51.00",
+      "priceMax": "80.00",
+      "uom": "SET",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "tool",
+        "wrench",
+        "compression",
+        "installation"
+      ],
+      "imageUrl": null
+    },
+    {
       "sku": "WS-ISCV-1-1-2IN",
       "name": "Commercial Solenoid Valve 1-1/2 in",
       "category": "valves-control",
@@ -5368,6 +6064,656 @@
       "imageUrl": "/catalog/products/digital-tap-timer.webp"
     },
     {
+      "sku": "TF-CTL-IN-4",
+      "name": "Indoor Irrigation Controller 4-Station",
+      "category": "valves-control",
+      "line": "irrigation-controllers",
+      "brand": "Top Flow",
+      "description": "An easy-to-program controller for villa gardens and small landscapes, mounted indoors or in a plant room.",
+      "specifications": {
+        "Size": "4 stations · 230 V plug-in transformer",
+        "Product line": "Irrigation Controllers",
+        "Details": "3 programs with 4 start times each; run times from 1 minute to 4 hours; seasonal adjustment 0–200%; rain or soil sensor input; pump start / master valve output; non-volatile memory keeps programs through power cuts; 24 VAC valve outputs"
+      },
+      "priceMin": "170.00",
+      "priceMax": "270.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "controller",
+        "timer",
+        "irrigation",
+        "automation"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-CTL-OUT-8",
+      "name": "Outdoor Irrigation Controller 8-Station",
+      "category": "valves-control",
+      "line": "irrigation-controllers",
+      "brand": "Top Flow",
+      "description": "A wall-mounted outdoor controller for larger villas, compounds and small parks.",
+      "specifications": {
+        "Size": "8 stations · 230 V internal transformer",
+        "Product line": "Irrigation Controllers",
+        "Details": "Lockable weather-resistant cabinet; 3 programs with 4 start times each; seasonal adjustment 0–200%; rain or soil sensor input; pump start / master valve output; non-volatile memory; 24 VAC valve outputs"
+      },
+      "priceMin": "330.00",
+      "priceMax": "515.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "controller",
+        "timer",
+        "irrigation",
+        "outdoor"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-CTL-MOD-6",
+      "name": "Modular Irrigation Controller (6 to 22 Stations)",
+      "category": "valves-control",
+      "line": "irrigation-controllers",
+      "brand": "Top Flow",
+      "description": "A commercial controller that grows with the site: start with 6 stations and add modules as zones are added.",
+      "specifications": {
+        "Size": "6 stations, expandable to 22 · 230 V",
+        "Product line": "Irrigation Controllers",
+        "Details": "Base unit with 6 stations; add 4-station expansion modules (sold separately) to reach 22 stations; 4 programs with 8 start times each; cycle and soak for slopes and heavy soils; two sensor inputs; pump start / master valve output; lockable outdoor cabinet"
+      },
+      "priceMin": "585.00",
+      "priceMax": "925.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "controller",
+        "modular",
+        "irrigation",
+        "commercial"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-CTL-MOD-EXP4",
+      "name": "Controller Expansion Module 4-Station",
+      "category": "valves-control",
+      "line": "irrigation-controllers",
+      "brand": "Top Flow",
+      "description": "Adds four stations to the modular controller when new zones are installed.",
+      "specifications": {
+        "Size": "4 stations",
+        "Product line": "Irrigation Controllers",
+        "Details": "Plugs into the Modular Irrigation Controller (6 to 22 Stations); no reprogramming needed when added; built-in surge protection"
+      },
+      "priceMin": "125.00",
+      "priceMax": "195.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "controller",
+        "module",
+        "expansion",
+        "irrigation"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-CTL-WIFI-8",
+      "name": "Wi-Fi Smart Irrigation Controller 8-Zone",
+      "category": "valves-control",
+      "line": "irrigation-controllers",
+      "brand": "Top Flow",
+      "description": "Lets villa owners and maintenance teams check and change watering from anywhere, with automatic weather adjustment.",
+      "specifications": {
+        "Size": "8 zones · 2.4 GHz Wi-Fi · 230 V",
+        "Product line": "Irrigation Controllers",
+        "Details": "Schedule and run zones from a smartphone app; weather-based adjustment skips or shortens watering; rain and flow sensor inputs; manual run buttons on the unit; weather-resistant case for indoor or sheltered outdoor mounting; 24 VAC valve outputs"
+      },
+      "priceMin": "435.00",
+      "priceMax": "690.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "controller",
+        "wifi",
+        "smart",
+        "irrigation"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-CTL-BAT-1",
+      "name": "Battery-Operated Controller 1-Station (9 V DC)",
+      "category": "valves-control",
+      "line": "irrigation-controllers",
+      "brand": "Top Flow",
+      "description": "Automates a single valve on roundabouts, road medians and farm plots where there is no power supply.",
+      "specifications": {
+        "Size": "1 station · 9 V battery",
+        "Product line": "Irrigation Controllers",
+        "Details": "For sites without mains power; drives one 9 V DC latching solenoid (sold separately); up to 4 start times a day; run times from 1 minute to 12 hours; waterproof IP68 housing mounts on the valve"
+      },
+      "priceMin": "205.00",
+      "priceMax": "320.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "controller",
+        "battery",
+        "dc",
+        "irrigation"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-CTL-2W-50",
+      "name": "Two-Wire Commercial Controller 50 Stations",
+      "category": "valves-control",
+      "line": "irrigation-controllers",
+      "brand": "Top Flow",
+      "description": "A controller for parks, municipal landscapes and large compounds where running a wire to every valve would be impractical.",
+      "specifications": {
+        "Size": "Up to 50 stations · 230 V",
+        "Product line": "Irrigation Controllers",
+        "Details": "Controls up to 50 valves over a single two-wire cable path with valve decoders (sold separately); flow monitoring with high and low flow alarms; master valve and pump control; two sensor inputs; lockable metal cabinet"
+      },
+      "priceMin": "3350.00",
+      "priceMax": "5300.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "controller",
+        "two-wire",
+        "commercial",
+        "decoder"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-CTL-2W-DEC-1",
+      "name": "Two-Wire Valve Decoder 1-Station",
+      "category": "valves-control",
+      "line": "irrigation-controllers",
+      "brand": "Top Flow",
+      "description": "Links a valve to the two-wire cable of the Two-Wire Commercial Controller, installed in the valve box.",
+      "specifications": {
+        "Size": "1 station",
+        "Product line": "Irrigation Controllers",
+        "Details": "Connects one 24 VAC solenoid valve to the two-wire path; built-in surge protection; fully potted for direct burial; programmable station address"
+      },
+      "priceMin": "195.00",
+      "priceMax": "310.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "decoder",
+        "two-wire",
+        "controller",
+        "valve"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-SNS-RAIN",
+      "name": "Wired Rain Sensor",
+      "category": "valves-control",
+      "line": "rain-soil-flow-sensors",
+      "brand": "Top Flow",
+      "description": "Stops the controller watering after rain, saving water on wet winter days.",
+      "specifications": {
+        "Size": "3–25 mm shut-off · 7.5 m cable",
+        "Product line": "Rain, Soil & Flow Sensors",
+        "Details": "Interrupts scheduled irrigation after 3 to 25 mm of rain (adjustable); hygroscopic discs dry out and resume watering automatically; normally closed contacts; works with any 24 VAC controller that has a sensor input"
+      },
+      "priceMin": "94.00",
+      "priceMax": "150.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "sensor",
+        "rain",
+        "controller",
+        "water-saving"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-SNS-SOIL",
+      "name": "Soil Moisture Sensor Kit",
+      "category": "valves-control",
+      "line": "rain-soil-flow-sensors",
+      "brand": "Top Flow",
+      "description": "Waters only when the soil needs it, cutting water use on lawns and planted areas.",
+      "specifications": {
+        "Size": "Buried probe · controller interface",
+        "Product line": "Rain, Soil & Flow Sensors",
+        "Details": "Probe buried in the root zone measures soil moisture; scheduled watering is skipped while the soil is above the moisture threshold set on the interface; works with any 24 VAC controller that has a sensor input"
+      },
+      "priceMin": "390.00",
+      "priceMax": "615.00",
+      "uom": "SET",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "sensor",
+        "soil",
+        "moisture",
+        "water-saving"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-SNS-FLOW-100",
+      "name": "Irrigation Flow Sensor 1\"",
+      "category": "valves-control",
+      "line": "rain-soil-flow-sensors",
+      "brand": "Top Flow",
+      "description": "Gives smart and two-wire controllers the flow readings they need to shut down a zone with a broken pipe.",
+      "specifications": {
+        "Size": "1\" · 0.5–9 m³/h",
+        "Product line": "Rain, Soil & Flow Sensors",
+        "Details": "Non-magnetic impeller sensor in a PVC tee body; with a flow-capable controller it detects broken pipes, stuck valves and blocked zones; direct-burial signal cable connections"
+      },
+      "priceMin": "610.00",
+      "priceMax": "960.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "sensor",
+        "flow",
+        "controller",
+        "leak"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-CBL-7C-150",
+      "name": "Irrigation Control Cable 7-Core 1.5 mm²",
+      "category": "valves-control",
+      "line": "control-cable-connectors",
+      "brand": "Top Flow",
+      "description": "Multi-core cable for running valve wiring from the controller to the valve boxes in one trench.",
+      "specifications": {
+        "Size": "7 cores × 1.5 mm² · sold per metre",
+        "Product line": "Control Cable & Connectors",
+        "Details": "Direct-burial PE insulation and sheath; colour-coded cores: one common and six valve circuits; for 24 VAC controller wiring; drums of 100 m and 500 m"
+      },
+      "priceMin": "6.00",
+      "priceMax": "10.00",
+      "uom": "METER",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "cable",
+        "wire",
+        "controller",
+        "valve"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-CBL-WC-30",
+      "name": "Waterproof Wire Connectors (Box of 30)",
+      "category": "valves-control",
+      "line": "control-cable-connectors",
+      "brand": "Top Flow",
+      "description": "Seals every splice in the valve box against water and soil, preventing the corrosion that causes valve faults.",
+      "specifications": {
+        "Size": "0.8–2.5 mm² wire · box of 30",
+        "Product line": "Control Cable & Connectors",
+        "Details": "Gel-filled direct-burial splice kits; twist-on connector with sealant-filled tube; for 24 VAC valve wiring in valve boxes"
+      },
+      "priceMin": "66.00",
+      "priceMax": "105.00",
+      "uom": "BOX",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "connector",
+        "wire",
+        "waterproof",
+        "valve"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-SOL-DC-9V",
+      "name": "DC Latching Solenoid 9 V",
+      "category": "valves-control",
+      "line": "control-cable-connectors",
+      "brand": "Top Flow",
+      "description": "Converts a solenoid valve for use with a battery-operated controller on sites without power.",
+      "specifications": {
+        "Size": "9 V DC · 2-wire",
+        "Product line": "Control Cable & Connectors",
+        "Details": "Latching solenoid for battery-operated controllers; draws power only when switching; encapsulated IP68 coil; check the valve solenoid thread before ordering"
+      },
+      "priceMin": "59.00",
+      "priceMax": "92.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "solenoid",
+        "dc",
+        "battery",
+        "valve"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-VLV-PVC-BV-100",
+      "name": "PVC Compact Ball Valve 1\"",
+      "category": "valves-control",
+      "line": "ball-gate-check-valves",
+      "brand": "Top Flow",
+      "description": "A low-cost isolation valve for irrigation zones, manifolds and filters.",
+      "specifications": {
+        "Size": "1\" BSP female",
+        "Product line": "Ball, Gate & Check Valves",
+        "Details": "uPVC body and ball; EPDM seals; PN16; quarter-turn handle; for isolating zones, laterals and filters"
+      },
+      "priceMin": "8.50",
+      "priceMax": "14.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "valve",
+        "ball-valve",
+        "pvc",
+        "isolation"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-VLV-PVC-BV-200",
+      "name": "PVC Compact Ball Valve 2\"",
+      "category": "valves-control",
+      "line": "ball-gate-check-valves",
+      "brand": "Top Flow",
+      "description": "A 2-inch isolation valve for sub-mains, filter stations and pump manifolds.",
+      "specifications": {
+        "Size": "2\" BSP female",
+        "Product line": "Ball, Gate & Check Valves",
+        "Details": "uPVC body and ball; EPDM seals; PN10; quarter-turn handle; for sub-mains, filter stations and pump manifolds"
+      },
+      "priceMin": "26.00",
+      "priceMax": "41.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "valve",
+        "ball-valve",
+        "pvc",
+        "isolation"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-VLV-GV-DN100",
+      "name": "Resilient-Seated Gate Valve DN100 (4\")",
+      "category": "valves-control",
+      "line": "ball-gate-check-valves",
+      "brand": "Top Flow",
+      "description": "An isolation valve for main lines and pumping stations that closes fully, with no seat recess to trap sand.",
+      "specifications": {
+        "Size": "DN100 (4\") · flanged PN16",
+        "Product line": "Ball, Gate & Check Valves",
+        "Details": "Ductile-iron body with fusion-bonded epoxy coating; EPDM-encapsulated wedge; non-rising stem with handwheel; flanges drilled to PN16"
+      },
+      "priceMin": "505.00",
+      "priceMax": "800.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "valve",
+        "gate-valve",
+        "isolation",
+        "mains"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-VLV-BFV-DN100",
+      "name": "Wafer Butterfly Valve DN100 (4\") with Lever",
+      "category": "valves-control",
+      "line": "ball-gate-check-valves",
+      "brand": "Top Flow",
+      "description": "A compact, quick-acting valve for filter manifolds, pump stations and large main lines.",
+      "specifications": {
+        "Size": "DN100 (4\") · fits PN10/PN16 flanges",
+        "Product line": "Ball, Gate & Check Valves",
+        "Details": "Cast-iron body; ductile-iron disc; EPDM liner; 10-position lever; wafer pattern, installed between flanges"
+      },
+      "priceMin": "205.00",
+      "priceMax": "320.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "valve",
+        "butterfly-valve",
+        "isolation",
+        "mains"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-VLV-CHK-BR-100",
+      "name": "Brass Swing Check Valve 1\"",
+      "category": "valves-control",
+      "line": "ball-gate-check-valves",
+      "brand": "Top Flow",
+      "description": "Stops water flowing back through pumps, filters and fertiliser injectors.",
+      "specifications": {
+        "Size": "1\" BSP female",
+        "Product line": "Ball, Gate & Check Valves",
+        "Details": "Brass body and swing disc; low pressure loss; install horizontally, or vertically with upward flow; PN16"
+      },
+      "priceMin": "35.00",
+      "priceMax": "55.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "valve",
+        "check-valve",
+        "brass",
+        "backflow"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-PRV-075-14",
+      "name": "Preset Pressure Regulator 3/4\" (1.4 bar)",
+      "category": "valves-control",
+      "line": "pressure-regulators-meters",
+      "brand": "Top Flow",
+      "description": "Protects driplines and emitters from high mains pressure, installed after the zone valve.",
+      "specifications": {
+        "Size": "3/4\" BSP female · 1.4 bar (20 PSI)",
+        "Product line": "Pressure Regulators & Meters",
+        "Details": "Fixed outlet pressure for drip and micro zones; flow range 0.1–2 m³/h; max inlet pressure 8 bar; glass-filled polypropylene body"
+      },
+      "priceMin": "19.00",
+      "priceMax": "30.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "regulator",
+        "pressure",
+        "drip",
+        "valve"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-PRV-100-21",
+      "name": "Preset Pressure Regulator 1\" (2.1 bar)",
+      "category": "valves-control",
+      "line": "pressure-regulators-meters",
+      "brand": "Top Flow",
+      "description": "Keeps spray and bubbler zones at their ideal operating pressure for even coverage and less misting.",
+      "specifications": {
+        "Size": "1\" BSP female · 2.1 bar (30 PSI)",
+        "Product line": "Pressure Regulators & Meters",
+        "Details": "Fixed outlet pressure for spray and bubbler zones; flow range 0.5–4.5 m³/h; max inlet pressure 8 bar; glass-filled polypropylene body"
+      },
+      "priceMin": "27.00",
+      "priceMax": "42.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "regulator",
+        "pressure",
+        "spray",
+        "valve"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-PRV-BR-ADJ-100",
+      "name": "Adjustable Brass Pressure Reducing Valve 1\"",
+      "category": "valves-control",
+      "line": "pressure-regulators-meters",
+      "brand": "Top Flow",
+      "description": "Reduces mains pressure and holds it at the level a villa supply or zone manifold needs.",
+      "specifications": {
+        "Size": "1\" BSP female · outlet 1–6 bar",
+        "Product line": "Pressure Regulators & Meters",
+        "Details": "Adjustable outlet pressure 1–6 bar; max inlet pressure 25 bar; gauge port; brass body with NBR diaphragm; install between isolation valves for servicing"
+      },
+      "priceMin": "115.00",
+      "priceMax": "185.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "regulator",
+        "pressure",
+        "brass",
+        "valve"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-PRV-HYD-300",
+      "name": "Hydraulic Pressure Reducing Valve 3\"",
+      "category": "valves-control",
+      "line": "pressure-regulators-meters",
+      "brand": "Top Flow",
+      "description": "Controls pressure on large farm and landscape mains, protecting pipes and emitters on long or sloping runs.",
+      "specifications": {
+        "Size": "3\" threaded · pilot-operated",
+        "Product line": "Pressure Regulators & Meters",
+        "Details": "Glass-reinforced nylon diaphragm valve with adjustable three-way pilot; holds downstream pressure steady as flow and inlet pressure change; flow up to 60 m³/h; for farm mains and sloping sites"
+      },
+      "priceMin": "1000.00",
+      "priceMax": "1600.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "regulator",
+        "pressure",
+        "hydraulic",
+        "valve"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-GAU-063-10",
+      "name": "Glycerine-Filled Pressure Gauge 0–10 bar",
+      "category": "valves-control",
+      "line": "pressure-regulators-meters",
+      "brand": "Top Flow",
+      "description": "Checks pressure at pumps, filters and valve manifolds, so faults are spotted early.",
+      "specifications": {
+        "Size": "63 mm dial · 1/4\" BSP bottom connection",
+        "Product line": "Pressure Regulators & Meters",
+        "Details": "Stainless-steel case; glycerine filling damps needle vibration; dual scale in bar and psi; accuracy class 1.6"
+      },
+      "priceMin": "22.00",
+      "priceMax": "34.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "gauge",
+        "pressure",
+        "meter",
+        "filter"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-MTR-MJ-100",
+      "name": "Multi-Jet Water Meter 1\"",
+      "category": "valves-control",
+      "line": "pressure-regulators-meters",
+      "brand": "Top Flow",
+      "description": "Measures the water each zone or plot uses, for billing and for spotting leaks.",
+      "specifications": {
+        "Size": "1\" BSP male · Q3 6.3 m³/h",
+        "Product line": "Pressure Regulators & Meters",
+        "Details": "Dry-dial brass meter with magnetic drive; horizontal installation; for zone, villa and plot irrigation metering"
+      },
+      "priceMin": "155.00",
+      "priceMax": "245.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "meter",
+        "water-meter",
+        "flow",
+        "metering"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-MTR-WLT-DN80",
+      "name": "Woltman Water Meter DN80 (3\") with Pulse Output",
+      "category": "valves-control",
+      "line": "pressure-regulators-meters",
+      "brand": "Top Flow",
+      "description": "A mains-size meter for farm and park irrigation, with a pulse output for flow-based control and reporting.",
+      "specifications": {
+        "Size": "DN80 (3\") · flanged PN16 · Q3 100 m³/h",
+        "Product line": "Pressure Regulators & Meters",
+        "Details": "Cast-iron body with epoxy coating; removable measuring insert; dry dial; reed-switch pulse output for controllers, fertigation systems and SCADA"
+      },
+      "priceMin": "975.00",
+      "priceMax": "1550.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "meter",
+        "water-meter",
+        "woltman",
+        "flow"
+      ],
+      "imageUrl": null
+    },
+    {
       "sku": "WSI-F020-Y",
       "name": "3/4\" Y-Type Disc Filter",
       "category": "filtration",
@@ -5756,6 +7102,1530 @@
       "imageUrl": "/catalog/products/h-type-auto-disc-filtration-system.webp"
     },
     {
+      "sku": "TF-FLT-SCR-100",
+      "name": "Screen Filter 1\" (120 Mesh)",
+      "category": "filtration",
+      "line": "screen-filters",
+      "brand": "Top Flow",
+      "description": "An economical filter for drip zones fed by municipal or tank water, with a washable stainless-steel screen.",
+      "specifications": {
+        "Size": "1\" BSP male · up to 5 m³/h",
+        "Product line": "Screen Filters",
+        "Details": "Glass-filled polypropylene housing; removable stainless-steel 120-mesh (130 micron) screen; max pressure 8 bar; flush valve"
+      },
+      "priceMin": "33.00",
+      "priceMax": "52.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "filter",
+        "screen",
+        "drip",
+        "filtration"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-FLT-SCR-200",
+      "name": "Screen Filter 2\" (120 Mesh)",
+      "category": "filtration",
+      "line": "screen-filters",
+      "brand": "Top Flow",
+      "description": "A 2-inch screen filter for sub-mains and small farm heads with reasonably clean water.",
+      "specifications": {
+        "Size": "2\" BSP male · up to 25 m³/h",
+        "Product line": "Screen Filters",
+        "Details": "Glass-filled polypropylene housing; removable stainless-steel 120-mesh (130 micron) screen; max pressure 8 bar; drain valve and pressure gauge ports"
+      },
+      "priceMin": "115.00",
+      "priceMax": "185.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "filter",
+        "screen",
+        "farm",
+        "filtration"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-FLT-SCR-ST-300",
+      "name": "Steel Screen Filter 3\" (120 Mesh)",
+      "category": "filtration",
+      "line": "screen-filters",
+      "brand": "Top Flow",
+      "description": "A robust steel filter for high-flow farm and landscape mains, often installed after a sand media filter.",
+      "specifications": {
+        "Size": "3\" · up to 50 m³/h · max 10 bar",
+        "Product line": "Screen Filters",
+        "Details": "Epoxy-coated steel housing; stainless-steel 120-mesh element on a perforated support; quick-release clamp lid; drain valve and gauge ports; for pump stations and farm fertigation heads"
+      },
+      "priceMin": "860.00",
+      "priceMax": "1350.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "filter",
+        "screen",
+        "steel",
+        "filtration"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-FLT-MED-24",
+      "name": "Sand Media Filter 24\" (15 m³/h)",
+      "category": "filtration",
+      "line": "sand-media-filters",
+      "brand": "Top Flow",
+      "description": "Deep-bed filtration for water from reservoirs, canals and treated sewage effluent, where algae would quickly block disc and screen filters.",
+      "specifications": {
+        "Size": "24\" (600 mm) tank · 2\" connections · up to 15 m³/h",
+        "Product line": "Sand Media Filters",
+        "Details": "Epoxy-coated steel tank rated to 8 bar; underdrain with filter nozzles; 2\" three-way backflush valve; inspection hatch; silica sand sold separately; for open reservoirs and treated effluent"
+      },
+      "priceMin": "2200.00",
+      "priceMax": "3450.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "filter",
+        "sand",
+        "media",
+        "filtration"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-FLT-MED-48",
+      "name": "Sand Media Filter 48\" (60 m³/h)",
+      "category": "filtration",
+      "line": "sand-media-filters",
+      "brand": "Top Flow",
+      "description": "A high-capacity media filter for farm and park pumping stations that draw from open water.",
+      "specifications": {
+        "Size": "48\" (1,200 mm) tank · 4\" connections · up to 60 m³/h",
+        "Product line": "Sand Media Filters",
+        "Details": "Epoxy-coated steel tank rated to 8 bar; underdrain with filter nozzles; three-way backflush valve; inspection hatch; silica sand sold separately; install two or more tanks with an automatic backflush controller for continuous flow"
+      },
+      "priceMin": "6400.00",
+      "priceMax": "10000.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "filter",
+        "sand",
+        "media",
+        "farm"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-FLT-SAND-25",
+      "name": "Filtration Silica Sand 0.8–1.2 mm (25 kg)",
+      "category": "filtration",
+      "line": "sand-media-filters",
+      "brand": "Top Flow",
+      "description": "Filter media for sand media filters, graded for drip irrigation.",
+      "specifications": {
+        "Size": "0.8–1.2 mm grain · 25 kg bag",
+        "Product line": "Sand Media Filters",
+        "Details": "Washed and graded silica sand for irrigation sand media filters; replace when the bed clogs or forms channels"
+      },
+      "priceMin": "33.00",
+      "priceMax": "52.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "sand",
+        "media",
+        "filter",
+        "filtration"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-FLT-HYC-200",
+      "name": "Hydrocyclone Sand Separator 2\"",
+      "category": "filtration",
+      "line": "hydrocyclone-sand-separators",
+      "brand": "Top Flow",
+      "description": "Takes the sand load off disc and screen filters on borehole water, cutting backflushing and wear.",
+      "specifications": {
+        "Size": "2\" · 10–20 m³/h",
+        "Product line": "Hydrocyclone Sand Separators",
+        "Details": "Epoxy-coated steel with collection chamber and manual drain valve; no moving parts or screens to clean; removes sand and particles heavier than water; install ahead of disc or screen filters"
+      },
+      "priceMin": "505.00",
+      "priceMax": "800.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "filter",
+        "hydrocyclone",
+        "sand",
+        "separator"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-FLT-HYC-300",
+      "name": "Hydrocyclone Sand Separator 3\"",
+      "category": "filtration",
+      "line": "hydrocyclone-sand-separators",
+      "brand": "Top Flow",
+      "description": "A larger separator for farm wells that pump sandy water to big drip or sprinkler networks.",
+      "specifications": {
+        "Size": "3\" · 25–45 m³/h",
+        "Product line": "Hydrocyclone Sand Separators",
+        "Details": "Epoxy-coated steel with collection chamber and manual drain valve; no moving parts or screens to clean; removes sand and particles heavier than water; install ahead of disc or screen filters"
+      },
+      "priceMin": "895.00",
+      "priceMax": "1400.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "filter",
+        "hydrocyclone",
+        "sand",
+        "farm"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-PMP-CS-050",
+      "name": "Centrifugal Surface Pump 0.5 HP",
+      "category": "pumps-water-supply",
+      "line": "surface-pumps-booster-sets",
+      "brand": "Top Flow",
+      "description": "A compact centrifugal pump for lifting water from ground tanks and boosting pressure on villa gardens and small drip zones.",
+      "specifications": {
+        "Size": "0.37 kW · 1\" × 1\" · 230 V single-phase",
+        "Product line": "Surface Pumps & Booster Sets",
+        "Details": "Max flow 3.6 m³/h (60 L/min); max head 21 m; suction lift up to 7 m with a foot valve; cast-iron pump body with brass impeller; IP44 motor with built-in thermal protection; for clean water up to 40 °C"
+      },
+      "priceMin": "170.00",
+      "priceMax": "270.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "pump",
+        "centrifugal",
+        "surface",
+        "water-supply"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-PMP-CS-100",
+      "name": "Centrifugal Surface Pump 1 HP",
+      "category": "pumps-water-supply",
+      "line": "surface-pumps-booster-sets",
+      "brand": "Top Flow",
+      "description": "A 1 HP centrifugal pump for villa and farm irrigation zones that need more flow and pressure than the mains supply gives.",
+      "specifications": {
+        "Size": "0.75 kW · 1\" × 1\" · 230 V single-phase",
+        "Product line": "Surface Pumps & Booster Sets",
+        "Details": "Max flow 5.4 m³/h (90 L/min); max head 32 m; suction lift up to 7 m with a foot valve; cast-iron pump body with brass impeller; IP44 motor with built-in thermal protection; for clean water up to 40 °C"
+      },
+      "priceMin": "280.00",
+      "priceMax": "445.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "pump",
+        "centrifugal",
+        "surface",
+        "water-supply"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-PMP-CS-200",
+      "name": "High-Flow Centrifugal Pump 2 HP",
+      "category": "pumps-water-supply",
+      "line": "surface-pumps-booster-sets",
+      "brand": "Top Flow",
+      "description": "A high-flow pump with 2-inch ports for moving large volumes at low pressure: filling reservoirs, transferring between tanks and supplying open-field irrigation.",
+      "specifications": {
+        "Size": "1.5 kW · 2\" × 2\" · 230 V single-phase",
+        "Product line": "Surface Pumps & Booster Sets",
+        "Details": "Max flow 24 m³/h (400 L/min); max head 20 m; suction lift up to 7 m with a foot valve; cast-iron pump body with brass impeller; IP44 motor with built-in thermal protection; for tank transfer, reservoir filling and flood irrigation"
+      },
+      "priceMin": "560.00",
+      "priceMax": "885.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "pump",
+        "centrifugal",
+        "surface",
+        "transfer"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-PMP-ES-300-3P",
+      "name": "End-Suction Centrifugal Pump 3 HP (Three-Phase)",
+      "category": "pumps-water-supply",
+      "line": "surface-pumps-booster-sets",
+      "brand": "Top Flow",
+      "description": "A three-phase end-suction pump for farm irrigation networks and filter stations, sized to run several drip or sprinkler zones at once.",
+      "specifications": {
+        "Size": "2.2 kW · 2-1/2\" × 2\" · 400 V three-phase",
+        "Product line": "Surface Pumps & Booster Sets",
+        "Details": "Max flow 30 m³/h; max head 36 m; cast-iron volute with bronze impeller; mechanical shaft seal; IE3 motor, IP55; for farm irrigation networks and filter stations"
+      },
+      "priceMin": "1350.00",
+      "priceMax": "2150.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "pump",
+        "centrifugal",
+        "three-phase",
+        "farm"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-PMP-MS-110",
+      "name": "Stainless-Steel Multistage Pump 1.5 HP",
+      "category": "pumps-water-supply",
+      "line": "surface-pumps-booster-sets",
+      "brand": "Top Flow",
+      "description": "A quiet horizontal multistage pump in stainless steel that delivers high pressure at moderate flow, ideal for boosting supply to drip systems and villas.",
+      "specifications": {
+        "Size": "1.1 kW · 1-1/4\" × 1\" · 230 V single-phase",
+        "Product line": "Surface Pumps & Booster Sets",
+        "Details": "Max flow 7.2 m³/h; max head 58 m; AISI 304 stainless-steel casing, shaft and impellers; horizontal multistage design; quiet-running IP55 motor with thermal protection; for pressure boosting and long drip laterals"
+      },
+      "priceMin": "1150.00",
+      "priceMax": "1800.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "pump",
+        "multistage",
+        "booster",
+        "stainless"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-PMP-BST-110",
+      "name": "Pressure Booster Set 1.1 kW with 24 L Tank",
+      "category": "pumps-water-supply",
+      "line": "surface-pumps-booster-sets",
+      "brand": "Top Flow",
+      "description": "A ready-to-connect booster set that switches on when a zone opens and holds steady pressure for villas, nurseries and small landscape networks.",
+      "specifications": {
+        "Size": "1.1 kW · 1\" outlet · 230 V single-phase",
+        "Product line": "Surface Pumps & Booster Sets",
+        "Details": "Stainless-steel multistage pump, 24 L membrane tank, pressure switch, pressure gauge and five-way manifold, assembled and tested; max flow 6 m³/h; max head 50 m; switches on at 2 bar and off at 3.5 bar (adjustable)"
+      },
+      "priceMin": "1500.00",
+      "priceMax": "2350.00",
+      "uom": "SET",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "pump",
+        "booster",
+        "pressure",
+        "tank"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-PMP-SUB4-150",
+      "name": "Borehole Submersible Pump 4\" 1.5 HP",
+      "category": "pumps-water-supply",
+      "line": "borehole-submersible-pumps",
+      "brand": "Top Flow",
+      "description": "A single-phase 4-inch borehole pump for villa and small-farm wells, supplied with its control box.",
+      "specifications": {
+        "Size": "1.1 kW · 1-1/4\" outlet · 230 V single-phase",
+        "Product line": "Borehole Submersible Pumps",
+        "Details": "For boreholes of 4\" (100 mm) diameter and larger; max flow 3.6 m³/h; max head 95 m; stainless-steel pump end with thermoplastic impellers; control box with start capacitor and overload protection"
+      },
+      "priceMin": "1100.00",
+      "priceMax": "1700.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "pump",
+        "submersible",
+        "borehole",
+        "well"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-PMP-SUB4-300-3P",
+      "name": "Borehole Submersible Pump 4\" 3 HP (Three-Phase)",
+      "category": "pumps-water-supply",
+      "line": "borehole-submersible-pumps",
+      "brand": "Top Flow",
+      "description": "A three-phase 4-inch borehole pump for farm wells that feed sprinkler and drip networks directly or fill storage reservoirs.",
+      "specifications": {
+        "Size": "2.2 kW · 2\" outlet · 400 V three-phase",
+        "Product line": "Borehole Submersible Pumps",
+        "Details": "For boreholes of 4\" (100 mm) diameter and larger; max flow 9 m³/h; max head 110 m; stainless-steel pump end with thermoplastic impellers; rewindable motor; use with a three-phase starter panel and dry-run protection"
+      },
+      "priceMin": "2050.00",
+      "priceMax": "3200.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "pump",
+        "submersible",
+        "borehole",
+        "three-phase"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-PMP-SUB6-750-3P",
+      "name": "Borehole Submersible Pump 6\" 7.5 HP (Three-Phase)",
+      "category": "pumps-water-supply",
+      "line": "borehole-submersible-pumps",
+      "brand": "Top Flow",
+      "description": "A high-output 6-inch pump for deep farm wells supplying centre pivots, large drip blocks and reservoirs.",
+      "specifications": {
+        "Size": "5.5 kW · 3\" outlet · 400 V three-phase",
+        "Product line": "Borehole Submersible Pumps",
+        "Details": "For boreholes of 6\" (150 mm) diameter and larger; max flow 30 m³/h; max head 100 m; AISI 304 stainless-steel pump end; rewindable motor; use with a three-phase starter panel and dry-run protection"
+      },
+      "priceMin": "5300.00",
+      "priceMax": "8350.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "pump",
+        "submersible",
+        "borehole",
+        "farm"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-SOL-INV-220",
+      "name": "Solar Pump Inverter 2.2 kW",
+      "category": "pumps-water-supply",
+      "line": "solar-pumping",
+      "brand": "Top Flow",
+      "description": "Turns a standard three-phase farm pump into a solar pump, with a grid or generator input for pumping after sunset.",
+      "specifications": {
+        "Size": "2.2 kW · 400 V three-phase output",
+        "Product line": "Solar Pumping",
+        "Details": "Runs standard three-phase surface and submersible pumps from PV panels; maximum power point tracking (MPPT); PV input up to 800 V DC; AC input for grid or generator backup; dry-run and tank-full sensor inputs; IP65 enclosure"
+      },
+      "priceMin": "975.00",
+      "priceMax": "1550.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "solar",
+        "inverter",
+        "pump",
+        "off-grid"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-SOL-KIT-SUB4-1100",
+      "name": "Solar Submersible Pump Kit 4\" 1.1 kW",
+      "category": "pumps-water-supply",
+      "line": "solar-pumping",
+      "brand": "Top Flow",
+      "description": "A matched solar pump and controller for off-grid wells: add PV panels and it pumps whenever the sun is up.",
+      "specifications": {
+        "Size": "1.1 kW brushless DC · 1-1/4\" outlet",
+        "Product line": "Solar Pumping",
+        "Details": "Brushless DC submersible pump with MPPT controller; max flow 6 m³/h; max head 70 m; needs a PV array of about 1.5 kWp (panels not included); dry-run protection and float-switch input; for boreholes of 4\" diameter and larger"
+      },
+      "priceMin": "1850.00",
+      "priceMax": "2950.00",
+      "uom": "SET",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "solar",
+        "pump",
+        "submersible",
+        "off-grid"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-TNK-PRS-100V",
+      "name": "Vertical Pressure Tank 100 L",
+      "category": "pumps-water-supply",
+      "line": "pressure-storage-tanks",
+      "brand": "Top Flow",
+      "description": "A 100-litre membrane tank for pumping stations that serve several zones, extending pump life by cutting start-stop cycles.",
+      "specifications": {
+        "Size": "100 L · 1\" connection · max 10 bar",
+        "Product line": "Pressure & Storage Tanks",
+        "Details": "Replaceable EPDM membrane; factory pre-charge 1.5 bar; epoxy-painted steel shell on feet; for booster sets and irrigation pumping stations"
+      },
+      "priceMin": "420.00",
+      "priceMax": "665.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "tank",
+        "pressure",
+        "pump",
+        "membrane"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-TNK-PE-500G",
+      "name": "Polyethylene Water Tank 500 gal (2,270 L)",
+      "category": "pumps-water-supply",
+      "line": "pressure-storage-tanks",
+      "brand": "Top Flow",
+      "description": "A storage tank for irrigation water on villas and farms, moulded in UV-stabilised polyethylene for the UAE sun.",
+      "specifications": {
+        "Size": "2,270 L (500 imperial gallons)",
+        "Product line": "Pressure & Storage Tanks",
+        "Details": "Four-layer UV-stabilised polyethylene with a food-grade inner layer; seamless one-piece moulding; 2\" outlet, overflow and drain; screw-on manhole lid"
+      },
+      "priceMin": "720.00",
+      "priceMax": "1150.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "tank",
+        "water",
+        "storage",
+        "polyethylene"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-TNK-PE-1000G",
+      "name": "Polyethylene Water Tank 1,000 gal (4,550 L)",
+      "category": "pumps-water-supply",
+      "line": "pressure-storage-tanks",
+      "brand": "Top Flow",
+      "description": "A 1,000-gallon tank for farms and larger landscapes, holding water for scheduled irrigation and fertigation.",
+      "specifications": {
+        "Size": "4,550 L (1,000 imperial gallons)",
+        "Product line": "Pressure & Storage Tanks",
+        "Details": "Four-layer UV-stabilised polyethylene with a food-grade inner layer; seamless one-piece moulding; 2\" outlet, overflow and drain; screw-on manhole lid"
+      },
+      "priceMin": "1250.00",
+      "priceMax": "1950.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "tank",
+        "water",
+        "storage",
+        "polyethylene"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-PMP-EPC-10",
+      "name": "Electronic Pressure Control for Pumps",
+      "category": "pumps-water-supply",
+      "line": "pump-controls-accessories",
+      "brand": "Top Flow",
+      "description": "Replaces a pressure switch and tank on single-phase pumps, switching on with demand and cutting out if the pump runs dry.",
+      "specifications": {
+        "Size": "1\" male × 1\" male · 230 V · pumps up to 1.5 kW",
+        "Product line": "Pump Controls & Accessories",
+        "Details": "Starts the pump when a tap or valve opens and stops it when the flow stops; adjustable start pressure 1.5–3 bar; max working pressure 10 bar; dry-run protection with automatic restart; built-in check valve and pressure gauge"
+      },
+      "priceMin": "155.00",
+      "priceMax": "245.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "pump",
+        "pressure",
+        "controller",
+        "dry-run"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-PMP-DOL-55",
+      "name": "Three-Phase Pump Starter Panel 5.5 kW",
+      "category": "pumps-water-supply",
+      "line": "pump-controls-accessories",
+      "brand": "Top Flow",
+      "description": "A weatherproof starter panel for three-phase borehole and surface pumps, with the protection a farm pump needs.",
+      "specifications": {
+        "Size": "Pumps up to 5.5 kW · 400 V three-phase",
+        "Product line": "Pump Controls & Accessories",
+        "Details": "Direct-on-line contactor with thermal overload relay; phase-failure and phase-sequence protection; run, trip and power indicator lamps; float-switch and pressure-switch inputs; IP65 enclosure"
+      },
+      "priceMin": "505.00",
+      "priceMax": "800.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "pump",
+        "starter",
+        "panel",
+        "three-phase"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-PMP-FLT-5M",
+      "name": "Float Level Switch with 5 m Cable",
+      "category": "pumps-water-supply",
+      "line": "pump-controls-accessories",
+      "brand": "Top Flow",
+      "description": "Stops a transfer pump when the tank is full, or a supply pump before the tank runs dry.",
+      "specifications": {
+        "Size": "5 m cable · 16 A 250 V",
+        "Product line": "Pump Controls & Accessories",
+        "Details": "Switches a pump on or off by water level, for filling or emptying tanks; polypropylene float with counterweight; normally open and normally closed contacts"
+      },
+      "priceMin": "31.00",
+      "priceMax": "49.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "float",
+        "switch",
+        "pump",
+        "tank"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-PMP-FV-150",
+      "name": "Brass Foot Valve 1-1/2\"",
+      "category": "pumps-water-supply",
+      "line": "pump-controls-accessories",
+      "brand": "Top Flow",
+      "description": "Fitted at the bottom of a suction line, it keeps a surface pump primed and stops debris getting in.",
+      "specifications": {
+        "Size": "1-1/2\" BSP female",
+        "Product line": "Pump Controls & Accessories",
+        "Details": "Spring-loaded check valve with stainless-steel strainer; keeps the suction line primed between starts; brass body with NBR seal"
+      },
+      "priceMin": "48.00",
+      "priceMax": "76.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "valve",
+        "foot-valve",
+        "pump",
+        "brass"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-FRT-VEN-075",
+      "name": "Venturi Fertiliser Injector 3/4\"",
+      "category": "fertigation",
+      "line": "venturi-injectors",
+      "brand": "Top Flow",
+      "description": "A power-free injector for small drip zones and home gardens that draws liquid fertiliser from a tank as water flows through.",
+      "specifications": {
+        "Size": "3/4\" BSP male",
+        "Product line": "Venturi Injectors",
+        "Details": "Motive flow 0.4–1.3 m³/h; suction up to 90 L/h; needs a pressure difference of at least 20% across the injector; glass-filled polypropylene body with built-in check valve; 1 m suction tube with strainer"
+      },
+      "priceMin": "47.00",
+      "priceMax": "74.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "fertigation",
+        "venturi",
+        "injector",
+        "fertiliser"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-FRT-VEN-100",
+      "name": "Venturi Fertiliser Injector 1\"",
+      "category": "fertigation",
+      "line": "venturi-injectors",
+      "brand": "Top Flow",
+      "description": "A 1-inch venturi for nurseries, greenhouses and landscape zones, installed on a bypass across a valve in the main line.",
+      "specifications": {
+        "Size": "1\" BSP male",
+        "Product line": "Venturi Injectors",
+        "Details": "Motive flow 1–3 m³/h; suction up to 250 L/h; needs a pressure difference of at least 20% across the injector; glass-filled polypropylene body with built-in check valve; 1 m suction tube with strainer"
+      },
+      "priceMin": "74.00",
+      "priceMax": "115.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "fertigation",
+        "venturi",
+        "injector",
+        "fertiliser"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-FRT-VEN-200",
+      "name": "Venturi Fertiliser Injector 2\"",
+      "category": "fertigation",
+      "line": "venturi-injectors",
+      "brand": "Top Flow",
+      "description": "A high-capacity venturi for farm fertigation heads that feed large drip blocks.",
+      "specifications": {
+        "Size": "2\" BSP male",
+        "Product line": "Venturi Injectors",
+        "Details": "Motive flow 3–10 m³/h; suction up to 700 L/h; needs a pressure difference of at least 20% across the injector; glass-filled polypropylene body with built-in check valve; suction tube with strainer"
+      },
+      "priceMin": "185.00",
+      "priceMax": "295.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "fertigation",
+        "venturi",
+        "injector",
+        "farm"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-FRT-VEN-KIT-100",
+      "name": "Venturi Bypass Kit 1\" with Flow Meter",
+      "category": "fertigation",
+      "line": "venturi-injectors",
+      "brand": "Top Flow",
+      "description": "A ready-to-install fertigation kit that shows exactly how much solution is being injected, for greenhouses and farm blocks.",
+      "specifications": {
+        "Size": "1\" BSP connections",
+        "Product line": "Venturi Injectors",
+        "Details": "Pre-assembled on a PVC manifold: 1\" venturi injector, inlet and outlet ball valves, suction ball valve and check valve; 120-mesh suction filter; 0–250 L/h flow meter on the suction line; pressure gauges before and after the injector"
+      },
+      "priceMin": "700.00",
+      "priceMax": "1100.00",
+      "uom": "SET",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "fertigation",
+        "venturi",
+        "kit",
+        "flow-meter"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-FRT-DOS-W25",
+      "name": "Water-Powered Proportional Doser 2.5 m³/h",
+      "category": "fertigation",
+      "line": "dosing-pumps",
+      "brand": "Top Flow",
+      "description": "Injects a constant percentage of stock solution however much the flow changes, so every zone receives the same nutrient strength.",
+      "specifications": {
+        "Size": "3/4\" BSP · 0.2–2% dosing",
+        "Product line": "Dosing Pumps",
+        "Details": "Driven by the water flow, no electricity needed; dose stays proportional to flow between 10 L/h and 2.5 m³/h; adjustable 0.2–2% (1:500 to 1:50); working pressure 0.3–6 bar; for soluble fertilisers and pH adjusters"
+      },
+      "priceMin": "1000.00",
+      "priceMax": "1600.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "fertigation",
+        "doser",
+        "dosing",
+        "proportional"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-FRT-DOS-E10",
+      "name": "Electric Dosing Pump 10 L/h",
+      "category": "fertigation",
+      "line": "dosing-pumps",
+      "brand": "Top Flow",
+      "description": "An accurate electric dosing pump for acid and nutrient injection, set by hand or run by a fertigation controller.",
+      "specifications": {
+        "Size": "10 L/h · max 10 bar · 230 V",
+        "Product line": "Dosing Pumps",
+        "Details": "Solenoid-driven diaphragm pump; stroke rate adjustable 0–100%; pulse and 4–20 mA inputs for flow-paced dosing; PVDF pump head and PTFE diaphragm for acids and fertilisers; suction and injection valves included"
+      },
+      "priceMin": "780.00",
+      "priceMax": "1250.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "fertigation",
+        "dosing",
+        "pump",
+        "acid"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-FRT-TNK-BP-060",
+      "name": "Bypass Fertiliser Tank 60 L",
+      "category": "fertigation",
+      "line": "fertiliser-tanks",
+      "brand": "Top Flow",
+      "description": "The simplest way to fertigate: dissolve a batch of fertiliser in the tank and the irrigation water carries it to the plants.",
+      "specifications": {
+        "Size": "60 L · 3/4\" connections · max 8 bar",
+        "Product line": "Fertiliser Tanks",
+        "Details": "Epoxy-coated steel pressure tank with removable lid; inlet and outlet ball valves; installed across a valve in the main line so irrigation water carries the fertiliser into the system; for batch feeding of orchards, palms and landscapes"
+      },
+      "priceMin": "470.00",
+      "priceMax": "740.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "fertigation",
+        "tank",
+        "fertiliser",
+        "bypass"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-FRT-TNK-BP-120",
+      "name": "Bypass Fertiliser Tank 120 L",
+      "category": "fertigation",
+      "line": "fertiliser-tanks",
+      "brand": "Top Flow",
+      "description": "A larger batch tank for farms and big landscapes that fertigate several zones in one run.",
+      "specifications": {
+        "Size": "120 L · 1\" connections · max 8 bar",
+        "Product line": "Fertiliser Tanks",
+        "Details": "Epoxy-coated steel pressure tank with removable lid; inlet and outlet ball valves; installed across a valve in the main line so irrigation water carries the fertiliser into the system; for farms and large landscape areas"
+      },
+      "priceMin": "740.00",
+      "priceMax": "1150.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "fertigation",
+        "tank",
+        "fertiliser",
+        "bypass"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-FRT-TNK-MIX-500",
+      "name": "Fertiliser Mixing Tank 500 L",
+      "category": "fertigation",
+      "line": "fertiliser-tanks",
+      "brand": "Top Flow",
+      "description": "A stock-solution tank for fertigation rooms, sized for daily nutrient mixes on greenhouses and farm blocks.",
+      "specifications": {
+        "Size": "500 L · 2\" outlet",
+        "Product line": "Fertiliser Tanks",
+        "Details": "Chemical-resistant UV-stabilised polyethylene; moulded level scale; screw-on lid; bottom outlet for injector suction lines; for preparing and storing nutrient stock solutions"
+      },
+      "priceMin": "390.00",
+      "priceMax": "615.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "fertigation",
+        "tank",
+        "mixing",
+        "fertiliser"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-FRT-MTR-ECPH",
+      "name": "Portable EC/pH/Temperature Meter",
+      "category": "fertigation",
+      "line": "ec-ph-control",
+      "brand": "Top Flow",
+      "description": "Checks the nutrient strength and pH of irrigation water and drain water in seconds, in the field or the fertigation room.",
+      "specifications": {
+        "Size": "pH 0–14 · EC 0–20 mS/cm",
+        "Product line": "EC & pH Control",
+        "Details": "pH accuracy ±0.02; EC accuracy ±2%; automatic temperature compensation; waterproof IP67 housing; calibration and storage solutions included"
+      },
+      "priceMin": "275.00",
+      "priceMax": "430.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "fertigation",
+        "meter",
+        "ec",
+        "ph"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-FRT-CTL-2CH",
+      "name": "Fertigation Controller with EC/pH Control (2 Channels)",
+      "category": "fertigation",
+      "line": "ec-ph-control",
+      "brand": "Top Flow",
+      "description": "Automates fertigation for greenhouses and farms, injecting nutrient and acid to keep EC and pH on target during every irrigation.",
+      "specifications": {
+        "Size": "2 injection channels · 230 V",
+        "Product line": "EC & pH Control",
+        "Details": "Holds nutrient EC and pH at set points by switching injectors or dosing pumps; inline EC and pH probes in a sampling cell; high and low alarms that stop injection; up to 10 irrigation programs; Modbus RS485 communication"
+      },
+      "priceMin": "6650.00",
+      "priceMax": "10500.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "fertigation",
+        "controller",
+        "ec",
+        "ph"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-GH-SHN-50G-2X50",
+      "name": "Shade Net 50% Green (2 m × 50 m)",
+      "category": "greenhouse-nursery",
+      "line": "shade-insect-nets",
+      "brand": "Top Flow",
+      "description": "A general-purpose shade net that cuts sunlight and leaf temperature for nursery plants and vegetables.",
+      "specifications": {
+        "Size": "2 m × 50 m roll · 50% shade",
+        "Product line": "Shade & Insect Nets",
+        "Details": "Knitted UV-stabilised HDPE; reinforced edges; lightweight and tear-resistant; for shade houses, nursery benches and vegetable beds"
+      },
+      "priceMin": "115.00",
+      "priceMax": "185.00",
+      "uom": "ROLL",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "shade",
+        "net",
+        "greenhouse",
+        "nursery"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-GH-SHN-70B-4X50",
+      "name": "Shade Net 70% Black (4 m × 50 m)",
+      "category": "greenhouse-nursery",
+      "line": "shade-insect-nets",
+      "brand": "Top Flow",
+      "description": "Heavier shade for summer growing and for hardening off young plants under the UAE sun.",
+      "specifications": {
+        "Size": "4 m × 50 m roll · 70% shade",
+        "Product line": "Shade & Insect Nets",
+        "Details": "Knitted UV-stabilised HDPE; reinforced edges; for shade houses, plant nurseries and hardening areas in full summer sun"
+      },
+      "priceMin": "305.00",
+      "priceMax": "480.00",
+      "uom": "ROLL",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "shade",
+        "net",
+        "greenhouse",
+        "nursery"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-GH-INS-50M-3X100",
+      "name": "Insect Net 50 Mesh (3 m × 100 m)",
+      "category": "greenhouse-nursery",
+      "line": "shade-insect-nets",
+      "brand": "Top Flow",
+      "description": "A fine insect-proof net that keeps whitefly and aphids out of greenhouses while letting air through.",
+      "specifications": {
+        "Size": "3 m × 100 m roll · 50 mesh",
+        "Product line": "Shade & Insect Nets",
+        "Details": "UV-stabilised HDPE monofilament; openings about 0.27 × 0.77 mm; keeps out whitefly, aphids and leafminers; for greenhouse side walls, vents and doors"
+      },
+      "priceMin": "500.00",
+      "priceMax": "785.00",
+      "uom": "ROLL",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "insect",
+        "net",
+        "greenhouse",
+        "mesh"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-GH-FLM-200-9X50",
+      "name": "Greenhouse Film 200 Micron (9 m × 50 m)",
+      "category": "greenhouse-nursery",
+      "line": "greenhouse-film-fixings",
+      "brand": "Top Flow",
+      "description": "A multi-layer covering film for tunnel and multi-span greenhouses, formulated to handle high UV.",
+      "specifications": {
+        "Size": "9 m × 50 m roll · 200 µm",
+        "Product line": "Greenhouse Film & Fixings",
+        "Details": "Three-layer UV-stabilised polyethylene; anti-drip and thermal (IR) additives; light transmission about 88%; for tunnel and multi-span greenhouses"
+      },
+      "priceMin": "975.00",
+      "priceMax": "1550.00",
+      "uom": "ROLL",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "greenhouse",
+        "film",
+        "cover",
+        "polyethylene"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-GH-LCK-2M",
+      "name": "Aluminium Lock Channel 2 m",
+      "category": "greenhouse-nursery",
+      "line": "greenhouse-film-fixings",
+      "brand": "Top Flow",
+      "description": "Fixes greenhouse film and nets to the frame without puncturing them, so covers can be re-tensioned or replaced.",
+      "specifications": {
+        "Size": "2 m length",
+        "Product line": "Greenhouse Film & Fixings",
+        "Details": "Extruded aluminium single-lock profile; pre-drilled for self-drilling screws; holds greenhouse film, shade net and insect net with wiggle wire"
+      },
+      "priceMin": "8.00",
+      "priceMax": "12.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "greenhouse",
+        "lock-channel",
+        "profile",
+        "fixing"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-GH-WGL-2M",
+      "name": "PVC-Coated Wiggle Wire 2 m",
+      "category": "greenhouse-nursery",
+      "line": "greenhouse-film-fixings",
+      "brand": "Top Flow",
+      "description": "Clips film and nets into the lock channel and holds them tight in strong wind.",
+      "specifications": {
+        "Size": "2 m length",
+        "Product line": "Greenhouse Film & Fixings",
+        "Details": "Zigzag spring-steel wire with a PVC coating that protects the film; locks one or more layers into the lock channel"
+      },
+      "priceMin": "3.50",
+      "priceMax": "5.50",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "greenhouse",
+        "wiggle-wire",
+        "fixing"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-GH-PAD-150",
+      "name": "Evaporative Cooling Pad 150 mm (1.8 m × 0.6 m)",
+      "category": "greenhouse-nursery",
+      "line": "cooling-misting",
+      "brand": "Top Flow",
+      "description": "The wet wall of a pad-and-fan cooling system: air drawn through the pad is cooled by evaporation before it reaches the crop.",
+      "specifications": {
+        "Size": "1,800 × 600 × 150 mm",
+        "Product line": "Cooling & Misting",
+        "Details": "7090 cellulose honeycomb; edge coating protects the air-inlet face; for pad-and-fan cooling of greenhouses and poultry houses"
+      },
+      "priceMin": "59.00",
+      "priceMax": "92.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "greenhouse",
+        "cooling",
+        "pad",
+        "evaporative"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-GH-FOG-4W",
+      "name": "Four-Way Cross Fogger with Anti-Drip Valve",
+      "category": "greenhouse-nursery",
+      "line": "cooling-misting",
+      "brand": "Top Flow",
+      "description": "Raises humidity and cools the air in greenhouses and seedling houses without wetting the foliage.",
+      "specifications": {
+        "Size": "4 nozzles · 7.5 L/h at 4 bar",
+        "Product line": "Cooling & Misting",
+        "Details": "Fine fog for cooling and humidity in greenhouses and propagation houses; anti-drip valve closes below about 2 bar so nozzles do not drip on plants; hangs from 4/7 mm microtube"
+      },
+      "priceMin": "7.00",
+      "priceMax": "11.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "greenhouse",
+        "fogger",
+        "misting",
+        "humidity"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-GH-MST-KIT-20",
+      "name": "Misting Line Kit 20 m",
+      "category": "greenhouse-nursery",
+      "line": "cooling-misting",
+      "brand": "Top Flow",
+      "description": "A low-pressure misting kit that cools shade houses and nursery benches and keeps cuttings humid.",
+      "specifications": {
+        "Size": "20 m of 1/4\" tubing · 20 nozzles",
+        "Product line": "Cooling & Misting",
+        "Details": "20 brass misting nozzles (0.3 mm) with slip-lock tees; end plug, tap connector and 80-mesh inline filter; runs on mains pressure; for shade houses, nursery benches and propagation areas"
+      },
+      "priceMin": "155.00",
+      "priceMax": "245.00",
+      "uom": "SET",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "misting",
+        "kit",
+        "greenhouse",
+        "nursery"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-NUR-TRY-128",
+      "name": "Seedling Tray 128 Cells (Pack of 50)",
+      "category": "greenhouse-nursery",
+      "line": "nursery-containers-media",
+      "brand": "Top Flow",
+      "description": "Plug trays for raising vegetable and flower seedlings in nurseries and greenhouses.",
+      "specifications": {
+        "Size": "128 cells · 540 × 280 mm · pack of 50",
+        "Product line": "Nursery Containers & Media",
+        "Details": "Reusable polypropylene; cell volume about 25 ml; drainage hole in every cell; stackable for storage"
+      },
+      "priceMin": "110.00",
+      "priceMax": "170.00",
+      "uom": "BOX",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "seedling",
+        "tray",
+        "nursery",
+        "propagation"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-NUR-POT-5G",
+      "name": "Nursery Pot 5 gal (19 L)",
+      "category": "greenhouse-nursery",
+      "line": "nursery-containers-media",
+      "brand": "Top Flow",
+      "description": "A standard nursery container for growing on shrubs, palms and trees before planting out.",
+      "specifications": {
+        "Size": "19 L · top diameter 290 mm",
+        "Product line": "Nursery Containers & Media",
+        "Details": "UV-stabilised black polypropylene; drainage holes in the base; rolled rim for handling; stackable"
+      },
+      "priceMin": "3.50",
+      "priceMax": "5.50",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "pot",
+        "nursery",
+        "container",
+        "planter"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-NUR-GB-100",
+      "name": "Coco Peat Grow Bag 100 cm",
+      "category": "greenhouse-nursery",
+      "line": "nursery-containers-media",
+      "brand": "Top Flow",
+      "description": "A ready-to-plant soilless growing medium for hydroponic greenhouse crops, used with drip irrigation.",
+      "specifications": {
+        "Size": "100 × 20 × 10 cm (expanded)",
+        "Product line": "Nursery Containers & Media",
+        "Details": "Washed and buffered coir in a UV-stabilised white-on-black bag; low EC; expands when wetted; for hydroponic tomatoes, cucumbers, peppers and strawberries"
+      },
+      "priceMin": "8.50",
+      "priceMax": "14.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "coco-peat",
+        "grow-bag",
+        "hydroponic",
+        "greenhouse"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-NUR-GC-100-2X100",
+      "name": "Weed Control Ground Cover 100 g/m² (2 m × 100 m)",
+      "category": "greenhouse-nursery",
+      "line": "nursery-containers-media",
+      "brand": "Top Flow",
+      "description": "Keeps weeds down on nursery floors and greenhouse aisles while letting irrigation water drain through.",
+      "specifications": {
+        "Size": "2 m × 100 m roll · 100 g/m²",
+        "Product line": "Nursery Containers & Media",
+        "Details": "Woven UV-stabilised polypropylene; lets water and air through; printed guide lines for spacing pots and plants; for nursery floors, greenhouse aisles and orchards"
+      },
+      "priceMin": "225.00",
+      "priceMax": "355.00",
+      "uom": "ROLL",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "ground-cover",
+        "weed",
+        "nursery",
+        "greenhouse"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-HOS-PVC-12-30",
+      "name": "Reinforced Garden Hose 1/2\" (30 m)",
+      "category": "hoses-watering",
+      "line": "garden-rubber-hoses",
+      "brand": "Top Flow",
+      "description": "An everyday garden hose for villas and terraces that resists kinking and holds up in the sun.",
+      "specifications": {
+        "Size": "1/2\" (13 mm) bore · 30 m",
+        "Product line": "Garden & Rubber Hoses",
+        "Details": "Three-layer PVC with polyester braid reinforcement; kink-resistant; UV-stabilised outer layer; working pressure 8 bar"
+      },
+      "priceMin": "47.00",
+      "priceMax": "74.00",
+      "uom": "ROLL",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "hose",
+        "garden",
+        "watering",
+        "pvc"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-HOS-PVC-34-30",
+      "name": "Reinforced Garden Hose 3/4\" (30 m)",
+      "category": "hoses-watering",
+      "line": "garden-rubber-hoses",
+      "brand": "Top Flow",
+      "description": "A larger-bore hose that delivers more water for big gardens, lawns and filling tanks.",
+      "specifications": {
+        "Size": "3/4\" (19 mm) bore · 30 m",
+        "Product line": "Garden & Rubber Hoses",
+        "Details": "Three-layer PVC with polyester braid reinforcement; kink-resistant; UV-stabilised outer layer; working pressure 8 bar"
+      },
+      "priceMin": "90.00",
+      "priceMax": "140.00",
+      "uom": "ROLL",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "hose",
+        "garden",
+        "watering",
+        "pvc"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-HOS-RUB-34-50",
+      "name": "Heavy-Duty Rubber Hose 3/4\" (50 m)",
+      "category": "hoses-watering",
+      "line": "garden-rubber-hoses",
+      "brand": "Top Flow",
+      "description": "A tough rubber hose for parks, nurseries and maintenance crews who drag hoses across rough ground every day.",
+      "specifications": {
+        "Size": "3/4\" (19 mm) bore · 50 m",
+        "Product line": "Garden & Rubber Hoses",
+        "Details": "EPDM rubber with textile reinforcement; stays flexible in the heat; abrasion-resistant cover; working pressure 10 bar"
+      },
+      "priceMin": "265.00",
+      "priceMax": "420.00",
+      "uom": "ROLL",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "hose",
+        "rubber",
+        "watering",
+        "heavy-duty"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-HOS-LF-2-100",
+      "name": "PVC Layflat Hose 2\" (100 m)",
+      "category": "hoses-watering",
+      "line": "layflat-suction-hoses",
+      "brand": "Top Flow",
+      "description": "A discharge hose that rolls up flat, for pump outlets, tank transfer and temporary irrigation lines.",
+      "specifications": {
+        "Size": "2\" (50 mm) · 100 m",
+        "Product line": "Layflat & Suction Hoses",
+        "Details": "Polyester-reinforced PVC; rolls flat for storage; working pressure 6 bar; for pump discharge, flood irrigation and temporary supply lines"
+      },
+      "priceMin": "265.00",
+      "priceMax": "420.00",
+      "uom": "ROLL",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "hose",
+        "layflat",
+        "discharge",
+        "pump"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-HOS-LF-3-100",
+      "name": "PVC Layflat Hose 3\" (100 m)",
+      "category": "hoses-watering",
+      "line": "layflat-suction-hoses",
+      "brand": "Top Flow",
+      "description": "A high-flow layflat hose for farm pumps, dewatering and moving water between reservoirs.",
+      "specifications": {
+        "Size": "3\" (75 mm) · 100 m",
+        "Product line": "Layflat & Suction Hoses",
+        "Details": "Polyester-reinforced PVC; rolls flat for storage; working pressure 5 bar; for farm pumps, dewatering and moving water between reservoirs"
+      },
+      "priceMin": "435.00",
+      "priceMax": "690.00",
+      "uom": "ROLL",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "hose",
+        "layflat",
+        "discharge",
+        "farm"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-HOS-SUC-2",
+      "name": "PVC Spiral Suction Hose 2\"",
+      "category": "hoses-watering",
+      "line": "layflat-suction-hoses",
+      "brand": "Top Flow",
+      "description": "A reinforced hose that will not collapse under suction, for pump intakes from tanks, canals and ponds.",
+      "specifications": {
+        "Size": "2\" (50 mm) bore · cut to length",
+        "Product line": "Layflat & Suction Hoses",
+        "Details": "Flexible PVC with a rigid PVC helix; rated for suction and delivery; smooth bore; standard rolls of 30 m"
+      },
+      "priceMin": "14.00",
+      "priceMax": "22.00",
+      "uom": "METER",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "hose",
+        "suction",
+        "pump",
+        "pvc"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-HOS-CAM-2",
+      "name": "Cam-Lock Coupling Set 2\" (Type A and C)",
+      "category": "hoses-watering",
+      "line": "layflat-suction-hoses",
+      "brand": "Top Flow",
+      "description": "Quick-connect couplings for pump outlets and layflat or suction hose, making set-up and take-down fast.",
+      "specifications": {
+        "Size": "2\" · BSP female thread × hose tail",
+        "Product line": "Layflat & Suction Hoses",
+        "Details": "Type A male adaptor with 2\" BSP female thread; Type C female coupler with hose tail; cast aluminium with NBR gasket; connects pumps and hoses in seconds without tools"
+      },
+      "priceMin": "43.00",
+      "priceMax": "68.00",
+      "uom": "SET",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "camlock",
+        "coupling",
+        "hose",
+        "pump"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-HOS-REEL-CART",
+      "name": "Hose Reel Cart for 60 m of 1/2\" Hose",
+      "category": "hoses-watering",
+      "line": "hose-reels",
+      "brand": "Top Flow",
+      "description": "A wheeled reel for moving long hoses around large gardens and nurseries and storing them neatly.",
+      "specifications": {
+        "Size": "Holds 60 m of 1/2\" hose (hose not included)",
+        "Product line": "Hose Reels",
+        "Details": "Powder-coated steel frame; two wheels and folding handle; winding crank; 1.5 m leader hose and tap connector included"
+      },
+      "priceMin": "150.00",
+      "priceMax": "235.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "hose",
+        "reel",
+        "cart",
+        "watering"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-HOS-REEL-AUTO-20",
+      "name": "Wall-Mounted Auto-Rewind Hose Reel 20 m",
+      "category": "hoses-watering",
+      "line": "hose-reels",
+      "brand": "Top Flow",
+      "description": "A self-retracting hose reel for villa gardens, terraces and plant rooms that keeps the hose out of the sun.",
+      "specifications": {
+        "Size": "20 m of 1/2\" hose included",
+        "Product line": "Hose Reels",
+        "Details": "Enclosed UV-resistant case; slow rewind with lock at any length; 180° swivel wall bracket; 2 m leader hose, connectors and spray gun included"
+      },
+      "priceMin": "310.00",
+      "priceMax": "490.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "hose",
+        "reel",
+        "wall-mounted",
+        "watering"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-HOS-GUN-8P",
+      "name": "Eight-Pattern Spray Gun",
+      "category": "hoses-watering",
+      "line": "spray-guns-connectors",
+      "brand": "Top Flow",
+      "description": "A versatile spray gun for everything from gentle seedling showers to washing down paths and equipment.",
+      "specifications": {
+        "Size": "8 spray patterns · click-fit connection",
+        "Product line": "Spray Guns & Connectors",
+        "Details": "Zinc-alloy body with soft-grip handle; trigger lock for continuous flow; flow control; patterns from jet to shower and mist"
+      },
+      "priceMin": "22.00",
+      "priceMax": "34.00",
+      "uom": "PIECE",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "spray-gun",
+        "hose",
+        "nozzle",
+        "watering"
+      ],
+      "imageUrl": null
+    },
+    {
+      "sku": "TF-HOS-CON-SET",
+      "name": "Hose Connector Set 1/2\"",
+      "category": "hoses-watering",
+      "line": "spray-guns-connectors",
+      "brand": "Top Flow",
+      "description": "Everything needed to connect a 1/2-inch hose to a tap and a spray gun, with a joiner for repairing damaged sections.",
+      "specifications": {
+        "Size": "1/2\" hose · 3/4\" tap thread",
+        "Product line": "Spray Guns & Connectors",
+        "Details": "Click-fit set: 3/4\" tap connector with 1/2\" reducer, hose-end connector, water-stop connector and hose repair joiner; UV-stabilised ABS with rubber seals"
+      },
+      "priceMin": "20.00",
+      "priceMax": "31.00",
+      "uom": "SET",
+      "stockStatus": "ON_ORDER",
+      "stockQuantity": 0,
+      "tags": [
+        "hose",
+        "connector",
+        "fitting",
+        "watering"
+      ],
+      "imageUrl": null
+    },
+    {
       "sku": "WS-CPS-2000-CONVEX",
       "name": "Super Spray Sprinkler with Convex Deflector",
       "category": "specialty",
@@ -6094,11 +8964,11 @@
       "sku": "TF-RW-01",
       "name": "Purple Identification Pipe/Coil",
       "category": "specialty",
-      "line": "recycled-water-drainage",
+      "line": "recycled-water",
       "brand": "Top Flow",
       "description": "Purple-identified pipe, valve boxes and fittings that make non-potable and recycled water lines easy to recognise on site.",
       "specifications": {
-        "Product line": "Recycled Water & Drainage",
+        "Product line": "Recycled Water (Purple)",
         "Details": "Purple-striped HDPE pipe and coil for visual identification of chemically treated/reclaimed water lines",
         "Catalogue reference": "Purple-Striped HDPE Pipe"
       },
@@ -6118,11 +8988,11 @@
       "sku": "TF-RW-02",
       "name": "Purple Valve Box",
       "category": "specialty",
-      "line": "recycled-water-drainage",
+      "line": "recycled-water",
       "brand": "Top Flow",
       "description": "Purple-identified pipe, valve boxes and fittings that make non-potable and recycled water lines easy to recognise on site.",
       "specifications": {
-        "Product line": "Recycled Water & Drainage",
+        "Product line": "Recycled Water (Purple)",
         "Details": "Purple-colored valve box marking non-potable/reclaimed water valve locations",
         "Catalogue reference": "Purple Valve Box"
       },
@@ -6142,11 +9012,11 @@
       "sku": "TF-RW-03",
       "name": "Purple Compression Fitting (Elbow)",
       "category": "specialty",
-      "line": "recycled-water-drainage",
+      "line": "recycled-water",
       "brand": "Top Flow",
       "description": "Purple-identified pipe, valve boxes and fittings that make non-potable and recycled water lines easy to recognise on site.",
       "specifications": {
-        "Product line": "Recycled Water & Drainage",
+        "Product line": "Recycled Water (Purple)",
         "Details": "Purple compression elbow fitting for HDPE pipe in reclaimed water/drainage systems",
         "Catalogue reference": "Purple Compression Elbow"
       },

@@ -41,7 +41,7 @@ export function SiteFooter() {
         <div>
           <Logo tone="inverse" />
           <p className="mt-5 max-w-sm leading-relaxed">
-            {COMPANY.productName} is {COMPANY.name}’s supply platform for irrigation and flow-control products, for contractors, landscapers,
+            {COMPANY.productName} is {COMPANY.name}’s supply platform for irrigation and flow-control products, for contractors, farms, landscapers,
             facilities teams and homeowners.
           </p>
           <div className="mt-6 space-y-3">
