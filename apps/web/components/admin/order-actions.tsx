@@ -8,7 +8,9 @@ import {
   Permission,
   cancelOrderSchema,
   hasPermission,
+  isRefundDue,
   recordPaymentSchema,
+  recordRefundSchema,
   updateOrderStatusSchema,
   type OrderDto,
 } from '@topflow/shared';
@@ -18,7 +20,7 @@ import { api, errorMessage } from '@/lib/api';
 import { apiFieldErrors, zodFieldErrors, type FieldErrors } from '@/lib/forms';
 import { useSession } from '@/lib/session';
 
-type Mode = { kind: 'transition'; status: OrderStatus } | { kind: 'cancel' } | { kind: 'payment' };
+type Mode = { kind: 'transition'; status: OrderStatus } | { kind: 'cancel' } | { kind: 'payment' } | { kind: 'refund' };
 
 const TRANSITION_HINTS: Partial<Record<OrderStatus, string>> = {
   CONFIRMED: 'Confirms the order and notifies the customer.',
@@ -38,6 +40,7 @@ export function OrderActions({ order, onUpdated }: { order: OrderDto; onUpdated:
   const [trackingReference, setTrackingReference] = useState('');
   const [reason, setReason] = useState('');
   const [paymentReference, setPaymentReference] = useState('');
+  const [refundReference, setRefundReference] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -46,7 +49,10 @@ export function OrderActions({ order, onUpdated }: { order: OrderDto; onUpdated:
   const transitions = order.allowedTransitions.filter((status) => status !== OrderStatus.CANCELLED);
   const canRecordPayment =
     hasPermission(user?.role, Permission.ORDERS_MANAGE) && order.paymentStatus === PaymentStatus.UNPAID && order.status !== OrderStatus.CANCELLED;
-  const hasActions = transitions.length > 0 || order.canCancel || canRecordPayment;
+  // A cancelled order that was paid still owes the customer their money back.
+  const refundDue = isRefundDue(order.status, order.paymentStatus);
+  const canRecordRefund = refundDue && hasPermission(user?.role, Permission.ORDERS_MANAGE);
+  const hasActions = transitions.length > 0 || order.canCancel || canRecordPayment || canRecordRefund;
   const closed = order.status === OrderStatus.DELIVERED || order.status === OrderStatus.CANCELLED;
   const collectsCashOnDelivery = order.paymentMethod === PaymentMethod.CASH_ON_DELIVERY && order.paymentStatus === PaymentStatus.UNPAID;
 
@@ -56,6 +62,7 @@ export function OrderActions({ order, onUpdated }: { order: OrderDto; onUpdated:
     setTrackingReference(order.trackingReference ?? '');
     setReason('');
     setPaymentReference('');
+    setRefundReference('');
     setErrors({});
     setError(null);
     setNotice(null);
@@ -120,6 +127,18 @@ export function OrderActions({ order, onUpdated }: { order: OrderDto; onUpdated:
     void run(() => api<OrderDto>(`/admin/orders/${order.id}/payment`, { method: 'POST', body: parsed.data }), 'Payment recorded.');
   };
 
+  const confirmRefund = () => {
+    const parsed = recordRefundSchema.safeParse({ refundReference, note });
+    if (!parsed.success) {
+      setErrors(zodFieldErrors(parsed.error));
+      return;
+    }
+    void run(
+      () => api<OrderDto>(`/admin/orders/${order.id}/refund`, { method: 'POST', body: parsed.data }),
+      'Refund recorded. The customer has been emailed.',
+    );
+  };
+
   const formButtons = (label: string, onConfirm: () => void, variant: 'primary' | 'danger' = 'primary') => (
     <div className="flex flex-wrap gap-2">
       <Button variant={variant} loading={busy} onClick={onConfirm}>
@@ -136,6 +155,11 @@ export function OrderActions({ order, onUpdated }: { order: OrderDto; onUpdated:
       <CardHeader title="Actions" description={hasActions ? 'What your role can do at this stage.' : undefined} />
       <div className="space-y-4 p-5">
         {notice && <Alert tone="success">{notice}</Alert>}
+        {refundDue && mode === null && (
+          <Alert tone="warning">
+            This order was paid and then cancelled. {canRecordRefund ? 'Refund the customer, then record it here.' : 'Sales or an administrator needs to refund the customer.'}
+          </Alert>
+        )}
 
         {mode === null &&
           (hasActions ? (
@@ -148,6 +172,11 @@ export function OrderActions({ order, onUpdated }: { order: OrderDto; onUpdated:
               {canRecordPayment && (
                 <Button variant="secondary" onClick={() => open({ kind: 'payment' })}>
                   Record payment
+                </Button>
+              )}
+              {canRecordRefund && (
+                <Button variant="secondary" onClick={() => open({ kind: 'refund' })}>
+                  Record refund
                 </Button>
               )}
               {order.canCancel && (
@@ -231,6 +260,32 @@ export function OrderActions({ order, onUpdated }: { order: OrderDto; onUpdated:
             </Field>
             {error && <Alert tone="danger">{error}</Alert>}
             {formButtons('Record payment', confirmPayment)}
+          </div>
+        )}
+
+        {mode?.kind === 'refund' && (
+          <div className="space-y-4">
+            <div>
+              <p className="heading-4 text-ink-900">Record refund</p>
+              <p className="mt-0.5 text-sm text-slate-600">
+                Send the money back first, then record it here. The order is marked refunded, the customer is emailed, and the reference is kept on the
+                timeline.
+              </p>
+            </div>
+            <Field label="Refund reference (optional)" htmlFor="refundReference" error={errors.refundReference} hint="Bank transfer or credit note number.">
+              <Input
+                id="refundReference"
+                value={refundReference}
+                onChange={(event) => setRefundReference(event.target.value)}
+                maxLength={100}
+                aria-invalid={Boolean(errors.refundReference)}
+              />
+            </Field>
+            <Field label="Note (optional)" htmlFor="refundNote" error={errors.note} hint="Added to the timeline and the customer email.">
+              <Textarea id="refundNote" value={note} onChange={(event) => setNote(event.target.value)} maxLength={500} aria-invalid={Boolean(errors.note)} />
+            </Field>
+            {error && <Alert tone="danger">{error}</Alert>}
+            {formButtons('Record refund', confirmRefund)}
           </div>
         )}
       </div>

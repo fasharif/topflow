@@ -990,5 +990,97 @@ describe('TopFlow Hub API (e2e)', () => {
         fitting.stockQuantity - 2,
       );
     });
+
+    it('leaves a paid order for Top Flow to cancel, then records the refund', async () => {
+      const customer = await sessionFor('customer@example.com');
+      const sales = await sessionFor('sales@topflow.ae');
+      const addresses = (
+        await http().get('/me/addresses').set(bearer(customer)).expect(200)
+      ).body as AddressDto[];
+      const fitting = await product('AX-EFS-001');
+
+      const order = (
+        await http()
+          .post('/me/orders')
+          .set(bearer(customer))
+          .send({
+            items: [{ productId: fitting.id, quantity: 1 }],
+            addressId: addresses[0].id,
+            paymentMethod: 'CASH_ON_DELIVERY',
+          })
+          .expect(201)
+      ).body as OrderDto;
+      expect(order.canCancel).toBe(true);
+
+      await http()
+        .post(`/admin/orders/${order.id}/payment`)
+        .set(bearer(sales))
+        .send({ paymentReference: 'E2E-BANK-77' })
+        .expect(200);
+
+      // Once Top Flow holds the money, the customer can no longer cancel on their own.
+      const blocked = await http()
+        .post(`/me/orders/${order.id}/cancel`)
+        .set(bearer(customer))
+        .send({ reason: 'Changed my mind' })
+        .expect(409);
+      expect(blocked.body.message).toMatch(/already been paid/i);
+      expect(
+        (await http().get(`/me/orders/${order.id}`).set(bearer(customer)))
+          .body as OrderDto,
+      ).toMatchObject({ paymentStatus: 'PAID', canCancel: false });
+
+      // A refund belongs to a cancelled order.
+      await http()
+        .post(`/admin/orders/${order.id}/refund`)
+        .set(bearer(sales))
+        .send({})
+        .expect(409);
+
+      const cancelled = (
+        await http()
+          .patch(`/admin/orders/${order.id}/status`)
+          .set(bearer(sales))
+          .send({
+            status: 'CANCELLED',
+            note: 'Supplier cannot deliver in time',
+          })
+          .expect(200)
+      ).body as OrderDto;
+      expect(cancelled.status).toBe('CANCELLED');
+      expect(cancelled.paymentStatus).toBe('PAID');
+      expect(mail.lastMessageTo('customer@example.com')?.text).toContain(
+        'refund',
+      );
+
+      const refunded = (
+        await http()
+          .post(`/admin/orders/${order.id}/refund`)
+          .set(bearer(sales))
+          .send({
+            refundReference: 'E2E-REFUND-77',
+            note: 'Bank transfer sent today',
+          })
+          .expect(200)
+      ).body as OrderDto;
+      expect(refunded.paymentStatus).toBe('REFUNDED');
+      expect(
+        refunded.events.some((event) => event.note?.includes('E2E-REFUND-77')),
+      ).toBe(true);
+      const email = mail.lastMessageTo('customer@example.com');
+      expect(email?.subject).toContain('Refunded');
+      expect(email?.text).toContain(refunded.totalAmount);
+
+      await http()
+        .post(`/admin/orders/${order.id}/refund`)
+        .set(bearer(sales))
+        .send({})
+        .expect(409);
+      await http()
+        .post(`/admin/orders/${order.id}/refund`)
+        .set(bearer(await sessionFor('warehouse@topflow.ae')))
+        .send({})
+        .expect(403);
+    });
   });
 });

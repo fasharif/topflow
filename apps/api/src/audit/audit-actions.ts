@@ -39,5 +39,6 @@ export const AuditAction = {
   ORDER_STATUS_CHANGED: 'orders.status_changed',
   ORDER_CANCELLED: 'orders.cancelled',
   ORDER_PAYMENT_RECORDED: 'orders.payment_recorded',
+  ORDER_REFUND_RECORDED: 'orders.refund_recorded',
 } as const;
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];

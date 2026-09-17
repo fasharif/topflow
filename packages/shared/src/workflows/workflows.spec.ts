@@ -1,7 +1,7 @@
-import { OrderStatus, OrgRole, QuotationStatus, RfqStatus } from '../enums';
+import { OrderStatus, OrgRole, PaymentStatus, QuotationStatus, RfqStatus } from '../enums';
 import { formatDocumentNumber, quotationDisplayNumber } from '../numbering';
 import { canApprovePurchases, requiresApproval } from './approval';
-import { ORDER_TRANSITIONS, isCustomerCancellable } from './order';
+import { ORDER_TRANSITIONS, isCustomerCancellable, isRefundDue } from './order';
 import { QUOTATION_TRANSITIONS, RFQ_TRANSITIONS, isQuotationOpen } from './quotation';
 import {
   InvalidTransitionError,
@@ -32,8 +32,21 @@ describe('order state machine', () => {
   });
 
   it('lets customers cancel only before picking starts', () => {
-    expect(isCustomerCancellable(OrderStatus.CONFIRMED)).toBe(true);
-    expect(isCustomerCancellable(OrderStatus.PROCESSING)).toBe(false);
+    expect(isCustomerCancellable(OrderStatus.CONFIRMED, PaymentStatus.UNPAID)).toBe(true);
+    expect(isCustomerCancellable(OrderStatus.PROCESSING, PaymentStatus.UNPAID)).toBe(false);
+  });
+
+  it('keeps cancellation of a paid order with Top Flow, so the refund goes with it', () => {
+    expect(isCustomerCancellable(OrderStatus.CONFIRMED, PaymentStatus.PAID)).toBe(false);
+    expect(isCustomerCancellable(OrderStatus.PENDING_PAYMENT, PaymentStatus.PAID)).toBe(false);
+    expect(isCustomerCancellable(OrderStatus.CONFIRMED, PaymentStatus.REFUNDED)).toBe(true);
+  });
+
+  it('reports a refund as due only on a cancelled order that was paid', () => {
+    expect(isRefundDue(OrderStatus.CANCELLED, PaymentStatus.PAID)).toBe(true);
+    expect(isRefundDue(OrderStatus.CANCELLED, PaymentStatus.UNPAID)).toBe(false);
+    expect(isRefundDue(OrderStatus.CANCELLED, PaymentStatus.REFUNDED)).toBe(false);
+    expect(isRefundDue(OrderStatus.CONFIRMED, PaymentStatus.PAID)).toBe(false);
   });
 });
 

@@ -52,3 +52,10 @@ export const recordPaymentSchema = z.object({
   paymentReference: optionalText(100),
 });
 export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>;
+
+/** Staff records the refund of a cancelled order that had already been paid. */
+export const recordRefundSchema = z.object({
+  refundReference: optionalText(100),
+  note: optionalText(500),
+});
+export type RecordRefundInput = z.infer<typeof recordRefundSchema>;

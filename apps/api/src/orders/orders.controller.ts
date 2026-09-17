@@ -41,6 +41,7 @@ import {
   CheckoutDto,
   OrderQueryDto,
   RecordPaymentDto,
+  RecordRefundDto,
   UpdateOrderStatusDto,
 } from './orders.dto';
 import { OrdersService } from './orders.service';
@@ -182,5 +183,20 @@ export class AdminOrdersController {
     @Meta() meta: RequestMeta,
   ): Promise<OrderDto> {
     return this.orders.recordPayment(user, id, dto, meta);
+  }
+
+  @Post(':id/refund')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(Permission.ORDERS_MANAGE)
+  @ApiOperation({
+    summary: 'Record the refund of a cancelled order that had been paid',
+  })
+  recordRefund(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: RecordRefundDto,
+    @Meta() meta: RequestMeta,
+  ): Promise<OrderDto> {
+    return this.orders.recordRefund(user, id, dto, meta);
   }
 }
