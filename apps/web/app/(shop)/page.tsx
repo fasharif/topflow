@@ -114,9 +114,9 @@ export default async function HomePage() {
     serverApi<CategoryDto[]>('/catalog/categories', { revalidate: 300 }).catch((): CategoryDto[] => []),
     serverApi<Paginated<ProductDto>>('/catalog/products', {
       searchParams: new URLSearchParams({ pageSize: '8', sort: 'name', stockStatus: 'IN_STOCK' }),
-      revalidate: 120,
+      revalidate: 0,
     }).catch(() => null),
-    serverApi<Paginated<ProductDto>>('/catalog/products', { searchParams: new URLSearchParams({ pageSize: '1' }), revalidate: 300 }).catch(() => null),
+    serverApi<Paginated<ProductDto>>('/catalog/products', { searchParams: new URLSearchParams({ pageSize: '1' }), revalidate: 0 }).catch(() => null),
   ]);
 
   const topLevel = categories.filter((category) => category.parentId === null && (category.productCount ?? 0) > 0);

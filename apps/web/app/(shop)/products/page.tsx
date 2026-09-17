@@ -32,7 +32,7 @@ export default async function ProductsPage({ searchParams }: PageProps<'/product
   }
 
   const [products, categories, brands]: CatalogData = await Promise.all([
-    serverApi<Paginated<ProductDto>>('/catalog/products', { searchParams: new URLSearchParams(query), revalidate: 30 }),
+    serverApi<Paginated<ProductDto>>('/catalog/products', { searchParams: new URLSearchParams(query), revalidate: 0 }),
     serverApi<CategoryDto[]>('/catalog/categories', { revalidate: 300 }),
     serverApi<Array<{ brand: string; productCount: number }>>('/catalog/brands', { revalidate: 300 }),
   ]).catch((): CatalogData => [null, [], []]);
