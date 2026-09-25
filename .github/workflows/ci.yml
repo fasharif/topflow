@@ -38,6 +38,11 @@ jobs:
       - name: Shared contracts — unit tests
         run: npm test -w @topflow/shared
 
+      - name: Database scripts — typecheck and unit tests (demo reset safety checks)
+        run: |
+          npm run check-types -w @topflow/database
+          npm test -w @topflow/database
+
       - name: API — lint, typecheck, unit tests, build
         run: |
           npm run lint -w @topflow/api
@@ -97,6 +102,13 @@ jobs:
         run: |
           npm run db:deploy
           npm run db:seed
+
+      # Runs the nightly demo reset for real: every table is emptied and seeded again, and the
+      # suites below then run against the result.
+      - name: Reset the demo data set
+        run: npm run demo:reset -- --confirm
+        env:
+          DEMO_MODE: "true"
 
       # Supabase Auth is simulated inside the suite (locally signed test tokens), so no network is needed.
       - name: Run end-to-end suite
