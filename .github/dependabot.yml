@@ -14,3 +14,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+
+  # Tool images for the system tests (k6, Schemathesis, ffmpeg), pinned in tests/compose.yaml.
+  - package-ecosystem: docker-compose
+    directory: /tests
+    schedule:
+      interval: weekly

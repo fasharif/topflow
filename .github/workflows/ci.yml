@@ -94,6 +94,13 @@ jobs:
       - name: Mobile — typecheck
         run: npx tsc --noEmit -p apps/mobile
 
+      # The suites themselves run in system-tests.yml against the whole stack.
+      - name: System tests — lint, typecheck and shellcheck
+        run: |
+          npm run lint -w @topflow/system-tests
+          npm run check-types -w @topflow/system-tests
+          shellcheck -x tests/load/run-k6.sh tests/contract/run-schemathesis.sh tests/scripts/*.sh
+
   e2e:
     name: API end-to-end tests (PostgreSQL)
     runs-on: ubuntu-latest
