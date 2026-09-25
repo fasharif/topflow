@@ -2,7 +2,7 @@ name: Database backup
 
 # Nightly, encrypted, off-site backup of the hosted Supabase database (the Free plan has no
 # automatic backups). The dump is encrypted with the public age key in BACKUP_AGE_RECIPIENT before
-# it leaves the runner; only the holder of the private key (kept offline by Top Flow) can decrypt it.
+# it leaves the runner; only the holder of the private key (kept offline by the maintainer) can decrypt it.
 # While no hosted database is configured (SUPABASE_DB_URL and BACKUP_AGE_RECIPIENT both unset),
 # runs are skipped with a notice. Restore steps: docs/OPERATIONS.md.
 
