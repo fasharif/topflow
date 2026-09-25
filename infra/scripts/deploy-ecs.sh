@@ -45,6 +45,11 @@ summary() {
   if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then echo "$*" >>"$GITHUB_STEP_SUMMARY"; fi
 }
 
+# The tag now serving, for the workflow's smoke test.
+serving() {
+  if [[ -n "${GITHUB_OUTPUT:-}" ]]; then echo "release=$1" >>"$GITHUB_OUTPUT"; fi
+}
+
 action="${1:-}"
 [[ "$action" == deploy || "$action" == rollback ]] || { usage >&2; exit 2; }
 shift
@@ -137,6 +142,7 @@ case "$action" in
   deploy)
     if [[ "$tag" == "$current" ]]; then
       summary "$tag is already the current $environment release; nothing to do."
+      serving "$tag"
       exit 0
     fi
     say "deploying $tag to $environment (current: $current)"
@@ -149,6 +155,7 @@ case "$action" in
     set_release previous "$current"
     set_release current "$tag"
     summary "Deployed $tag to $environment (previous release: $current)."
+    serving "$tag"
     ;;
   rollback)
     [[ -n "$previous" && "$previous" != none ]] || fail "no previous release is recorded for $environment"
@@ -160,5 +167,6 @@ case "$action" in
     set_release previous "$current"
     set_release current "$previous"
     summary "Rolled $environment back to $previous (a second rollback returns to $current)."
+    serving "$previous"
     ;;
 esac

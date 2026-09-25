@@ -63,6 +63,11 @@ ok "the release step runs first, then the API, then the web app"
 [[ "$(release current)" == sha-2222222 && "$(release previous)" == sha-1111111 ]] || not_ok "the releases are recorded"
 ok "the new release is recorded as current and the old one as previous"
 
+fresh sha-1111111 sha-0000000
+GITHUB_OUTPUT="$work/github-output" "$deploy" deploy --environment staging --tag sha-3333333 >/dev/null
+grep -qx 'release=sha-3333333' "$work/github-output" || not_ok "the serving release is a step output"
+ok "the workflow learns which release to smoke-test"
+
 # ── a failing release step ─────────────────────────────────────────────────────────────────────
 fresh sha-1111111 sha-0000000
 export FAKE_MIGRATION_EXIT=1

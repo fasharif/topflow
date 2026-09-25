@@ -1,0 +1,113 @@
+name: Deploy
+
+# Manual releases to the AWS environments of infra/terraform (not in use: hosting is deferred,
+# ADR-019). Each run waits for the GitHub environment's required reviewers, assumes that
+# environment's deploy role through OIDC and runs infra/scripts/deploy-ecs.sh:
+#
+#   deploy    the release step (preflight + migrations) as a one-off task, then the API, then the
+#             web app, each checked healthy; the images are the ones CI published for the tag
+#   rollback  the previous release's images back on both services in one step, no migrations
+#
+# Then the smoke test checks the public URLs and the version they serve. Without the
+# AWS_DEPLOY_ROLE_ARN variable on the environment, the run skips with a notice.
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment
+        type: choice
+        options: [staging, production]
+        required: true
+      action:
+        description: deploy a tag, or roll back to the previous release
+        type: choice
+        options: [deploy, rollback]
+        default: deploy
+      tag:
+        description: Image tag for deploy (sha-<commit>, published by the Containers workflow)
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: ${{ inputs.action }} · ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ vars.WEB_URL }}
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+      AWS_REGION: ${{ vars.AWS_REGION || 'ap-south-1' }}
+      WEB_URL: ${{ vars.WEB_URL }}
+      API_URL: ${{ vars.API_URL }}
+      ACTION: ${{ inputs.action }}
+      ENVIRONMENT: ${{ inputs.environment }}
+      TAG: ${{ inputs.tag }}
+      REGISTRY: ghcr.io/${{ github.repository_owner }}
+    steps:
+      - name: Check configuration
+        id: config
+        run: |
+          if [ -z "$ROLE_ARN" ]; then
+            echo "::notice::Deploy skipped: the $ENVIRONMENT environment has no AWS_DEPLOY_ROLE_ARN variable (hosting is deferred, ADR-019; see infra/README.md)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          elif [ -z "$WEB_URL" ] || [ -z "$API_URL" ]; then
+            echo "::error::Set the WEB_URL and API_URL variables of the $ENVIRONMENT environment for the smoke test."
+            exit 1
+          elif [ "$ACTION" = deploy ] && ! [[ "$TAG" =~ ^sha-[0-9a-f]{7,40}$ ]]; then
+            echo "::error::A deploy needs the tag of an image CI published, such as sha-1a2b3c4."
+            exit 1
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v7
+        if: steps.config.outputs.ready == 'true'
+
+      - name: Check that the images exist
+        if: steps.config.outputs.ready == 'true' && inputs.action == 'deploy'
+        run: |
+          for image in api migrate web; do
+            docker buildx imagetools inspect "$REGISTRY/topflow-hub-$image:$TAG" > /dev/null \
+              || { echo "::error::$REGISTRY/topflow-hub-$image:$TAG does not exist"; exit 1; }
+          done
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        if: steps.config.outputs.ready == 'true'
+        with:
+          role-to-assume: ${{ env.ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: ${{ inputs.action }}
+        id: release
+        if: steps.config.outputs.ready == 'true'
+        run: |
+          if [ "$ACTION" = deploy ]; then
+            infra/scripts/deploy-ecs.sh deploy --environment "$ENVIRONMENT" --tag "$TAG" --registry "$REGISTRY"
+          else
+            infra/scripts/deploy-ecs.sh rollback --environment "$ENVIRONMENT" --registry "$REGISTRY"
+          fi
+
+      - uses: actions/setup-node@v7
+        if: steps.config.outputs.ready == 'true'
+        with:
+          node-version: 24
+
+      - name: Smoke test
+        if: steps.config.outputs.ready == 'true'
+        run: |
+          node infra/scripts/smoke-test.mts --web "$WEB_URL" --api "$API_URL" \
+            --expect-version "${{ steps.release.outputs.release }}" \
+            || { echo "::error::The smoke test failed. To restore the previous release, run this workflow with action 'rollback'."; exit 1; }
