@@ -134,6 +134,24 @@ describe('TopFlow Hub API (e2e)', () => {
       expect(exposed).toEqual([]);
     });
 
+    it('publishes the validation rules in its OpenAPI description', async () => {
+      const document = (await http().get('/docs-json').expect(200)).body as {
+        components: {
+          schemas: Record<
+            string,
+            { properties?: Record<string, Record<string, unknown>> }
+          >;
+        };
+      };
+      const { schemas } = document.components;
+      expect(schemas.InvitationTokenDto.properties?.token).toMatchObject({
+        minLength: 20,
+      });
+      expect(
+        schemas.CreateWebsiteQuoteRequestDto.properties?.phone,
+      ).toHaveProperty('pattern');
+    });
+
     it('trusts a forwarded client address only from the web app', async () => {
       const item = await product('AX-EFS-002');
       const auditedAddress = async (headers: Record<string, string>) => {
