@@ -1,3 +1,4 @@
+import path from 'node:path';
 import type { NextConfig } from 'next';
 
 /**
@@ -17,6 +18,13 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  // Container builds (apps/web/Dockerfile) emit a self-contained server with only the files it
+  // needs. Tracing starts at the monorepo root so workspace packages such as @topflow/shared are
+  // included. Vercel and `next start` use the default output.
+  ...(process.env.NEXT_OUTPUT === 'standalone' && {
+    output: 'standalone',
+    outputFileTracingRoot: path.join(__dirname, '../..'),
+  }),
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },
