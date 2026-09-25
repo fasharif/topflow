@@ -42,6 +42,24 @@ describe('demo mail guard', () => {
       expect(isAllowListed('farah@', allowList)).toBe(false);
       expect(isAllowListed('farah@example.com', [])).toBe(false);
     });
+
+    it('never matches a recipient that names more than one mailbox', () => {
+      for (const recipient of [
+        'victim@gmail.com,farah@portfolio.example',
+        'victim@gmail.com; farah@portfolio.example',
+        'victim@gmail.com farah@portfolio.example',
+        'Victim <victim@gmail.com>, farah@portfolio.example',
+        '"victim@gmail.com"@portfolio.example',
+        'victim@gmail.com@portfolio.example',
+        'victim\\@gmail.com@portfolio.example',
+        'farah@portfolio.example\r\nBcc: victim@gmail.com',
+      ]) {
+        expect(isAllowListed(recipient, allowList)).toBe(false);
+        expect(
+          mailRoute({ enabled: true, mailAllowList: allowList }, recipient),
+        ).toBe('withhold');
+      }
+    });
   });
 
   describe('mailRoute', () => {

@@ -10,17 +10,25 @@ import type { AppConfig } from '../config/env';
 export type MailRoute = 'deliver' | 'withhold';
 
 /**
- * True when `email` matches an allow-list entry: an exact address, or a domain written as
- * `@example.com`. Domains match exactly, so `@example.com` does not cover `sub.example.com`.
+ * One bare address: a single `@`, and none of the characters that let a recipient string name more
+ * than one mailbox or carry a display name (whitespace, commas, semicolons, angle brackets, double
+ * quotes, brackets, colons or backslashes).
+ */
+const SINGLE_ADDRESS = /^[^\s@,;<>"()[\]:\\]+@[^\s@,;<>"()[\]:\\]+$/;
+
+/**
+ * True when `email` is one bare address that matches an allow-list entry: an exact address, or a
+ * domain written as `@example.com`. Domains match exactly, so `@example.com` does not cover
+ * `sub.example.com`. Anything that is not a single bare address never matches, so a recipient such
+ * as `victim@gmail.com,me@allowed.example` is withheld even though it ends in an allowed domain.
  */
 export function isAllowListed(
   email: string,
   allowList: readonly string[],
 ): boolean {
   const address = email.trim().toLowerCase();
-  const at = address.lastIndexOf('@');
-  if (at < 1 || at === address.length - 1) return false;
-  const domain = address.slice(at);
+  if (!SINGLE_ADDRESS.test(address)) return false;
+  const domain = address.slice(address.indexOf('@'));
   return allowList.some((entry) =>
     entry.startsWith('@') ? entry === domain : entry === address,
   );
