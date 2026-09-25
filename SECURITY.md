@@ -23,4 +23,6 @@ The main measures are summarised in the README's *Highlights* table and describe
 - Row Level Security on every table; a test fails if a table is missing it.
 - Rate limiting per client, and prices always calculated on the server.
 - A demo mode for the public portfolio demo that keeps business email to an allow-list, refuses
-  invitations and keeps the shared demo accounts usable (ADR-021 in [docs/DECISIONS.md](docs/DECISIONS.md)).
+  invitations and keeps the shared demo accounts and demo organisation usable, and a nightly reset
+  that refuses to delete sign-ins of any Supabase project but the demo database's own
+  (ADR-021 in [docs/DECISIONS.md](docs/DECISIONS.md)).

@@ -27,7 +27,7 @@ Secrets live only in the Vercel project settings, GitHub Actions secrets and Sup
 | `INTERNAL_API_SECRET` | API **and** web | Same random value (32+ characters) in both projects |
 | `APP_PUBLIC_URL`, `CORS_ORIGINS`, `TRUST_PROXY=true`, `NODE_ENV=production` | API | Links in emails, allowed browser origins |
 | `MAIL_TRANSPORT`, `MAIL_FROM`, `RESEND_API_KEY` | API | Business emails (quotations, orders, team invitations) |
-| `DEMO_MODE`, `DEMO_MAIL_ALLOWLIST` | API | Public demo only ([section 10](#10-public-demo)); `false` and empty everywhere else |
+| `DEMO_MODE`, `DEMO_MAIL_ALLOWLIST` | API | Public demo only ([section 10](#10-public-demo)); `false` (or unset) and empty everywhere else |
 | `COMPANY_*` | API | Printed on quotation PDFs |
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Web | Publishable key (`sb_publishable_…`) |
 | `NEXT_PUBLIC_SITE_URL` | Web (production only) | Public origin used in email redirects, metadata and the sitemap |
@@ -36,7 +36,7 @@ Secrets live only in the Vercel project settings, GitHub Actions secrets and Sup
 | `SUPABASE_DB_URL` (secret), `BACKUP_AGE_RECIPIENT`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `API_HEALTH_URL` (variables) | GitHub Actions | Nightly backup and keep-alive |
 | `DEMO_DATABASE_URL`, `DEMO_SUPABASE_SECRET_KEY` (secrets), `DEMO_SUPABASE_URL` (variable) | GitHub Actions | Nightly demo reset; the demo project's values, never production's |
 
-Supabase Auth settings (site URL, redirect allow-list, password policy, MFA, email templates) are versioned in `supabase/config.toml` and applied with `npx supabase config push --project-ref <ref>` after `npx supabase login`.
+Supabase Auth settings (site URL, redirect allow-list, password policy, MFA, email templates) are versioned in `supabase/config.toml` and applied with `npx supabase config push --project-ref <ref>` after `npx supabase login`. Never push it to the public demo's project: it has `enable_signup = true`, which would switch public sign-ups back on there ([section 10](#10-public-demo)).
 
 ## 3. Releasing
 
@@ -115,17 +115,18 @@ Every API response and error carries `x-request-id`; search the Vercel logs for 
 
 ```bash
 npm run supabase:start      # PostgreSQL, Auth, Storage, Studio (54323) and Mailpit (54324)
-npx supabase status         # URLs and keys for apps/api/.env, apps/web/.env.local, packages/database/.env
-npm run db:deploy && npm run db:seed
+npm run setup               # env files from the examples, local keys, migrations and demo data
 npm run dev
 npm run supabase:stop       # when finished (data is kept in Docker volumes)
 ```
+
+`npm run setup` never overwrites an existing env file or a value that is already set, and loads data only into a database on this machine. Later, `npm run db:deploy` applies new migrations and `npm run db:seed` refreshes the catalogue and demo data. `npx supabase status` prints the local URLs and keys if a file needs them by hand.
 
 To try demo mode locally, set `DEMO_MODE=true` and `STAFF_MFA_REQUIRED=false` in `apps/api/.env` and `NEXT_PUBLIC_DEMO_MODE=true` in `apps/web/.env.local`, and restart `npm run dev`. `DEMO_MODE=true npm run demo:reset -- --confirm` returns the local database to the demo data set.
 
 ## 10. Public demo
 
-> **Status (26 September 2026): not hosted yet.** Demo mode, the reset script and the nightly workflow are built and tested locally and in CI, but no demo deployment or demo Supabase project exists, so the workflow has never run against one. The reasoning is in ADR-021 of [DECISIONS.md](DECISIONS.md).
+> **Status (26 September 2026): not hosted yet.** Demo mode, the reset script and the nightly workflow are built and tested on a local machine, and the CI workflow runs the reset and the demo checks on every push. No demo deployment or demo Supabase project exists, so the nightly workflow has never run against one. The reasoning is in ADR-021 of [DECISIONS.md](DECISIONS.md).
 
 The public demo is the production build with its demo setting switched on. It lets anyone try the platform with published accounts, without the platform sending email to strangers or visitors locking each other out.
 
@@ -134,10 +135,11 @@ The public demo is the production build with its demo setting switched on. It le
 | Area | In demo mode |
 | --- | --- |
 | Business email (API) | Delivered only to the addresses or `@domains` in `DEMO_MAIL_ALLOWLIST`. Everything else, including sales notifications to Top Flow's inbox, is withheld and logged as `Demo mode: withheld "<subject>" to jo***@example.com`. |
-| Staff and customer invitations (API) | Refused with `403` and `code: "DEMO_RESTRICTED"` unless the address is allow-listed, because Supabase would send the invitation email. |
-| Published demo accounts (API) | Their role cannot change and they cannot be suspended. Other accounts can, so the feature stays visible. |
-| Start-up checks (API) | The API refuses to start with `STAFF_MFA_REQUIRED=true` (nobody can share an authenticator app) or with `THROTTLE_LIMIT` above 300 or `AUTH_THROTTLE_LIMIT` above 10: rate limits stay on. `GET /` reports `"demo": true`. |
-| Web app | Every page opens with *"Portfolio demo: data resets every night. This is not Top Flow's official store."* `robots.txt` disallows everything and pages carry `noindex`. The sign-in page lists the demo accounts. Sign-up, confirmation and password reset emails, password changes and authenticator enrolment are refused on the server, and "sign out of all devices" is hidden. |
+| Staff and customer invitations (API) | Refused with `403` and `code: "DEMO_RESTRICTED"` unless the address is allow-listed, because Supabase would send the invitation email. Team invitations are kept, but their email is withheld, so they stay pending. |
+| Published demo accounts (API) | Their platform role cannot change and they cannot be suspended. In Desert Bloom, the owner cannot change the role or approval limit of the published buyer and approver or remove them. Other accounts and members can be changed, so the features stay visible. |
+| Demo organisation (API) | Desert Bloom Landscaping LLC keeps its KYC status and trading terms (staff reviews of it are refused) and its TRN and trade licence number (its owner can edit the other details). Other organisations, such as the one in the KYC queue, can be reviewed. |
+| Start-up checks (API) | The API refuses to start with `STAFF_MFA_REQUIRED=true` (nobody can share an authenticator app), with `THROTTLE_LIMIT` above 300 or `AUTH_THROTTLE_LIMIT` above 10, or with `THROTTLE_TTL_MS` below 60000: rate limits stay on and no looser than the defaults. `GET /` reports `"demo": true`. |
+| Web app | Every page opens with *"Portfolio demo: data resets every night. This is not Top Flow's official store."* `robots.txt` disallows everything and pages carry `noindex`. The sign-in page lists the demo accounts. The Server Actions refuse sign-up, confirmation and password reset emails, password changes (including `/auth/set-password`, which only accepts an invitation or recovery link for an account that is not a demo account), and adding or removing an authenticator; a sign-out never ends other visitors' sessions, and "sign out of all devices" is hidden. Confirmation messages say that the demo sends no email instead of claiming one was sent. |
 
 Outside demo mode none of this applies. The settings are `DEMO_MODE` and `DEMO_MAIL_ALLOWLIST` in `apps/api/.env.example` and `NEXT_PUBLIC_DEMO_MODE` in `apps/web/.env.example`.
 
@@ -160,7 +162,7 @@ The seed also creates `owner@alwaha.example`, the owner of a company waiting in 
 ### Setting up the hosted demo
 
 1. Create a **separate** Supabase project for the demo, for example `topflow-hub-demo`. Never point demo settings at the production project.
-2. In that project, keep Supabase's built-in email service (no custom SMTP), which only delivers to the project team's addresses, and switch off *Allow new users to sign up* under *Authentication → Sign In / Providers*. The seed and the reset create the demo accounts through the admin API, which that switch does not block.
+2. In that project, keep Supabase's built-in email service (no custom SMTP), which only delivers to the project team's addresses, and switch off *Allow new users to sign up* under *Authentication → Sign In / Providers*. The seed and the reset create the demo accounts through the admin API, which that switch does not block. Set the site URL and redirect allow-list in the dashboard too: never run `npx supabase config push` against the demo project, because `supabase/config.toml` has `enable_signup = true` and would switch sign-ups back on.
 3. Load the data from a checkout of `develop`, with the demo project's session connection string (port 5432) and keys:
 
    ```bash
@@ -170,14 +172,15 @@ The seed also creates `owner@alwaha.example`, the owner of a company waiting in 
    DEMO_MODE=true npm run demo:reset -- --confirm
    ```
 
-4. Deploy the API with the production settings of [section 2](#2-configuration) for the demo project, plus `DEMO_MODE=true`, `STAFF_MFA_REQUIRED=false` and, if the maintainer wants to receive the demo's emails, `DEMO_MAIL_ALLOWLIST=<their address>`. Leave `THROTTLE_*` at their defaults or lower.
+4. Deploy the API with the production settings of [section 2](#2-configuration) for the demo project, plus `DEMO_MODE=true`, `STAFF_MFA_REQUIRED=false` and, if the maintainer wants to receive the demo's emails, `DEMO_MAIL_ALLOWLIST=<their address>`. Leave `THROTTLE_*` at their defaults or make them stricter (lower limits, a longer `THROTTLE_TTL_MS`); the API refuses anything looser.
 5. Build the web app with `NEXT_PUBLIC_DEMO_MODE=true` and the demo project's `NEXT_PUBLIC_SUPABASE_*` values.
 6. In GitHub, add the secrets `DEMO_DATABASE_URL` (the connection string from step 3) and `DEMO_SUPABASE_SECRET_KEY`, and the variable `DEMO_SUPABASE_URL`. Run the *Demo reset* workflow once from the Actions tab.
 7. Check the result, starting with the API:
    - `GET /` on the demo API answers `"demo": true`;
    - every page of the demo web app shows the banner, and `/robots.txt` says `Disallow: /`;
    - inviting a staff member with an address outside the allow-list is refused;
-   - `admin@topflow.example` signs in with the published password.
+   - public sign-ups are off: `curl -s -X POST "$SUPABASE_URL/auth/v1/signup" -H "apikey: <publishable key>" -H 'content-type: application/json' -d '{"email":"signup-check@example.com","password":"Check-password-1"}'` answers with `signup_disabled`;
+   - `admin@topflow.example` signs in with the published password, and `/auth/set-password` then shows the demo notice instead of a password form.
 
 ### Nightly reset
 
@@ -194,7 +197,7 @@ While the three GitHub settings are unset, the workflow skips itself with a noti
 
 ### What demo mode does not prevent
 
-- Visitors can change anything the published roles allow (prices, stock, orders, KYC decisions and team invitations) until the next reset. Withheld team invitations stay pending, because nobody receives their link.
-- The web app's refusals are not a security boundary: someone who calls Supabase Auth directly with the published password can still change it or enrol an authenticator. The reset undoes both each night, and the API still enforces every business rule.
+- Visitors can change anything the published roles allow (prices, stock, orders, KYC decisions on other organisations, team invitations, names and phone numbers) until the next reset. Withheld team invitations stay pending, because nobody receives their link.
+- The web app's refusals are not a security boundary: someone who calls Supabase Auth directly with the published password can still change it (`secure_password_change` is off in `supabase/config.toml`) or enrol an authenticator, which locks other visitors out of that account until the next reset. The reset undoes both each night, and the API still enforces every business rule.
 - Demo mode is configuration. A public deployment without `DEMO_MODE=true` and `NEXT_PUBLIC_DEMO_MODE=true` behaves like production, which is why step 7 above follows every change to the demo's settings.
 - The mobile app has no demo banner. Pointed at the demo API, it is subject to the same API restrictions.

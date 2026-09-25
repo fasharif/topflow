@@ -198,8 +198,8 @@ sequenceDiagram
 | Level | Tooling | Focus |
 | --- | --- | --- |
 | Static | TypeScript strict, ESLint (type-aware), compile-time Prisma ↔ shared enum parity | Contract drift, unsafe code |
-| Unit | Jest | Money/VAT, state machines, permissions, schemas, Supabase token verification, guards, error mapping, config, the demo mail guard and invitation rules, the demo reset's safety checks |
-| End-to-end | Jest + Supertest against PostgreSQL | Real middleware stack with simulated Supabase Auth: provisioning, MFA, invitations, RBAC, tenant isolation, procurement and fulfilment journeys, RLS lockdown; a second suite in demo mode |
+| Unit | Jest, `node:test` | Money/VAT, state machines, permissions, schemas, Supabase token verification, guards, error mapping, config, the demo mail guard and demo policy, the demo reset's safety checks, the web app's authentication Server Actions in and out of demo mode, the local setup script |
+| End-to-end | Jest + Supertest against PostgreSQL; `next start` over HTTP | Real middleware stack with simulated Supabase Auth: provisioning, MFA, invitations, RBAC, tenant isolation, procurement and fulfilment journeys, RLS lockdown; a second suite in demo mode; the web app's demo and ordinary production builds |
 | Delivery | GitHub Actions | Every push lints, type-checks, tests and builds every workspace; nightly encrypted backups |
 
 ## 10. Operations
@@ -210,4 +210,4 @@ sequenceDiagram
 - **Tracing:** every response carries `x-request-id`, also included in error bodies and server logs.
 - **Rate limiting:** per-client limits, stricter on public forms. The web app's server forwards the shopper's IP with a shared secret (`INTERNAL_API_SECRET`); server-rendered catalogue fetches carry the secret without an IP and are not limited. The store is in memory per instance — move it to a shared store if abuse patterns require global limits.
 - **Backups:** a nightly GitHub Actions job dumps roles, schema and data with the Supabase CLI and uploads an age-encrypted archive. Restore steps are in [OPERATIONS.md](OPERATIONS.md).
-- **Public demo:** `DEMO_MODE=true` (API) and `NEXT_PUBLIC_DEMO_MODE=true` (web) turn a deployment into the portfolio demo. `MailService` delivers business email only to `DEMO_MAIL_ALLOWLIST`, `DemoPolicy` refuses Supabase invitations and changes to the published demo accounts, and the web app shows the demo banner. `npm run demo:reset` empties and reseeds the demo every night (ADR-021, [OPERATIONS.md](OPERATIONS.md) section 10).
+- **Public demo:** `DEMO_MODE=true` (API) and `NEXT_PUBLIC_DEMO_MODE=true` (web) turn a deployment into the portfolio demo. `MailService` delivers business email only to `DEMO_MAIL_ALLOWLIST`, `DemoPolicy` refuses Supabase invitations and changes to the published demo accounts and the demo organisation, and the web app shows the demo banner and refuses password and two-factor changes on the shared accounts. `npm run demo:reset` empties and reseeds the demo every night (ADR-021, [OPERATIONS.md](OPERATIONS.md) section 10).
