@@ -8,7 +8,7 @@ import { OrderSummary } from '@/components/cart/order-summary';
 import { RequireAuth } from '@/components/require-auth';
 import { Alert, Button, Card, CardHeader, Container, EmptyState, Field, Input, LinkButton, LoadingBlock, PageHeader, Select, Textarea, cx } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
-import { clearCart, useCart } from '@/lib/cart';
+import { clearCart, useCart, useCartPriceRefresh } from '@/lib/cart';
 import { apiFieldErrors, zodFieldErrors, type FieldErrors } from '@/lib/forms';
 import { useSession } from '@/lib/session';
 import { useApiQuery } from '@/lib/use-api';
@@ -24,6 +24,7 @@ const choiceClass = (selected: boolean) =>
 function CheckoutForm() {
   const router = useRouter();
   const { lines } = useCart();
+  useCartPriceRefresh();
   const { user } = useSession();
   const addresses = useApiQuery<AddressDto[]>('/me/addresses');
   const [selected, setSelected] = useState<string | null>(null);

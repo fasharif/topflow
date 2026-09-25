@@ -25,7 +25,7 @@ import {
   Textarea,
 } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
-import { clearCart, removeFromCart, setQuantity, useCart, useCartHydrated } from '@/lib/cart';
+import { clearCart, removeFromCart, setQuantity, useCart, useCartHydrated, useCartPriceRefresh } from '@/lib/cart';
 import { aed, pluralize } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { useApiQuery } from '@/lib/use-api';
@@ -104,6 +104,7 @@ export default function CartPage() {
   const router = useRouter();
   const { lines } = useCart();
   const hydrated = useCartHydrated();
+  useCartPriceRefresh();
   const session = useSession();
   const tradeOnlyLines = lines.filter((line) => line.isTradeOnly);
   const totals = retailTotals(lines);

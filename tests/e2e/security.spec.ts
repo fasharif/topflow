@@ -1,7 +1,8 @@
 import { formatMoney, type OrderDto, type OrganizationDto, type Paginated, type QuotationDto, type QuotationSummaryDto } from '@topflow/shared';
 import { AL_WAHA } from '../support/accounts';
-import { SEEDED, organizationByName, organizationQuotationId, staffOrderId } from '../support/data';
+import { PRODUCTS, SEEDED, organizationByName, organizationQuotationId, productBySku, staffOrderId } from '../support/data';
 import { expect, test } from '../support/fixtures';
+import { expectedRetailTotals } from '../support/money';
 import { open } from '../support/page';
 
 // Security checks through the real browser path (web app → /api handler → API guards). The API
@@ -111,5 +112,57 @@ test.describe('security: role-based access', () => {
     });
     expect(response.status()).toBe(403);
     expect(await response.json()).toMatchObject({ message: 'Cross-site requests are not allowed.' });
+  });
+});
+
+test.describe('security: prices come from the server', () => {
+  test('a price tampered with in the browser is ignored', async ({ actAs }) => {
+    const { page, api } = await actAs('customer');
+    const product = await productBySku(api, PRODUCTS.fitting);
+    const quantity = 2;
+    const expected = expectedRetailTotals([{ unitPrice: product.unitPrice, quantity }]);
+    const tampered = expectedRetailTotals([{ unitPrice: '0.01', quantity }]);
+
+    await test.step('the shopper edits the basket in local storage to pay AED 0.01 per item', async () => {
+      await open(page, `/products/${product.slug}`);
+      await page.getByRole('spinbutton', { name: 'Quantity' }).fill(String(quantity));
+      await page.getByRole('button', { name: 'Add to basket' }).click();
+      await page.evaluate(() => {
+        const key = 'topflow.cart.v2';
+        const lines = JSON.parse(window.localStorage.getItem(key) ?? '[]') as Array<Record<string, unknown>>;
+        window.localStorage.setItem(key, JSON.stringify(lines.map((line) => ({ ...line, unitPrice: '0.01', retailPrice: '0.01' }))));
+      });
+    });
+
+    await test.step('checkout shows the catalogue price, not the edited one', async () => {
+      await open(page, '/checkout');
+      await expect(page.getByText(formatMoney(expected.totalAmount)).first()).toBeVisible();
+      await expect(page.getByText(formatMoney(tampered.totalAmount))).toHaveCount(0);
+    });
+
+    let orderId = '';
+    await test.step('the order request is rewritten on its way out, with a price and totals', async () => {
+      await page.route('**/api/me/orders', async (route) => {
+        const body = route.request().postDataJSON() as { items: Array<Record<string, unknown>> };
+        await route.continue({
+          postData: JSON.stringify({
+            ...body,
+            items: body.items.map((item) => ({ ...item, unitPrice: '0.01', price: '0.01' })),
+            subtotal: '0.02',
+            totalAmount: '0.02',
+          }),
+        });
+      });
+      await page.getByRole('button', { name: 'Place order' }).click();
+      await page.waitForURL(/\/account\/orders\/[^/?]+\?placed=1$/);
+      orderId = new URL(page.url()).pathname.split('/').pop() ?? '';
+    });
+
+    await test.step('the order is priced from the catalogue', async () => {
+      await expect(page.getByText(formatMoney(expected.totalAmount)).first()).toBeVisible();
+      const order = await api.get<OrderDto>(`/me/orders/${orderId}`);
+      expect(order).toMatchObject(expected);
+      expect(order.items[0]?.unitPrice).toBe(product.unitPrice);
+    });
   });
 });
