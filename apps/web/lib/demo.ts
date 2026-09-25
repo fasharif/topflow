@@ -8,6 +8,12 @@ import { isDemoAccount, parseDemoModeFlag } from '@topflow/shared';
  */
 export const DEMO_MODE = parseDemoModeFlag(process.env.NEXT_PUBLIC_DEMO_MODE, 'NEXT_PUBLIC_DEMO_MODE');
 
+/**
+ * Said wherever the app would otherwise report that an email went out: in the demo the API withholds
+ * business email (ADR-021).
+ */
+export const DEMO_NO_EMAIL = 'The portfolio demo sends no email.';
+
 /** Why an action is unavailable in the demo, shown in place of the form or as its error. */
 export const DEMO_NOTICES = {
   signUp: 'New accounts are switched off in the portfolio demo, because signing up sends an email. Sign in with one of the demo accounts instead.',

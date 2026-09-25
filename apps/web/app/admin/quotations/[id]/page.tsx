@@ -30,6 +30,7 @@ import { RequireAuth } from '@/components/require-auth';
 import { QuotationStatusBadge } from '@/components/status-badge';
 import { Alert, BackLink, Button, Card, CardHeader, LoadingBlock, PageHeader } from '@/components/ui';
 import { api, downloadFile, errorMessage } from '@/lib/api';
+import { DEMO_MODE, DEMO_NO_EMAIL } from '@/lib/demo';
 import { formatDate, formatDateTime, pluralize } from '@/lib/format';
 import { apiFieldErrors, zodFieldErrors, type FieldErrors } from '@/lib/forms';
 import { useSession } from '@/lib/session';
@@ -122,7 +123,8 @@ function DraftQuotationForm({
     const body = dirty ? updateBody() : null;
     if (dirty && !body) return;
     const recipient = quotation.customer ? `${quotation.customer.fullName}${quotation.customer.email ? ` (${quotation.customer.email})` : ''}` : 'the customer';
-    if (!window.confirm(`Send ${quotation.displayNumber} to ${recipient}? They will be emailed a link to review it.`)) return;
+    const delivery = DEMO_MODE ? `They can review it after signing in. ${DEMO_NO_EMAIL}` : 'They will be emailed a link to review it.';
+    if (!window.confirm(`Send ${quotation.displayNumber} to ${recipient}? ${delivery}`)) return;
 
     setBusy('send');
     let saved: QuotationDto | null = null;

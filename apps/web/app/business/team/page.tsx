@@ -15,6 +15,7 @@ import { ConfirmAction, LoadError } from '@/components/business/feedback';
 import { useOrg } from '@/components/business/use-org';
 import { Alert, Badge, Button, Card, CardHeader, Field, Input, LoadingBlock, PageHeader, Select, Table, Td, Th } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
+import { DEMO_MODE, DEMO_NO_EMAIL } from '@/lib/demo';
 import { apiFieldErrors, zodFieldErrors, type FieldErrors } from '@/lib/forms';
 import { aed, formatDate, pluralize } from '@/lib/format';
 import { refreshSession } from '@/lib/session';
@@ -234,7 +235,12 @@ function InviteCard({ organizationName, onInvited }: { organizationName: string;
 
   return (
     <Card>
-      <CardHeader title="Invite a colleague" description={`They will receive an email link to join ${organizationName}.`} />
+      <CardHeader
+        title="Invite a colleague"
+        description={
+          DEMO_MODE ? `The invitation is saved, but it stays pending: ${DEMO_NO_EMAIL}` : `They will receive an email link to join ${organizationName}.`
+        }
+      />
       <form onSubmit={submit} className="space-y-4 p-5" noValidate>
         <Field label="Work email" htmlFor="invite-email" error={errors.email}>
           <Input id="invite-email" type="email" autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} aria-invalid={Boolean(errors.email)} />
@@ -402,7 +408,7 @@ export default function TeamPage() {
               <InviteCard
                 organizationName={membership.organizationName}
                 onInvited={(email) => {
-                  setNotice(`Invitation sent to ${email}.`);
+                  setNotice(DEMO_MODE ? `Invitation saved for ${email}. ${DEMO_NO_EMAIL}` : `Invitation sent to ${email}.`);
                   setInvitesVersion((v) => v + 1);
                 }}
               />
