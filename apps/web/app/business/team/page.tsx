@@ -354,7 +354,7 @@ export default function TeamPage() {
           ) : !members.data ? (
             <LoadingBlock label="Loading team…" />
           ) : (
-            <Table>
+            <Table label="Team members">
               <thead>
                 <tr>
                   <Th>Member</Th>

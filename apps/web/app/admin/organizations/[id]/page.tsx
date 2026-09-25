@@ -201,7 +201,7 @@ function OrganizationDetailView({ id }: { id: string }) {
             {members.length === 0 ? (
               <EmptyState title="No members" description="Nobody has joined this organization yet." />
             ) : (
-              <Table>
+              <Table label="Members">
                 <thead>
                   <tr>
                     <Th>Name</Th>

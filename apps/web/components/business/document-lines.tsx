@@ -1,5 +1,5 @@
 import { UOM_LABELS, bpsToPercent, fromFils, toFils, type DocumentLineDto } from '@topflow/shared';
-import { Th } from '@/components/ui';
+import { ScrollRegion, Th } from '@/components/ui';
 import { aed } from '@/lib/format';
 
 /** "10.00" → "10%", "12.50" → "12.5%". */
@@ -23,7 +23,7 @@ export function DocumentLines({ items }: { items: DocumentLineDto[] }) {
 
   return (
     <>
-      <div className="hidden overflow-x-auto md:block">
+      <ScrollRegion label="Priced lines" className="hidden md:block">
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead>
             <tr className="border-b border-slate-200">
@@ -65,7 +65,7 @@ export function DocumentLines({ items }: { items: DocumentLineDto[] }) {
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollRegion>
 
       <ul className="divide-y divide-slate-200 md:hidden">
         {items.map((line) => (

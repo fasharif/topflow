@@ -1,5 +1,5 @@
 import { UOM_LABELS, toFils, type OrderDto } from '@topflow/shared';
-import { Card, CardHeader, Td, Th, cx } from '@/components/ui';
+import { Card, CardHeader, ScrollRegion, Td, Th, cx } from '@/components/ui';
 import { aed, pluralize } from '@/lib/format';
 
 function TotalRow({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
@@ -20,7 +20,7 @@ export function OrderItemsCard({ order }: { order: ItemsOrder }) {
   return (
     <Card>
       <CardHeader title="Items" description={pluralize(order.items.length, 'product')} />
-      <div className="overflow-x-auto">
+      <ScrollRegion label="Order items">
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead>
             <tr>
@@ -50,7 +50,7 @@ export function OrderItemsCard({ order }: { order: ItemsOrder }) {
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollRegion>
       <div className="border-t border-slate-200 px-5 py-4">
         <dl className="ml-auto max-w-xs space-y-2 text-sm">
           <TotalRow label="Subtotal (excl. VAT)" value={aed(order.subtotal)} />

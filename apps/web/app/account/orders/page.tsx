@@ -113,7 +113,7 @@ function OrdersList() {
       ) : (
         <div aria-busy={loading} className={cx('transition-opacity', loading && 'opacity-60')}>
           <p className="mb-2 text-sm text-slate-600">{pluralize(data.total, 'order')}</p>
-          <Table>
+          <Table label="Your orders">
             <thead>
               <tr>
                 <Th>Order</Th>

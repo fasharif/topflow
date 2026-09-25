@@ -151,7 +151,7 @@ function AuditLog() {
       <>
         <ResultSummary page={data.page} pageSize={data.pageSize} total={data.total} singular="entry" plural="entries" loading={loading} />
         <div aria-busy={loading} className={loading ? 'opacity-70 transition-opacity' : 'transition-opacity'}>
-          <Table>
+          <Table label="Audit trail">
             <thead>
               <tr>
                 <Th>Time</Th>

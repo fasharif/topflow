@@ -118,7 +118,7 @@ function UsersList() {
       <>
         <ResultSummary page={data.page} pageSize={data.pageSize} total={data.total} singular="user" loading={loading} />
         <div aria-busy={loading} className={loading ? 'opacity-70 transition-opacity' : 'transition-opacity'}>
-          <Table>
+          <Table label="Users">
             <thead>
               <tr>
                 <Th>Name</Th>

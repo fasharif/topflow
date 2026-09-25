@@ -7,7 +7,7 @@ import { formatPercent } from './detail';
 export function DocumentLinesTable({ lines, showListPrice = false }: { lines: DocumentLineDto[]; showListPrice?: boolean }) {
   const hasDiscount = lines.some((line) => line.discountRate !== '0.00');
   return (
-    <Table>
+    <Table label="Priced lines">
       <thead>
         <tr>
           <Th>Product</Th>

@@ -8,7 +8,7 @@ import { AddressBlock, DetailItem, DetailList, Prose } from '@/components/busine
 import { BackLink, ConfirmAction, FlagAlert, LoadError } from '@/components/business/feedback';
 import { useOrg } from '@/components/business/use-org';
 import { QuotationStatusBadge, RfqStatusBadge } from '@/components/status-badge';
-import { Alert, Badge, Card, CardHeader, LinkButton, LoadingBlock, Th } from '@/components/ui';
+import { Alert, Badge, Card, CardHeader, LinkButton, LoadingBlock, ScrollRegion, Th } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { aed, formatDate, formatDateTime, pluralize } from '@/lib/format';
 import { useApiQuery } from '@/lib/use-api';
@@ -136,7 +136,7 @@ function RfqView({ initial }: { initial: RfqDto }) {
 
           <Card className="overflow-hidden">
             <CardHeader title="Requested items" description={pluralize(rfq.items.length, 'line')} />
-            <div className="overflow-x-auto">
+            <ScrollRegion label="Requested items">
               <table className="w-full min-w-[520px] text-left text-sm">
                 <thead>
                   <tr className="border-b border-slate-200">
@@ -158,7 +158,7 @@ function RfqView({ initial }: { initial: RfqDto }) {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ScrollRegion>
           </Card>
         </div>
 
