@@ -15,6 +15,22 @@
 
 > Nothing is hosted yet: the platform runs locally. The hosting options and their trade-offs are recorded in [ADR-019](docs/DECISIONS.md).
 
+## Try the demo
+
+> **Not hosted yet.** There is no public demo address today. Demo mode and the nightly reset are built and tested locally and in CI, but no demo deployment exists and the reset has never run against a hosted database. This section describes how the demo will work and how to run the same demo mode on your own machine.
+
+The public demo will be the production build with demo mode switched on (`DEMO_MODE=true` in the API, `NEXT_PUBLIC_DEMO_MODE=true` in the web app), on a Supabase project of its own:
+
+- Every page says *"Portfolio demo: data resets every night. This is not Top Flow's official store."*, and search engines are asked not to index the site.
+- You sign in with the published [demo accounts](#demo-accounts), from the retail customer to the administrator. They share the password `TopFlow2026!`, and the sign-in page lists them.
+- The demo emails nobody outside a short allow-list. Business emails (quote acknowledgements, quotations, order updates, team invitations) are withheld, staff and customer invitations are refused, and sign-up and password reset emails are switched off.
+- The demo accounts cannot be suspended or change role, and their passwords and two-factor settings are fixed. Rate limits stay on.
+- Every night at 03:00 UAE time, a GitHub Actions workflow runs `npm run demo:reset`, which empties the database, deletes every sign-in and loads the demo data again.
+
+**Demo mode on your machine.** After [Getting started](#getting-started), set `DEMO_MODE=true` and `STAFF_MFA_REQUIRED=false` in `apps/api/.env` and `NEXT_PUBLIC_DEMO_MODE=true` in `apps/web/.env.local`, then run `npm run dev`. `DEMO_MODE=true npm run demo:reset -- --confirm` returns the local database to the demo data set; with Supabase keys in `packages/database/.env` it also replaces the local sign-ins.
+
+Why it works this way: [ADR-021](docs/DECISIONS.md). How to host it and what it does not prevent: [operations runbook, section 10](docs/OPERATIONS.md#10-public-demo).
+
 ---
 
 ## Highlights
@@ -73,7 +89,7 @@ apps/
   mobile/     Expo React Native app
 packages/
   shared/     @topflow/shared — enums, permissions, workflows, money/VAT, Zod schemas, DTO types
-  database/   @topflow/database — Prisma schema, migrations, seed, generated client
+  database/   @topflow/database — Prisma schema, migrations, seed, demo reset, generated client
 supabase/     Supabase configuration: auth policy, branded email templates, storage buckets
 docs/         Architecture, decisions, operations runbook, academic evolution
 ```
@@ -124,7 +140,7 @@ npm run dev
 
 ### Demo accounts
 
-Locally, every seeded account uses the password `TopFlow2026!`. Because that password is public, a shared or production environment must be seeded with its own `SEED_DEMO_PASSWORD` (see `.env.example`). With `STAFF_MFA_REQUIRED=true`, staff accounts are asked to set up an authenticator app the first time they open the back office.
+Locally, every seeded account uses the password `TopFlow2026!`. Because that password is public, a shared or production environment must be seeded with its own `SEED_DEMO_PASSWORD` (see `.env.example`). The public demo is the exception: its password is published on purpose, and its data resets every night ([Try the demo](#try-the-demo)). With `STAFF_MFA_REQUIRED=true`, staff accounts are asked to set up an authenticator app the first time they open the back office.
 
 | Email | Role | Try |
 | --- | --- | --- |
@@ -141,13 +157,13 @@ Locally, every seeded account uses the password `TopFlow2026!`. Because that pas
 ```bash
 npm run check-types                     # all workspaces
 npm run lint
-npm test                                # unit tests (shared contracts + API)
-npm run test:e2e -w @topflow/api        # end-to-end suite against a real database
+npm test                                # unit tests (shared contracts, database scripts, API)
+npm run test:e2e -w @topflow/api        # end-to-end suites against a real database
 ```
 
-- **Unit tests** cover money/VAT maths, workflow state machines, the permission matrix, request schemas, Supabase token verification, guards, error mapping and configuration.
-- **End-to-end tests** boot the real application (the production middleware stack) against PostgreSQL. They simulate Supabase Auth with locally signed tokens and exercise account provisioning, token rejection, staff MFA, staff invitations and suspension, team invitations, RBAC, tenant isolation, the full RFQ → quotation → approval → order flow, website quote requests and retail fulfilment. A test also asserts that every table has Row Level Security enabled.
-- **CI** (`.github/workflows/ci.yml`) runs lint, type checks, unit tests and builds for every workspace, plus the end-to-end suite against a PostgreSQL service container.
+- **Unit tests** cover money/VAT maths, workflow state machines, the permission matrix, request schemas, Supabase token verification, guards, error mapping and configuration, plus the demo's mail guard, its invitation rules and the safety checks of `npm run demo:reset`.
+- **End-to-end tests** boot the real application (the production middleware stack) against PostgreSQL. They simulate Supabase Auth with locally signed tokens and exercise account provisioning, token rejection, staff MFA, staff invitations and suspension, team invitations, RBAC, tenant isolation, the full RFQ → quotation → approval → order flow, website quote requests and retail fulfilment. A test also asserts that every table has Row Level Security enabled. A second suite boots the API in demo mode and checks that visitors and Top Flow's inbox receive no email, that invitations are refused, that the demo accounts stay usable and that rate limits still apply.
+- **CI** (`.github/workflows/ci.yml`) runs lint, type checks, unit tests and builds for every workspace, plus the end-to-end suites against a PostgreSQL service container after running the real demo reset on it.
 
 ## Deployment
 
@@ -158,8 +174,11 @@ The platform is deployment-ready but not hosted yet. [ADR-019](docs/DECISIONS.md
 | Web and API | one host with serverless functions — Netlify's free plan, or Vercel Pro / Google Cloud Run where a card and a small bill are acceptable |
 | Database, authentication and storage | Supabase, whose free plan places no restriction on business use |
 | Backups | GitHub Actions: a nightly `supabase db dump`, encrypted with age and kept for 30 days |
+| Public demo | A separate deployment in demo mode with its own Supabase project, reset every night by GitHub Actions ([Try the demo](#try-the-demo)) |
 
 Nothing in the code depends on a particular host: the environment is validated at boot, and `npm run release` applies migrations before a new version serves traffic.
+
+Versions and the changelog come from [release-please](https://github.com/googleapis/release-please): it keeps a release pull request open against `develop`, and merging it tags the release. The first one will be `v1.0.0`; no release has been tagged yet.
 
 Configuration, releases, backups, restores and secret rotation are described in [docs/OPERATIONS.md](docs/OPERATIONS.md).
 

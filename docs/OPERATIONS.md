@@ -1,17 +1,17 @@
 # Operations runbook
 
-How TopFlow Hub is configured, released, backed up and restored. Architecture background: [ARCHITECTURE.md](ARCHITECTURE.md).
+How TopFlow Hub is configured, released, backed up and restored, and how its public demo works. Architecture background: [ARCHITECTURE.md](ARCHITECTURE.md).
 
 > **Status (16 September 2026): nothing is hosted yet.** The platform runs locally — see [section 9](#9-local-development). The rest of this runbook is the plan for the day a host is chosen; the reasoning is in ADR-019 of [DECISIONS.md](DECISIONS.md).
 
 ## 1. Environments
 
-| | Production (planned, not deployed yet) | Preview | Local |
-| --- | --- | --- | --- |
-| Web | https://topflow-hub.vercel.app (Vercel `topflow-hub`) | Vercel preview URL per branch | http://localhost:3002 |
-| API | https://topflow-hub-api.vercel.app (Vercel `topflow-hub-api`) | Vercel preview URL per branch | http://localhost:3000 |
-| Database & Auth | Supabase project `topflow-hub` (`ap-south-1`) | Production project (previews never migrate) | `npm run supabase:start` |
-| Deploys from | `develop` | any other branch | — |
+| | Production (planned, not deployed yet) | Preview | Public demo (planned, not deployed yet) | Local |
+| --- | --- | --- | --- | --- |
+| Web | https://topflow-hub.vercel.app (Vercel `topflow-hub`) | Vercel preview URL per branch | Its own deployment, built with `NEXT_PUBLIC_DEMO_MODE=true` | http://localhost:3002 |
+| API | https://topflow-hub-api.vercel.app (Vercel `topflow-hub-api`) | Vercel preview URL per branch | Its own deployment, with `DEMO_MODE=true` | http://localhost:3000 |
+| Database & Auth | Supabase project `topflow-hub` (`ap-south-1`) | Production project (previews never migrate) | A separate Supabase project, reset every night ([section 10](#10-public-demo)) | `npm run supabase:start` |
+| Deploys from | `develop` | any other branch | `develop` | — |
 
 ## 2. Configuration
 
@@ -27,11 +27,14 @@ Secrets live only in the Vercel project settings, GitHub Actions secrets and Sup
 | `INTERNAL_API_SECRET` | API **and** web | Same random value (32+ characters) in both projects |
 | `APP_PUBLIC_URL`, `CORS_ORIGINS`, `TRUST_PROXY=true`, `NODE_ENV=production` | API | Links in emails, allowed browser origins |
 | `MAIL_TRANSPORT`, `MAIL_FROM`, `RESEND_API_KEY` | API | Business emails (quotations, orders, team invitations) |
+| `DEMO_MODE`, `DEMO_MAIL_ALLOWLIST` | API | Public demo only ([section 10](#10-public-demo)); `false` and empty everywhere else |
 | `COMPANY_*` | API | Printed on quotation PDFs |
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Web | Publishable key (`sb_publishable_…`) |
 | `NEXT_PUBLIC_SITE_URL` | Web (production only) | Public origin used in email redirects, metadata and the sitemap |
 | `API_INTERNAL_URL` | Web | API origin |
+| `NEXT_PUBLIC_DEMO_MODE` | Web (build) | `true` only for the public demo; inlined at build time |
 | `SUPABASE_DB_URL` (secret), `BACKUP_AGE_RECIPIENT`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `API_HEALTH_URL` (variables) | GitHub Actions | Nightly backup and keep-alive |
+| `DEMO_DATABASE_URL`, `DEMO_SUPABASE_SECRET_KEY` (secrets), `DEMO_SUPABASE_URL` (variable) | GitHub Actions | Nightly demo reset; the demo project's values, never production's |
 
 Supabase Auth settings (site URL, redirect allow-list, password policy, MFA, email templates) are versioned in `supabase/config.toml` and applied with `npx supabase config push --project-ref <ref>` after `npx supabase login`.
 
@@ -84,6 +87,7 @@ psql "$TARGET_DB_URL" --single-transaction --variable ON_ERROR_STOP=1 \
 
 - **Account emails** (confirmation, recovery, invitations, email change, security notifications) are sent by Supabase Auth with the templates in `supabase/templates`. Production needs custom SMTP: in Supabase *Authentication → Emails → SMTP*, use Resend (`smtp.resend.com`, port 465, user `resend`, password = Resend API key) with a verified `topflow.ae` sender.
 - **Business emails** (quote acknowledgements, quotations, approvals, order updates, team invitations) are sent by the API through Resend (`MAIL_TRANSPORT=resend`).
+- **The public demo** sends business emails only to allow-listed addresses and never uses custom SMTP for account emails ([section 10](#10-public-demo)).
 
 ## 7. Monitoring and incidents
 
@@ -94,6 +98,7 @@ psql "$TARGET_DB_URL" --single-transaction --variable ON_ERROR_STOP=1 \
 | Staff get "two-factor authentication required" | Expected until they verify with their authenticator app (`/auth/mfa`) |
 | 429 Too Many Requests | Per-client limits (`THROTTLE_*`); confirm `INTERNAL_API_SECRET` matches in both projects, otherwise every shopper shares the web server's quota |
 | Supabase project paused | Restore it from the dashboard; check that the nightly backup job (which keeps it awake) is succeeding |
+| *Demo reset* workflow failed | Read the run log. "Demo reset refused" lists every failed safety check and means nothing was changed. Any other failure after "Emptied … tables" leaves the demo database empty: fix the cause and run the workflow again from the Actions tab |
 
 Every API response and error carries `x-request-id`; search the Vercel logs for it.
 
@@ -115,3 +120,81 @@ npm run db:deploy && npm run db:seed
 npm run dev
 npm run supabase:stop       # when finished (data is kept in Docker volumes)
 ```
+
+To try demo mode locally, set `DEMO_MODE=true` and `STAFF_MFA_REQUIRED=false` in `apps/api/.env` and `NEXT_PUBLIC_DEMO_MODE=true` in `apps/web/.env.local`, and restart `npm run dev`. `DEMO_MODE=true npm run demo:reset -- --confirm` returns the local database to the demo data set.
+
+## 10. Public demo
+
+> **Status (26 September 2026): not hosted yet.** Demo mode, the reset script and the nightly workflow are built and tested locally and in CI, but no demo deployment or demo Supabase project exists, so the workflow has never run against one. The reasoning is in ADR-021 of [DECISIONS.md](DECISIONS.md).
+
+The public demo is the production build with its demo setting switched on. It lets anyone try the platform with published accounts, without the platform sending email to strangers or visitors locking each other out.
+
+### What demo mode changes
+
+| Area | In demo mode |
+| --- | --- |
+| Business email (API) | Delivered only to the addresses or `@domains` in `DEMO_MAIL_ALLOWLIST`. Everything else, including sales notifications to Top Flow's inbox, is withheld and logged as `Demo mode: withheld "<subject>" to jo***@example.com`. |
+| Staff and customer invitations (API) | Refused with `403` and `code: "DEMO_RESTRICTED"` unless the address is allow-listed, because Supabase would send the invitation email. |
+| Published demo accounts (API) | Their role cannot change and they cannot be suspended. Other accounts can, so the feature stays visible. |
+| Start-up checks (API) | The API refuses to start with `STAFF_MFA_REQUIRED=true` (nobody can share an authenticator app) or with `THROTTLE_LIMIT` above 300 or `AUTH_THROTTLE_LIMIT` above 10: rate limits stay on. `GET /` reports `"demo": true`. |
+| Web app | Every page opens with *"Portfolio demo: data resets every night. This is not Top Flow's official store."* `robots.txt` disallows everything and pages carry `noindex`. The sign-in page lists the demo accounts. Sign-up, confirmation and password reset emails, password changes and authenticator enrolment are refused on the server, and "sign out of all devices" is hidden. |
+
+Outside demo mode none of this applies. The settings are `DEMO_MODE` and `DEMO_MAIL_ALLOWLIST` in `apps/api/.env.example` and `NEXT_PUBLIC_DEMO_MODE` in `apps/web/.env.example`.
+
+### Demo accounts
+
+Created by the demo seed and published on the demo's sign-in page (the list lives in `packages/shared/src/demo.ts`). They all use the password `TopFlow2026!`.
+
+| Email | Role | Try |
+| --- | --- | --- |
+| `customer@example.com` | Retail customer | Checkout and order tracking |
+| `buyer@desertbloom.ae` | Trade buyer (AED 5,000 approval limit) | RFQs and accepting quotations |
+| `approver@desertbloom.ae` | Trade approver (AED 50,000 approval limit) | Approving purchases above the buyer's limit |
+| `owner@desertbloom.ae` | Trade owner | Team invitations, delivery sites and the company profile |
+| `sales@topflow.ae` | Top Flow sales | KYC, RFQ triage and the quotation builder |
+| `warehouse@topflow.ae` | Top Flow warehouse | Fulfilment and stock |
+| `admin@topflow.ae` | Administrator | Everything, including users and the audit trail |
+
+The seed also creates `owner@alwaha.ae`, the owner of a company waiting in the KYC queue. It is not published. Desert Bloom Landscaping LLC and Al Waha Facility Management LLC are fictional.
+
+### Setting up the hosted demo
+
+1. Create a **separate** Supabase project for the demo, for example `topflow-hub-demo`. Never point demo settings at the production project.
+2. In that project, keep Supabase's built-in email service (no custom SMTP), which only delivers to the project team's addresses, and switch off *Allow new users to sign up* under *Authentication → Sign In / Providers*. The seed and the reset create the demo accounts through the admin API, which that switch does not block.
+3. Load the data from a checkout of `develop`, with the demo project's session connection string (port 5432) and keys:
+
+   ```bash
+   export DATABASE_URL='postgresql://postgres.<demo-ref>:<password>@aws-1-<region>.pooler.supabase.com:5432/postgres'
+   export SUPABASE_URL=https://<demo-ref>.supabase.co SUPABASE_SECRET_KEY=sb_secret_…
+   npm run db:deploy
+   DEMO_MODE=true npm run demo:reset -- --confirm
+   ```
+
+4. Deploy the API with the production settings of [section 2](#2-configuration) for the demo project, plus `DEMO_MODE=true`, `STAFF_MFA_REQUIRED=false` and, if the maintainer wants to receive the demo's emails, `DEMO_MAIL_ALLOWLIST=<their address>`. Leave `THROTTLE_*` at their defaults or lower.
+5. Build the web app with `NEXT_PUBLIC_DEMO_MODE=true` and the demo project's `NEXT_PUBLIC_SUPABASE_*` values.
+6. In GitHub, add the secrets `DEMO_DATABASE_URL` (the connection string from step 3) and `DEMO_SUPABASE_SECRET_KEY`, and the variable `DEMO_SUPABASE_URL`. Run the *Demo reset* workflow once from the Actions tab.
+7. Check the result, starting with the API:
+   - `GET /` on the demo API answers `"demo": true`;
+   - every page of the demo web app shows the banner, and `/robots.txt` says `Disallow: /`;
+   - inviting a staff member with an address outside the allow-list is refused;
+   - `admin@topflow.ae` signs in with the published password.
+
+### Nightly reset
+
+`.github/workflows/demo-reset.yml` runs at 23:00 UTC (03:00 in the UAE) and on demand. It applies migrations, then runs `npm run demo:reset -- --confirm` with `DEMO_MODE=true`. The script:
+
+1. refuses to start without `DEMO_MODE=true` and `--confirm`, with `NODE_ENV=production`, `SEED_PROFILE=production` or `SEED_CREDENTIALS_FILE`, or with only one of the two Supabase settings, and lists every problem at once;
+2. refuses a database that holds accounts but not the demo data set (Desert Bloom Landscaping LLC, TRN 100234567800003) and changes nothing;
+3. lists the demo project's Supabase Auth users, which proves the credentials before any data is touched;
+4. empties every table except `_prisma_migrations` in one transaction;
+5. deletes those Supabase Auth users, taking changed passwords, enrolled authenticators and visitors' own sign-ins with them;
+6. runs the demo seed with the published password, which creates the demo accounts and sample documents again.
+
+While the three GitHub settings are unset, the workflow skips itself with a notice, as the backup workflow does. With only some of them set, it fails. CI runs the same script against its PostgreSQL service before the end-to-end suites, so every pipeline exercises steps 1, 2, 4 and 6 for real; steps 3 and 5 are covered by unit tests with an in-memory Supabase directory (`packages/database/scripts/demo-reset.spec.ts`).
+
+### What demo mode does not prevent
+
+- Visitors can change anything the published roles allow (prices, stock, orders, KYC decisions and team invitations) until the next reset. Withheld team invitations stay pending, because nobody receives their link.
+- The web app's refusals are not a security boundary: someone who calls Supabase Auth directly with the published password can still change it or enrol an authenticator. The reset undoes both each night, and the API still enforces every business rule.
+- Demo mode is configuration. A public deployment without `DEMO_MODE=true` and `NEXT_PUBLIC_DEMO_MODE=true` behaves like production, which is why step 7 above follows every change to the demo's settings.
+- The mobile app has no demo banner. Pointed at the demo API, it is subject to the same API restrictions.

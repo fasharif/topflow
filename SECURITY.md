@@ -22,3 +22,5 @@ The main measures are summarised in the README's *Highlights* table and describe
 - Role-based access control, and tenant isolation for business accounts.
 - Row Level Security on every table; a test fails if a table is missing it.
 - Rate limiting per client, and prices always calculated on the server.
+- A demo mode for the public portfolio demo that keeps business email to an allow-list, refuses
+  invitations and keeps the shared demo accounts usable (ADR-021 in [docs/DECISIONS.md](docs/DECISIONS.md)).
