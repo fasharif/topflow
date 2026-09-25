@@ -14,3 +14,25 @@ updates:
     directory: /
     schedule:
       interval: weekly
+
+  # Base images of apps/api/Dockerfile and apps/web/Dockerfile (tag and digest).
+  - package-ecosystem: docker
+    directories: [/apps/api, /apps/web]
+    schedule:
+      interval: weekly
+
+  # Images of the production-like stack (docker-compose.prod.yml).
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+
+  # The AWS provider of every Terraform root and module (lock files included).
+  - package-ecosystem: terraform
+    directories:
+      - /infra/terraform/bootstrap
+      - /infra/terraform/environments/staging
+      - /infra/terraform/environments/production
+      - /infra/terraform/modules/hub
+    schedule:
+      interval: weekly
