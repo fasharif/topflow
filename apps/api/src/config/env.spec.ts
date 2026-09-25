@@ -59,7 +59,16 @@ describe('loadConfig', () => {
       });
       expect(() =>
         loadConfig({ DATABASE_URL: 'postgres://db', DEMO_MODE: 'yes' }),
-      ).toThrow(/DEMO_MODE/);
+      ).toThrow(/must be "true" or "false" \(got "yes"\)\n.*at DEMO_MODE/);
+    });
+
+    it('reads DEMO_MODE exactly as the web app and the demo reset do', () => {
+      const flag = (DEMO_MODE: string) =>
+        loadConfig({ DATABASE_URL: 'postgres://db', DEMO_MODE }).demo.enabled;
+      expect(flag('')).toBe(false);
+      expect(flag('0')).toBe(false);
+      expect(flag('TRUE')).toBe(true);
+      expect(flag(' 1 ')).toBe(true);
     });
 
     it('boots a production build in demo mode and normalises the mail allow-list', () => {
@@ -108,6 +117,18 @@ describe('loadConfig', () => {
       expect(
         loadConfig({ ...production, THROTTLE_LIMIT: '5000' }).throttle.limit,
       ).toBe(5000);
+    });
+
+    it('refuses a shorter rate-limit window, which would allow more requests', () => {
+      expect(() => loadConfig({ ...demo, THROTTLE_TTL_MS: '1000' })).toThrow(
+        /must be at least 60000 in demo mode.*\n.*at THROTTLE_TTL_MS/,
+      );
+      expect(
+        loadConfig({ ...demo, THROTTLE_TTL_MS: '120000' }).throttle.ttlMs,
+      ).toBe(120_000);
+      expect(
+        loadConfig({ ...production, THROTTLE_TTL_MS: '1000' }).throttle.ttlMs,
+      ).toBe(1000);
     });
   });
 

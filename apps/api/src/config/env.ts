@@ -1,3 +1,4 @@
+import { parseDemoModeFlag } from '@topflow/shared';
 import { z } from 'zod';
 
 /**
@@ -18,6 +19,25 @@ const csv = z.string().transform((value) =>
     .filter(Boolean),
 );
 
+/**
+ * DEMO_MODE is read exactly as the web app and `npm run demo:reset` read it (parseDemoModeFlag):
+ * unset or empty is off, `true`/`1` and `false`/`0` in any case, anything else stops the API.
+ */
+const demoModeFlag = z
+  .string()
+  .optional()
+  .transform((value, ctx) => {
+    try {
+      return parseDemoModeFlag(value);
+    } catch {
+      ctx.addIssue({
+        code: 'custom',
+        message: `must be "true" or "false" (got "${value}")`,
+      });
+      return z.NEVER;
+    }
+  });
+
 /** An exact address (`name@example.com`) or a whole domain (`@example.com`), compared in lower case. */
 const mailAllowListEntry = z
   .string()
@@ -27,9 +47,13 @@ const mailAllowListEntry = z
   )
   .transform((entry) => entry.toLowerCase());
 
-/** Default per-client rate limits per minute. A public demo may lower them, never raise them. */
+/**
+ * Default per-client rate limits: requests per window, and the window. A public demo may make them
+ * stricter (fewer requests or a longer window), never looser.
+ */
 export const DEFAULT_THROTTLE_LIMIT = 300;
 export const DEFAULT_AUTH_THROTTLE_LIMIT = 10;
+export const DEFAULT_THROTTLE_TTL_MS = 60_000;
 
 export const envSchema = z
   .object({
@@ -60,7 +84,11 @@ export const envSchema = z
     TRUST_PROXY: booleanFlag.default(false),
     SWAGGER_ENABLED: booleanFlag.optional(),
 
-    THROTTLE_TTL_MS: z.coerce.number().int().min(1000).default(60_000),
+    THROTTLE_TTL_MS: z.coerce
+      .number()
+      .int()
+      .min(1000)
+      .default(DEFAULT_THROTTLE_TTL_MS),
     THROTTLE_LIMIT: z.coerce
       .number()
       .int()
@@ -74,9 +102,9 @@ export const envSchema = z
 
     /**
      * Public portfolio demo (ADR-021): business email reaches only allow-listed addresses, Supabase
-     * invitations are refused and the published demo accounts cannot be suspended or re-roled.
+     * invitations are refused, and the published demo accounts and demo organisation stay fixed.
      */
-    DEMO_MODE: booleanFlag.default(false),
+    DEMO_MODE: demoModeFlag,
     /** Addresses or @domains that still receive email (and invitations) in demo mode. */
     DEMO_MAIL_ALLOWLIST: csv.pipe(z.array(mailAllowListEntry)).default([]),
 
@@ -116,6 +144,13 @@ export const envSchema = z
           code: 'custom',
           path: ['AUTH_THROTTLE_LIMIT'],
           message: `must not exceed ${DEFAULT_AUTH_THROTTLE_LIMIT} in demo mode: rate limits stay on for the public demo`,
+        });
+      }
+      if (env.THROTTLE_TTL_MS < DEFAULT_THROTTLE_TTL_MS) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['THROTTLE_TTL_MS'],
+          message: `must be at least ${DEFAULT_THROTTLE_TTL_MS} in demo mode: a shorter window would let each client send more requests`,
         });
       }
     }
