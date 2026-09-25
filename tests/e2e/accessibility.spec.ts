@@ -1,7 +1,7 @@
 import { expectAccessible } from '../support/a11y';
-import { AL_WAHA } from '../support/accounts';
+import { AL_WAHA, DEMO_ACCOUNTS, DESERT_BLOOM } from '../support/accounts';
 import { PRODUCTS, SEEDED, customerOrderId, organizationByName, organizationQuotationId, productBySku, staffOrderId } from '../support/data';
-import { test } from '../support/fixtures';
+import { expect, test } from '../support/fixtures';
 import { open } from '../support/page';
 
 // Every key page is scanned with axe-core against WCAG 2.2 A and AA. Serious and critical
@@ -101,5 +101,14 @@ test.describe('accessibility (axe-core, WCAG 2.2 A/AA)', () => {
         await expectAccessible(page, testInfo, name);
       });
     }
+  });
+
+  // axe flags these links only when a row holds enough text (a user in many organizations), so the
+  // fix is pinned directly: a link next to other text must not rely on colour alone (WCAG 1.4.1).
+  test('organization links in the users list are underlined', async ({ actAs }) => {
+    const { page } = await actAs('admin');
+    await open(page, `/admin/users?search=${encodeURIComponent(DEMO_ACCOUNTS.owner.email)}`);
+    const row = page.getByRole('row').filter({ hasText: DEMO_ACCOUNTS.owner.email });
+    await expect(row.getByRole('link', { name: DESERT_BLOOM.name })).toHaveCSS('text-decoration-line', 'underline');
   });
 });

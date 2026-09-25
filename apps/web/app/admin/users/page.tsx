@@ -196,7 +196,10 @@ function UsersList() {
                         <ul className="space-y-0.5">
                           {user.organizations.map((org) => (
                             <li key={org.id}>
-                              <Link href={`/admin/organizations/${org.id}`} className="text-ink-900 hover:text-brand-700 hover:underline">
+                              <Link
+                                href={`/admin/organizations/${org.id}`}
+                                className="text-ink-900 underline decoration-slate-400 underline-offset-2 hover:text-brand-700 hover:decoration-brand-700"
+                              >
                                 {org.name}
                               </Link>{' '}
                               <span className="text-xs text-slate-500">· {ORG_ROLE_LABELS[org.role]}</span>
