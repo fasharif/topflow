@@ -134,8 +134,12 @@ describe('TopFlow Hub API (e2e)', () => {
       expect(exposed).toEqual([]);
     });
 
-    it('publishes the validation rules in its OpenAPI description', async () => {
+    it('publishes the validation rules and the error envelope in its OpenAPI description', async () => {
       const document = (await http().get('/docs-json').expect(200)).body as {
+        paths: Record<
+          string,
+          Record<string, { responses: Record<string, unknown> }>
+        >;
         components: {
           schemas: Record<
             string,
@@ -150,6 +154,15 @@ describe('TopFlow Hub API (e2e)', () => {
       expect(
         schemas.CreateWebsiteQuoteRequestDto.properties?.phone,
       ).toHaveProperty('pattern');
+      expect(document.paths['/me/orders'].post.responses.default).toEqual(
+        expect.objectContaining({
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ApiError' },
+            },
+          },
+        }),
+      );
     });
 
     it('trusts a forwarded client address only from the web app', async () => {
