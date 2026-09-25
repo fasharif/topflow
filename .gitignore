@@ -55,3 +55,11 @@ packages/database/generated/
 **/.windsurf/
 **/skills-lock.json
 *.tsbuildinfo
+
+# Terraform (lock files are committed; state, plans and variable files with real values are not)
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+infra/terraform/**/terraform.tfvars
+crash.log
