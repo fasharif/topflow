@@ -50,15 +50,32 @@ jobs:
           npm test -w @topflow/api
           npm run build -w @topflow/api
 
-      - name: Web — lint, typecheck and production build
+      # The smoke test starts the production build and checks, over HTTP, that an ordinary build carries
+      # no demo banner, noindex or demo notices.
+      - name: Web — lint, typecheck, unit tests, production build and smoke test
         run: |
           npm run lint -w web
           npm run check-types -w web
+          npm test -w web
           npm run build -w web
+          npm run test:demo -w web -- --off
         env:
           API_INTERNAL_URL: http://localhost:3000
           NEXT_PUBLIC_SITE_URL: http://localhost:3002
-          # Placeholders: the build never contacts Supabase.
+          # Placeholders: neither the build nor the smoke test contacts Supabase.
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+
+      # The public demo's build: the banner and noindex on every page checked, robots.txt disallowing
+      # everything, the sign-up and reset notices, and no password form without a session.
+      - name: Web — demo build and smoke test
+        run: |
+          npm run build -w web
+          npm run test:demo -w web
+        env:
+          NEXT_PUBLIC_DEMO_MODE: "true"
+          API_INTERNAL_URL: http://localhost:3000
+          NEXT_PUBLIC_SITE_URL: http://localhost:3002
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
 
