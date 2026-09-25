@@ -37,9 +37,11 @@ Configuration is documented in [`.env.example`](.env.example) and validated at s
 
 ## Testing
 
-- **Unit** (`src/**/*.spec.ts`): Supabase token verification (ES256 keys, legacy HS256, issuer/audience/expiry), guards including staff MFA, error mapping, configuration, pricing.
+- **Unit** (`src/**/*.spec.ts`): Supabase token verification (ES256 keys, legacy HS256, issuer/audience/expiry), guards including staff MFA, error mapping, configuration, pricing, and error reporting (Sentry stays off without `SENTRY_DSN`, reports only 5xx, strips personal data).
 - **End-to-end** (`test/app.e2e-spec.ts`): boots `AppModule` with the production middleware stack (`configureApp`) against PostgreSQL. Supabase is simulated — tokens are signed locally (`test/support/supabase.ts`) and the admin API is an in-memory fake — so the suite needs no network. It covers provisioning, token rejection, MFA, staff invitations and suspension, team invitations, trade accounts, RBAC, tenant isolation, the RFQ → quotation → approval → order journey, website quote requests, retail checkout through delivery, trusted client-IP forwarding and the RLS lockdown.
 
 ## Deployment
 
-Not hosted yet ([ADR-019](../../docs/DECISIONS.md)). The API is ready to deploy as a serverless function or a container: `npm run release` validates the environment and applies migrations before a new version serves traffic, and [`vercel.json`](vercel.json) with [`scripts/release.mjs`](scripts/release.mjs) are kept for the Vercel option. See [docs/OPERATIONS.md](../../docs/OPERATIONS.md).
+Not hosted yet ([ADR-019](../../docs/DECISIONS.md)). The API is ready to deploy as a serverless function or a container: `npm run release` validates the environment and applies migrations before a new version serves traffic, and [`vercel.json`](vercel.json) with [`scripts/release.mjs`](scripts/release.mjs) are kept for the Vercel option.
+
+The [`Dockerfile`](Dockerfile) builds two images from the repository root ([ADR-023](../../docs/DECISIONS.md)): `--target api` serves the API with only the files it loads ([`scripts/trace-runtime.mjs`](scripts/trace-runtime.mjs) traces them and proves they load every module and render a PDF), and `--target migrate` runs the release step. Both use [`docker/entrypoint.sh`](docker/entrypoint.sh) (`serve`, `release`, `preflight`). See [infra/README.md](../../infra/README.md) and [docs/OPERATIONS.md](../../docs/OPERATIONS.md).

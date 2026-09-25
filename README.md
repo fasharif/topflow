@@ -1,5 +1,8 @@
 # TopFlow Hub — B2B/B2C commerce platform for Top Flow
 
+[![CI](https://github.com/fasharif/topflow/actions/workflows/ci.yml/badge.svg)](https://github.com/fasharif/topflow/actions/workflows/ci.yml)
+[![Containers](https://github.com/fasharif/topflow/actions/workflows/containers.yml/badge.svg)](https://github.com/fasharif/topflow/actions/workflows/containers.yml)
+
 > **Portfolio project.** Built independently by Farah Sharif, with Top Flow's permission to use its name and product catalogue. This is not Top Flow's official online store.
 
 > **Top Flow — Irrigation & Flow Control Supplies, UAE** supplies electrofusion and HDPE fittings, sprinklers and rotors, drip irrigation, pipes and fittings, valves, filtration and landscaping products to two very different audiences:
@@ -28,7 +31,8 @@
 | **Multi-tenancy** | Every B2B request runs inside a verified organization context (`x-organization-id`). Users can belong to several organizations, and Top Flow staff verify each company (KYC). |
 | **Operations** | Role-based back office for Sales, Warehouse and Admin: KYC queue, quotation builder, fulfilment state machine, stock deduction at dispatch, low-stock alerts, dashboard KPIs, staff invitations and an immutable audit trail. |
 | **Identity & security** | **Supabase Auth** with email confirmation, password recovery and **two-factor authentication required for staff**. Web sessions live in httpOnly cookies behind a backend-for-frontend; the API verifies Supabase tokens (JWKS) and enforces RBAC and tenant isolation. Platform tables are locked away from Supabase's public Data API, rate limits apply per client, and prices are never trusted from clients. |
-| **Engineering** | Turborepo monorepo, shared **Zod contracts + workflow state machines + integer money/VAT maths** used by API, web and mobile, compile-time enum parity with Prisma, data-preserving migrations, unit and end-to-end tests, CI, and nightly **encrypted off-site database backups**. |
+| **Engineering** | Turborepo monorepo, shared **Zod contracts + workflow state machines + integer money/VAT maths** used by API, web and mobile, compile-time enum parity with Prisma, data-preserving migrations, unit and end-to-end tests, CI, and nightly **encrypted off-site database backups** with a timed restore drill. |
+| **Delivery** | Non-root **container images** scanned with Trivy, a **production-like Compose stack** (HTTPS, Supabase Auth, release step before the API) smoke-tested in CI with a real sign-in, **Terraform for AWS** (ECS Fargate, tested with a mocked provider, not applied), a manual deploy with migrations first and **one-step rollback**, optional **Sentry**, and an uptime check. See [infra/README.md](infra/README.md). |
 
 ## Architecture
 
@@ -75,7 +79,9 @@ packages/
   shared/     @topflow/shared — enums, permissions, workflows, money/VAT, Zod schemas, DTO types
   database/   @topflow/database — Prisma schema, migrations, seed, generated client
 supabase/     Supabase configuration: auth policy, branded email templates, storage buckets
+infra/        Compose stack support, Terraform for AWS, deploy, smoke-test and restore-drill scripts
 docs/         Architecture, decisions, operations runbook, academic evolution
+docker-compose.prod.yml   production-like stack of the container images
 ```
 
 ## Tech stack
@@ -88,8 +94,9 @@ docs/         Architecture, decisions, operations runbook, academic evolution
 | Data | Supabase PostgreSQL, Prisma 7 with the `pg` driver adapter |
 | Web | Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Lucide icons |
 | Mobile | Expo SDK 57, Expo Router, SecureStore |
-| Hosting | Vercel (web and API on Fluid compute), Supabase |
-| Tooling | npm workspaces, Turborepo, ESLint, Prettier, Jest, Supertest, GitHub Actions |
+| Hosting | Not hosted yet (ADR-019). Prepared: Vercel (ADR-014), or the container images on AWS ECS Fargate (ADR-023); Supabase for data and identity |
+| Delivery | Docker (multi-stage, traced runtimes), Docker Compose, Caddy, Trivy, Terraform with tflint, GitHub Actions with OIDC to AWS, Sentry |
+| Tooling | npm workspaces, Turborepo, ESLint, Prettier, Jest, Supertest, Node's test runner, ShellCheck, actionlint |
 
 ## Getting started
 
@@ -147,7 +154,8 @@ npm run test:e2e -w @topflow/api        # end-to-end suite against a real databa
 
 - **Unit tests** cover money/VAT maths, workflow state machines, the permission matrix, request schemas, Supabase token verification, guards, error mapping and configuration.
 - **End-to-end tests** boot the real application (the production middleware stack) against PostgreSQL. They simulate Supabase Auth with locally signed tokens and exercise account provisioning, token rejection, staff MFA, staff invitations and suspension, team invitations, RBAC, tenant isolation, the full RFQ → quotation → approval → order flow, website quote requests and retail fulfilment. A test also asserts that every table has Row Level Security enabled.
-- **CI** (`.github/workflows/ci.yml`) runs lint, type checks, unit tests and builds for every workspace, plus the end-to-end suite against a PostgreSQL service container.
+- **CI** (`.github/workflows/ci.yml`) runs lint, type checks, unit tests and builds for every workspace, plus the end-to-end suite against a PostgreSQL service container, the infrastructure scripts' tests and the backup restore drill.
+- **Containers** (`.github/workflows/containers.yml`) builds and scans the images, then starts the production-like stack and signs in through Supabase Auth; **Infrastructure** (`.github/workflows/infra.yml`) checks the Terraform code with `terraform test`, tflint and Trivy.
 
 ## Deployment
 
@@ -155,11 +163,23 @@ The platform is deployment-ready but not hosted yet. [ADR-019](docs/DECISIONS.md
 
 | Piece | Intended home |
 | --- | --- |
-| Web and API | one host with serverless functions — Netlify's free plan, or Vercel Pro / Google Cloud Run where a card and a small bill are acceptable |
+| Web and API | one host with serverless functions — Netlify's free plan, or Vercel Pro / Google Cloud Run where a card and a small bill are acceptable; or the container images on any container host |
 | Database, authentication and storage | Supabase, whose free plan places no restriction on business use |
-| Backups | GitHub Actions: a nightly `supabase db dump`, encrypted with age and kept for 30 days |
+| Backups | GitHub Actions: a nightly `supabase db dump`, encrypted with age and kept for 30 days; `infra/scripts/restore-drill.sh` rehearses the restore |
 
 Nothing in the code depends on a particular host: the environment is validated at boot, and `npm run release` applies migrations before a new version serves traffic.
+
+**Containers ([ADR-023](docs/DECISIONS.md)).** The API, its release step and the web app ship as images that run as a non-root user, and CI publishes them to GHCR from `develop`. The production-like stack runs them with HTTPS, Supabase Auth and demo data in five commands (Docker required):
+
+```bash
+node infra/compose/generate-env.mts
+docker compose -f docker-compose.prod.yml --env-file infra/compose/.env up -d --build --wait
+docker compose -f docker-compose.prod.yml --env-file infra/compose/.env --profile demo run --rm seed
+# open https://localhost:8443 (a local certificate: accept the warning, or trust it as infra/README.md explains)
+docker compose -f docker-compose.prod.yml --env-file infra/compose/.env --profile demo down -v
+```
+
+`infra/terraform` describes staging and production on AWS ECS Fargate behind a load balancer, with secrets in SSM, CloudWatch alarms, a budget alert and a GitHub OIDC deploy role. It is checked in CI but has never been applied, and the deploy workflow skips until an AWS role is configured; [infra/README.md](infra/README.md) lists what has not been run yet and how to run it.
 
 Configuration, releases, backups, restores and secret rotation are described in [docs/OPERATIONS.md](docs/OPERATIONS.md).
 

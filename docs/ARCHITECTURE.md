@@ -2,7 +2,7 @@
 
 ## 1. Shape of the system
 
-TopFlow Hub is a **modular monolith**: one NestJS API with strict module boundaries, one Next.js web application serving three audiences, and an Expo mobile app. A shared TypeScript package carries the domain contracts, so the same rules run on the server and in every client. Supabase provides identity and the PostgreSQL database; Vercel runs both the web app and the API.
+TopFlow Hub is a **modular monolith**: one NestJS API with strict module boundaries, one Next.js web application serving three audiences, and an Expo mobile app. A shared TypeScript package carries the domain contracts, so the same rules run on the server and in every client. Supabase provides identity and the PostgreSQL database. The web app and the API are planned for Vercel (ADR-014) and also ship as container images (ADR-023); neither is hosted yet (ADR-019).
 
 | Package | Responsibility |
 | --- | --- |
@@ -28,7 +28,7 @@ TopFlow Hub is a **modular monolith**: one NestJS API with strict module boundar
 
 ## 2. Hosting topology
 
-> **Status (16 September 2026):** nothing is hosted yet. Everything runs locally against the Supabase CLI stack; the diagram is the intended deployment, and the reasoning is in ADR-019 of [DECISIONS.md](DECISIONS.md).
+> **Status (26 September 2026):** nothing is hosted yet. Everything runs locally against the Supabase CLI stack, or as the production-like container stack below; the diagram is the deployment ADR-014 planned, and the reasoning is in ADR-019 of [DECISIONS.md](DECISIONS.md).
 
 ```mermaid
 flowchart LR
@@ -56,6 +56,29 @@ flowchart LR
 
 - Compute and the database belong in the same region, the closest pair to the UAE, so API ↔ database round trips stay short.
 - The API is built to run as a serverless function: its `pg` pool releases idle connections before an instance is suspended (`attachDatabasePool` when it runs on Vercel), the runtime connection string uses Supabase's transaction pooler (port 6543), and migrations use a session connection (`DIRECT_URL`, port 5432).
+
+### Container images (ADR-023)
+
+The same code also runs as three images: `topflow-hub-api` (the compiled API and only the files it loads), `topflow-hub-migrate` (the release step: environment preflight, then `prisma migrate deploy`) and `topflow-hub-web` (the Next.js standalone server). One web image serves every environment: `NEXT_PUBLIC_*` values are read at runtime on the server, and behind a proxy the app takes its public origin from `NEXT_PUBLIC_SITE_URL`. `docker-compose.prod.yml` runs them as below, with Supabase Auth's own server standing in for a Supabase project:
+
+```mermaid
+flowchart LR
+  B["Browser · curl · mobile"] -- "HTTPS (local CA)" --> C["Caddy"]
+  subgraph STACK["docker-compose.prod.yml"]
+    C -- "localhost" --> W["web<br/>Next.js standalone"]
+    C -- "api.localhost" --> A["api<br/>NestJS"]
+    C -- "auth.localhost/auth/v1" --> G["Supabase Auth<br/>(GoTrue)"]
+    W -- "server-to-server" --> A
+    W -- "sign-in, sessions" --> C
+    A -- "invitations, suspensions" --> C
+    M["migrate<br/>release step"] --> D[("PostgreSQL 17<br/>public · auth")]
+    A --> D
+    G --> D
+    G --> MP["Mailpit"]
+  end
+```
+
+The release step must finish before the API starts, as it would before a new version receives traffic. [infra/terraform](../infra/terraform) describes the same images on AWS ECS Fargate behind a load balancer, with Supabase unchanged (prepared, not applied; [infra/README.md](../infra/README.md)).
 
 ## 3. Request pipeline (API)
 
@@ -201,12 +224,16 @@ sequenceDiagram
 | Unit | Jest | Money/VAT, state machines, permissions, schemas, Supabase token verification, guards, error mapping, config |
 | End-to-end | Jest + Supertest against PostgreSQL | Real middleware stack with simulated Supabase Auth: provisioning, MFA, invitations, RBAC, tenant isolation, procurement and fulfilment journeys, RLS lockdown |
 | Delivery | GitHub Actions | Every push lints, type-checks, tests and builds every workspace; nightly encrypted backups |
+| Containers | Docker, Trivy, Docker Compose | Images built and scanned (critical vulnerabilities fail the build); the production-like stack started and smoke-tested with a real Supabase sign-in, `/auth/me` and a quotation PDF |
+| Infrastructure | `terraform test` (mocked provider), tflint, Trivy, ShellCheck | Secrets only through SSM, read-only containers, HTTPS, deploy-role trust, alarms, input validation; the deploy script against a fake AWS CLI; the backup restore drill end to end |
 
 ## 10. Operations
 
 - **Configuration** is validated with Zod at boot (`apps/api/src/config/env.ts`); production refuses to start without the Supabase secret key, an https Supabase URL and the internal secret.
 - **Releases.** Vercel builds the API from the repository root; on production deployments `apps/api/scripts/release.mjs` runs the environment preflight and `prisma migrate deploy` before the new version receives traffic. A failed release leaves the previous deployment serving.
-- **Health:** `GET /health` (liveness) and `GET /health/ready` (database).
+- **Health:** `GET /health` (liveness) and `GET /health/ready` (database) on the API; `GET /health` on the web app. Both report `version` (`APP_VERSION`, the image tag in containers), so a deployment can be verified.
+- **Error reporting:** optional Sentry for the API's 5xx and the web server's errors (`SENTRY_DSN`); a no-op without it. Personal data, cookies and secrets are stripped.
+- **Container releases:** the `topflow-hub-migrate` image runs the same preflight and migrations before new code serves traffic; on AWS the Deploy workflow runs it first and rolls back in one step (OPERATIONS.md section 11).
 - **Tracing:** every response carries `x-request-id`, also included in error bodies and server logs.
 - **Rate limiting:** per-client limits, stricter on public forms. The web app's server forwards the shopper's IP with a shared secret (`INTERNAL_API_SECRET`); server-rendered catalogue fetches carry the secret without an IP and are not limited. The store is in memory per instance — move it to a shared store if abuse patterns require global limits.
-- **Backups:** a nightly GitHub Actions job dumps roles, schema and data with the Supabase CLI and uploads an age-encrypted archive. Restore steps are in [OPERATIONS.md](OPERATIONS.md).
+- **Backups:** a nightly GitHub Actions job dumps roles, schema and data with the Supabase CLI and uploads an age-encrypted archive. Restore steps are in [OPERATIONS.md](OPERATIONS.md); `infra/scripts/restore-drill.sh` rehearses them against a disposable container and checks every row count.
