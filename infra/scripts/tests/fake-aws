@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# A stand-in for the AWS CLI, used by deploy-ecs.test.sh. It records every call in $FAKE_AWS_LOG,
+# keeps parameters, task definition revisions and services in $FAKE_AWS_STATE, and answers with
+# JSON shaped like the real CLI's.
+#
+#   FAKE_MIGRATION_EXIT   exit code of the release step's container (default 0)
+#   FAKE_ROLLOUT_STATE    rolloutState of a service deployment (default COMPLETED; FAILED means
+#                         the circuit breaker restored the previous task definition)
+set -Eeuo pipefail
+
+state="${FAKE_AWS_STATE:?}"
+echo "$*" >>"${FAKE_AWS_LOG:?}"
+
+# Value of the option named $1 in the remaining arguments.
+option() {
+  local wanted="$1"
+  shift
+  while (($# > 0)); do
+    if [[ "$1" == "$wanted" ]]; then
+      echo "${2:-}"
+      return
+    fi
+    shift
+  done
+}
+
+key() { tr -c 'A-Za-z0-9_-' '_' <<<"$1"; }
+
+case "$1 $2" in
+  "ssm get-parameter")
+    file="$state/param_$(key "$(option --name "$@")")"
+    value="$(cat "$file" 2>/dev/null || echo none)"
+    jq -n --arg value "$value" '{Parameter: {Value: $value}}'
+    ;;
+  "ssm put-parameter")
+    option --value "$@" >"$state/param_$(key "$(option --name "$@")")"
+    echo '{"Version": 2}'
+    ;;
+  "ecs describe-task-definition")
+    family="$(option --task-definition "$@")"
+    revision="$(cat "$state/revision_$family" 2>/dev/null || echo 1)"
+    jq -n --arg family "$family" --argjson revision "$revision" '{taskDefinition: {
+      taskDefinitionArn: "arn:aws:ecs:ap-south-1:123456789012:task-definition/\($family):\($revision)",
+      family: $family, revision: $revision, status: "ACTIVE", cpu: "512", memory: "1024",
+      requiresAttributes: [{name: "ecs.capability.secrets.ssm.environment-variables"}],
+      compatibilities: ["EC2", "FARGATE"], registeredAt: "2026-09-26T00:00:00Z", registeredBy: "terraform",
+      containerDefinitions: [{name: "app", image: "ghcr.io/fasharif/old:sha-0000000"}]}}'
+    ;;
+  "ecs register-task-definition")
+    input="$(option --cli-input-json "$@")"
+    input="${input#file://}"
+    family="$(jq -r '.family' "$input")"
+    revision=$(($(cat "$state/revision_$family" 2>/dev/null || echo 1) + 1))
+    echo "$revision" >"$state/revision_$family"
+    cp "$input" "$state/registered_$family.json"
+    jq -n --arg family "$family" --argjson revision "$revision" \
+      '{taskDefinition: {taskDefinitionArn: "arn:aws:ecs:ap-south-1:123456789012:task-definition/\($family):\($revision)"}}'
+    ;;
+  "ecs describe-services")
+    service="$(option --services "$@")"
+    wanted="$(cat "$state/service_$service" 2>/dev/null || echo "arn:aws:ecs:ap-south-1:123456789012:task-definition/$service:1")"
+    rollout="${FAKE_ROLLOUT_STATE:-COMPLETED}"
+    if [[ "$rollout" == FAILED ]]; then
+      serving="arn:aws:ecs:ap-south-1:123456789012:task-definition/$service:1"
+    else
+      serving="$wanted"
+    fi
+    jq -n --arg serving "$serving" --arg rollout "$rollout" '{services: [{
+      networkConfiguration: {awsvpcConfiguration: {subnets: ["subnet-a", "subnet-b"], securityGroups: ["sg-tasks"], assignPublicIp: "ENABLED"}},
+      deployments: [{status: "PRIMARY", taskDefinition: $serving, rolloutState: $rollout}]}]}'
+    ;;
+  "ecs update-service")
+    option --task-definition "$@" >"$state/service_$(option --service "$@")"
+    echo '{"service": {}}'
+    ;;
+  "ecs run-task")
+    echo '{"tasks": [{"taskArn": "arn:aws:ecs:ap-south-1:123456789012:task/topflow-hub-staging/0123456789abcdef"}], "failures": []}'
+    ;;
+  "ecs wait")
+    ;;
+  "ecs describe-tasks")
+    jq -n --argjson code "${FAKE_MIGRATION_EXIT:-0}" '{tasks: [{lastStatus: "STOPPED",
+      stoppedReason: "Essential container in task exited", containers: [{name: "migrate", exitCode: $code}]}]}'
+    ;;
+  "logs get-log-events")
+    echo '{"events": [{"message": "Error: P1001: Can'"'"'t reach database server"}]}'
+    ;;
+  *)
+    echo "fake aws: unexpected call: $*" >&2
+    exit 1
+    ;;
+esac
