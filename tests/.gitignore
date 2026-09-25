@@ -4,3 +4,7 @@
 # Playwright output, HTML report, k6 and Schemathesis reports
 test-results/
 reports/
+
+# Schemathesis and Hypothesis working state
+contract/.hypothesis/
+contract/.schemathesis/

@@ -1,3 +1,5 @@
 .auth/
 reports/
 test-results/
+# Written by Schemathesis (SCHEMATHESIS_UPDATE_BASELINE=1)
+contract/baseline.json

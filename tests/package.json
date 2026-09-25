@@ -8,6 +8,7 @@
     "e2e": "playwright test",
     "e2e:report": "playwright show-report reports/playwright",
     "load": "bash load/run-k6.sh",
+    "contract": "bash contract/run-schemathesis.sh",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "check-types": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p load/tsconfig.json"
