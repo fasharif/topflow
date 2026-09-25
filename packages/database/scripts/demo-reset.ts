@@ -5,7 +5,7 @@
  *
  * Empties every application table of DATABASE_URL, removes the Supabase Auth users of the demo project
  * (SUPABASE_URL + SUPABASE_SECRET_KEY) and runs the demo seed again. It refuses to start without
- * DEMO_MODE=true and --confirm, and refuses any database that is neither empty nor the demo. The
+ * DEMO_MODE=true and --confirm, and refuses a database that holds accounts but not the demo data. The
  * safety checks live in demo-reset-core.ts.
  */
 import 'dotenv/config';

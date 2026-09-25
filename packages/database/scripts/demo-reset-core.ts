@@ -196,7 +196,7 @@ export interface ResetSummary {
 }
 
 /**
- * 1. Refuse a database that is neither empty nor the demo. 2. List the demo project's sign-ins
+ * 1. Refuse a database that holds accounts but not the demo data set. 2. List the demo project's sign-ins
  * (read-only). 3. Empty every application table in one transaction. 4. Remove those sign-ins: changed
  * passwords, enrolled authenticators and visitors' own accounts go with them. 5. Run the demo seed,
  * which creates the published accounts again.
