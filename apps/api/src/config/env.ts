@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { sentryEnvShape } from '../observability/sentry';
+import { sentryEnvShape } from '../observability/sentry-config';
 
 /**
  * Environment contract, validated once at boot and again by the release preflight. A
