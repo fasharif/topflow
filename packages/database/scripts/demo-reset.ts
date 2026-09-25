@@ -5,8 +5,9 @@
  *
  * Empties every application table of DATABASE_URL, removes the Supabase Auth users of the demo project
  * (SUPABASE_URL + SUPABASE_SECRET_KEY) and runs the demo seed again. It refuses to start without
- * DEMO_MODE=true and --confirm, and refuses a database that holds accounts but not the demo data. The
- * safety checks live in demo-reset-core.ts.
+ * DEMO_MODE=true and --confirm, refuses a database that holds accounts but not the demo data, and
+ * refuses Supabase settings whose users are not exactly the database's own auth.users. The safety
+ * checks live in demo-reset-core.ts.
  */
 import 'dotenv/config';
 import { spawnSync } from 'node:child_process';
@@ -32,12 +33,17 @@ function postgres(client: Client): DemoDatabase {
       const tables = (
         await client.query<{ tablename: string }>("SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename")
       ).rows.map((row) => row.tablename);
+      // A Supabase project's database has its sign-ins in auth.users; plain PostgreSQL (CI) has none.
+      const auth = await client.query<{ present: boolean }>("SELECT to_regclass('auth.users') IS NOT NULL AS present");
+      const authUserIds = auth.rows[0]?.present
+        ? (await client.query<{ id: string }>('SELECT id::text AS id FROM auth.users')).rows.map((row) => row.id)
+        : null;
       if (!tables.includes('users') || !tables.includes('organizations')) {
-        return { tables, users: 0, hasDemoOrganization: false };
+        return { tables, users: 0, hasDemoOrganization: false, authUserIds };
       }
       const users = await client.query<{ count: string }>('SELECT count(*)::text AS count FROM public.users');
       const demo = await client.query('SELECT 1 FROM public.organizations WHERE trn = $1', [DEMO_ORGANIZATION.trn]);
-      return { tables, users: Number(users.rows[0]?.count ?? 0), hasDemoOrganization: (demo.rowCount ?? 0) > 0 };
+      return { tables, users: Number(users.rows[0]?.count ?? 0), hasDemoOrganization: (demo.rowCount ?? 0) > 0, authUserIds };
     },
     async truncate(statement) {
       await client.query('BEGIN');

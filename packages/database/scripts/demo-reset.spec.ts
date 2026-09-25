@@ -4,10 +4,12 @@ import {
   DemoResetRefused,
   assessTarget,
   checkPreconditions,
+  compareIdentities,
   demoSeedEnvironment,
   describeDatabase,
   listAllIdentities,
   resetDemo,
+  supabaseProjectOf,
   truncateStatement,
   type IdentityDirectory,
   type ResetDependencies,
@@ -16,6 +18,7 @@ import {
 
 const DATABASE_URL = 'postgresql://postgres:s3cret@127.0.0.1:54500/topflow_test';
 const ready = { DEMO_MODE: 'true', DATABASE_URL };
+const LOCAL_SUPABASE = 'http://127.0.0.1:54321';
 const APP_TABLES = ['_prisma_migrations', 'audit_logs', 'organizations', 'orders', 'products', 'users'];
 
 function problemsOf(env: NodeJS.ProcessEnv, args: string[] = [CONFIRM_FLAG]): string[] {
@@ -69,11 +72,62 @@ describe('demo reset safety checks', () => {
     });
 
     it('needs both Supabase settings or neither', () => {
-      expect(problemsOf({ ...ready, SUPABASE_URL: 'https://demo.supabase.co' })).toEqual([expect.stringContaining('SUPABASE_SECRET_KEY')]);
-      const both = checkPreconditions({ ...ready, SUPABASE_URL: 'https://demo.supabase.co', SUPABASE_SECRET_KEY: 'sb_secret_x' }, [CONFIRM_FLAG]);
-      expect(both).toMatchObject({ ok: true, plan: { supabase: { url: 'https://demo.supabase.co', secretKey: 'sb_secret_x' } } });
-      const skipped = checkPreconditions({ ...ready, SUPABASE_URL: 'https://demo.supabase.co', SEED_IDENTITIES: 'false' }, [CONFIRM_FLAG]);
+      expect(problemsOf({ ...ready, SUPABASE_URL: LOCAL_SUPABASE })).toEqual([expect.stringContaining('SUPABASE_SECRET_KEY')]);
+      const both = checkPreconditions({ ...ready, SUPABASE_URL: LOCAL_SUPABASE, SUPABASE_SECRET_KEY: 'sb_secret_x' }, [CONFIRM_FLAG]);
+      expect(both).toMatchObject({ ok: true, plan: { supabase: { url: LOCAL_SUPABASE, secretKey: 'sb_secret_x' } } });
+      const skipped = checkPreconditions({ ...ready, SUPABASE_URL: LOCAL_SUPABASE, SEED_IDENTITIES: 'false' }, [CONFIRM_FLAG]);
       expect(skipped).toMatchObject({ ok: true, plan: { supabase: null } });
+    });
+
+    it('refuses Supabase settings of a different project than the database', () => {
+      const demoDatabase = 'postgresql://postgres.demoref:pw@aws-1-ap-south-1.pooler.supabase.com:5432/postgres';
+      const withKeys = (SUPABASE_URL: string, DATABASE_URL: string) =>
+        problemsOf({ ...ready, DATABASE_URL, SUPABASE_URL, SUPABASE_SECRET_KEY: 'sb_secret_x' });
+
+      expect(withKeys('https://prodref.supabase.co', demoDatabase)).toEqual([
+        expect.stringMatching(/^SUPABASE_URL belongs to project prodref but DATABASE_URL to project demoref\./),
+      ]);
+      expect(withKeys(LOCAL_SUPABASE, demoDatabase)).toEqual([expect.stringContaining('a local Supabase stack but DATABASE_URL to project demoref')]);
+      expect(withKeys('https://demoref.supabase.co', DATABASE_URL)).toEqual([expect.stringContaining('project demoref but DATABASE_URL to a local')]);
+
+      expect(withKeys('https://demoref.supabase.co', demoDatabase)).toEqual([]);
+      expect(withKeys('https://demoref.supabase.co', 'postgresql://postgres:pw@db.demoref.supabase.co:5432/postgres')).toEqual([]);
+      // Addresses that do not name a project are left to the auth.users comparison in resetDemo.
+      expect(withKeys('https://auth.demo.example', 'postgresql://postgres:pw@postgres:5432/demo')).toEqual([]);
+      // Without Supabase settings no sign-in is touched, so nothing needs to match.
+      expect(problemsOf({ ...ready, DATABASE_URL: demoDatabase })).toEqual([]);
+    });
+  });
+
+  describe('supabaseProjectOf', () => {
+    it.each([
+      ['https://abcdefghijklmnopqrst.supabase.co', 'abcdefghijklmnopqrst'],
+      ['https://abcdefghijklmnopqrst.supabase.co/', 'abcdefghijklmnopqrst'],
+      ['postgresql://postgres:pw@db.abcdefghijklmnopqrst.supabase.co:5432/postgres', 'abcdefghijklmnopqrst'],
+      ['postgresql://postgres.abcdefghijklmnopqrst:pw@aws-1-ap-south-1.pooler.supabase.com:6543/postgres', 'abcdefghijklmnopqrst'],
+      ['http://127.0.0.1:54321', 'local'],
+      ['postgresql://postgres:postgres@localhost:54322/postgres', 'local'],
+      ['postgresql://postgres:postgres@postgres:5432/topflow_test', null],
+      ['https://auth.topflow.example', null],
+      ['not a url', null],
+    ])('reads %s as %p', (address, project) => {
+      expect(supabaseProjectOf(address)).toBe(project);
+    });
+  });
+
+  describe('compareIdentities', () => {
+    it('accepts the same sign-ins in the project and in the database', () => {
+      expect(compareIdentities(['a', 'b'], ['b', 'a'])).toBeNull();
+      expect(compareIdentities([], [])).toBeNull();
+    });
+
+    it('refuses a database without auth.users when Supabase settings are given', () => {
+      expect(compareIdentities([], null)).toMatch(/no auth\.users table.*Nothing was changed/);
+    });
+
+    it('refuses sign-ins that the database does not hold, and the other way round', () => {
+      expect(compareIdentities(['prod-1', 'prod-2'], ['demo-1'])).toMatch(/2 are only in the project and 1 only in the database/);
+      expect(compareIdentities([], ['demo-1'])).toMatch(/0 are only in the project and 1 only in the database/);
     });
   });
 
@@ -82,6 +136,7 @@ describe('demo reset safety checks', () => {
       tables: APP_TABLES,
       users: 8,
       hasDemoOrganization: true,
+      authUserIds: null,
       ...overrides,
     });
 
@@ -175,7 +230,8 @@ describe('resetDemo', () => {
     const seededWith: NodeJS.ProcessEnv[] = [];
     const deps: ResetDependencies = {
       database: {
-        facts: () => Promise.resolve({ tables: APP_TABLES, users: 8, hasDemoOrganization: true, ...facts }),
+        facts: () =>
+          Promise.resolve({ tables: APP_TABLES, users: 8, hasDemoOrganization: true, authUserIds: identities ? [...identities.ids] : null, ...facts }),
         truncate: (statement) => {
           steps.push(`truncate ${statement.split(',').length} tables`);
           return Promise.resolve();
@@ -206,6 +262,19 @@ describe('resetDemo', () => {
     await expect(resetDemo(ready, deps)).resolves.toEqual({ tables: 5, identitiesRemoved: 3 });
     expect(steps).toEqual(['list page 1', 'truncate 5 tables', 'remove user-1', 'remove user-2', 'remove user-3', 'seed']);
     expect(seededWith[0]).toMatchObject({ SEED_PROFILE: 'demo', SEED_DEMO_PASSWORD: DEMO_ACCOUNT_PASSWORD });
+  });
+
+  it('changes nothing when the Supabase project is not the database’s own', async () => {
+    // A key copied from another project: its users are not in this database's auth.users.
+    const { deps, steps } = harness({ authUserIds: ['demo-1', 'demo-2'] });
+    await expect(resetDemo(ready, deps)).rejects.toThrow(/3 are only in the project and 2 only in the database/);
+    expect(steps).toEqual(['list page 1']);
+  });
+
+  it('changes nothing when Supabase settings are given for a database without auth.users', async () => {
+    const { deps, steps } = harness({ authUserIds: null });
+    await expect(resetDemo(ready, deps)).rejects.toBeInstanceOf(DemoResetRefused);
+    expect(steps).toEqual(['list page 1']);
   });
 
   it('changes nothing when the target does not look like the demo database', async () => {

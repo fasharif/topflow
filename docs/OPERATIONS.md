@@ -183,14 +183,14 @@ The seed also creates `owner@alwaha.example`, the owner of a company waiting in 
 
 `.github/workflows/demo-reset.yml` runs at 23:00 UTC (03:00 in the UAE) and on demand. It applies migrations, then runs `npm run demo:reset -- --confirm` with `DEMO_MODE=true`. The script:
 
-1. refuses to start without `DEMO_MODE=true` and `--confirm`, with `NODE_ENV=production`, `SEED_PROFILE=production` or `SEED_CREDENTIALS_FILE`, or with only one of the two Supabase settings, and lists every problem at once;
+1. refuses to start without `DEMO_MODE=true` and `--confirm`, with `NODE_ENV=production`, `SEED_PROFILE=production` or `SEED_CREDENTIALS_FILE`, with only one of the two Supabase settings, or when `SUPABASE_URL` and `DATABASE_URL` name different Supabase projects (the project ref in each address), and lists every problem at once;
 2. refuses a database that holds accounts but not the demo data set (Desert Bloom Landscaping LLC, TRN 100234567800003) and changes nothing;
-3. lists the demo project's Supabase Auth users, which proves the credentials before any data is touched;
+3. lists the Supabase Auth users of `SUPABASE_URL` and refuses, changing nothing, unless they are exactly the rows of the target database's own `auth.users` table. This shows that the key works and that it belongs to the demo project: a key copied from production is refused before any sign-in is deleted;
 4. empties every table except `_prisma_migrations` in one transaction;
 5. deletes those Supabase Auth users, taking changed passwords, enrolled authenticators and visitors' own sign-ins with them;
 6. runs the demo seed with the published password, which creates the demo accounts and sample documents again.
 
-While the three GitHub settings are unset, the workflow skips itself with a notice, as the backup workflow does. With only some of them set, it fails. CI runs the same script against its PostgreSQL service before the end-to-end suites, so every pipeline exercises steps 1, 2, 4 and 6 for real; steps 3 and 5 are covered by unit tests with an in-memory Supabase directory (`packages/database/scripts/demo-reset.spec.ts`).
+While the three GitHub settings are unset, the workflow skips itself with a notice, as the backup workflow does. With only some of them set, it fails. CI runs the same script against its PostgreSQL service before the end-to-end suites, so every pipeline exercises steps 1, 2, 4 and 6 for real. Steps 3 and 5 are covered by unit tests with an in-memory Supabase directory (`packages/database/scripts/demo-reset.spec.ts`). On 26 September 2026 they were also run by hand against a stand-in for the Auth admin API backed by an `auth.users` table: two resets in a row replaced the 8 demo sign-ins, and a stand-in for an unrelated project was refused with no deletion. They have not yet run against a real Supabase project.
 
 ### What demo mode does not prevent
 

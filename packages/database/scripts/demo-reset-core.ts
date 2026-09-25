@@ -21,6 +21,39 @@ export interface ResetPlan {
 
 export type Preconditions = { ok: true; plan: ResetPlan } | { ok: false; problems: string[] };
 
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
+
+/**
+ * The Supabase project a SUPABASE_URL or DATABASE_URL belongs to: its project ref, `local` for a
+ * loopback address (the Supabase CLI stack), or null when the address does not say (for example a
+ * custom domain or a Docker host name).
+ *
+ * - `https://<ref>.supabase.co`
+ * - `postgresql://postgres:…@db.<ref>.supabase.co:5432/postgres` (direct connection)
+ * - `postgresql://postgres.<ref>:…@aws-1-<region>.pooler.supabase.com:5432/postgres` (Supavisor)
+ */
+export function supabaseProjectOf(address: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(address);
+  } catch {
+    return null;
+  }
+  const host = url.hostname.toLowerCase();
+  if (LOOPBACK_HOSTS.has(host)) return 'local';
+  const project = /^(?:db\.)?([a-z0-9]+)\.supabase\.(?:co|in)$/.exec(host);
+  if (project) return project[1] ?? null;
+  if (host.endsWith('.pooler.supabase.com')) {
+    const pooled = /^[^.]+\.([a-z0-9]+)$/.exec(decodeURIComponent(url.username).toLowerCase());
+    return pooled?.[1] ?? null;
+  }
+  return null;
+}
+
+function describeProject(project: string): string {
+  return project === 'local' ? 'a local Supabase stack' : `project ${project}`;
+}
+
 /**
  * Everything that must hold before the reset touches a database. All problems are reported at once,
  * so a misconfigured scheduled run explains itself in a single log.
@@ -62,6 +95,17 @@ export function checkPreconditions(env: NodeJS.ProcessEnv, args: readonly string
   if (identities && Boolean(supabaseUrl) !== Boolean(secretKey)) {
     problems.push('Set both SUPABASE_URL and SUPABASE_SECRET_KEY of the demo project, or neither (SEED_IDENTITIES=false skips sign-ins).');
   }
+  if (identities && supabaseUrl && secretKey && databaseUrl) {
+    // The reset deletes every sign-in of SUPABASE_URL's project, so it must be the database's own project.
+    const authProject = supabaseProjectOf(supabaseUrl);
+    const databaseProject = supabaseProjectOf(databaseUrl);
+    if (authProject && databaseProject && authProject !== databaseProject) {
+      problems.push(
+        `SUPABASE_URL belongs to ${describeProject(authProject)} but DATABASE_URL to ${describeProject(databaseProject)}. ` +
+          'The reset deletes every sign-in of the SUPABASE_URL project, so both must point to the demo project.',
+      );
+    }
+  }
 
   if (problems.length > 0 || !databaseUrl) return { ok: false, problems };
   return {
@@ -80,6 +124,11 @@ export interface TargetFacts {
   /** Rows in `public.users`. */
   users: number;
   hasDemoOrganization: boolean;
+  /**
+   * Ids in the database's own `auth.users` table, which every Supabase project's database has, or
+   * null when there is no such table (plain PostgreSQL, as in CI).
+   */
+  authUserIds: string[] | null;
 }
 
 /**
@@ -122,7 +171,7 @@ export interface IdentityDirectory {
 
 /**
  * Every sign-in of the demo project. All pages are read before the first deletion, because deleting
- * shifts the pages, and reading first proves the Supabase credentials before any table is emptied.
+ * shifts the pages, and reading first shows that the Supabase key works before any table is emptied.
  */
 export async function listAllIdentities(directory: IdentityDirectory, perPage = 1000): Promise<string[]> {
   const ids: string[] = [];
@@ -135,6 +184,32 @@ export async function listAllIdentities(directory: IdentityDirectory, perPage = 
     if (batch.length < perPage) break;
   }
   return ids;
+}
+
+/**
+ * Proof that SUPABASE_URL and DATABASE_URL are the same Supabase project, before any sign-in is
+ * deleted: the users that the Auth admin API lists must be exactly the rows of the database's own
+ * `auth.users` table. Two projects never share user ids, so a key copied from another project (the
+ * production one, say) is refused even when both addresses look right.
+ */
+export function compareIdentities(listed: readonly string[], inDatabase: readonly string[] | null): string | null {
+  if (inDatabase === null) {
+    return (
+      'SUPABASE_URL and SUPABASE_SECRET_KEY are set, but the database at DATABASE_URL has no auth.users table, so the reset ' +
+      'cannot prove that they belong to the same Supabase project. Point DATABASE_URL at the demo project’s own database, or ' +
+      'unset the Supabase settings (or set SEED_IDENTITIES=false) to reset the data only. Nothing was changed.'
+    );
+  }
+  const database = new Set(inDatabase);
+  const directory = new Set(listed);
+  const onlyInDirectory = listed.filter((id) => !database.has(id)).length;
+  const onlyInDatabase = inDatabase.filter((id) => !directory.has(id)).length;
+  if (onlyInDirectory === 0 && onlyInDatabase === 0) return null;
+  return (
+    `The Supabase project at SUPABASE_URL lists ${listed.length} sign-in(s) and the database's auth.users holds ${inDatabase.length}; ` +
+    `${onlyInDirectory} are only in the project and ${onlyInDatabase} only in the database. SUPABASE_URL and DATABASE_URL ` +
+    'must be the same Supabase project, because the reset deletes every sign-in of that project. Nothing was changed.'
+  );
 }
 
 /** Seed settings the demo never uses: the published accounts, their shared password and all documents. */
@@ -194,9 +269,10 @@ export interface ResetSummary {
 
 /**
  * 1. Refuse a database that holds accounts but not the demo data set. 2. List the demo project's sign-ins
- * (read-only). 3. Empty every application table in one transaction. 4. Remove those sign-ins: changed
- * passwords, enrolled authenticators and visitors' own accounts go with them. 5. Run the demo seed,
- * which creates the published accounts again.
+ * (read-only) and refuse unless they are exactly the database's own auth.users. 3. Empty every
+ * application table in one transaction. 4. Remove those sign-ins: changed passwords, enrolled
+ * authenticators and visitors' own accounts go with them. 5. Run the demo seed, which creates the
+ * published accounts again.
  */
 export async function resetDemo(env: NodeJS.ProcessEnv, deps: ResetDependencies): Promise<ResetSummary> {
   const facts = await deps.database.facts();
@@ -204,6 +280,10 @@ export async function resetDemo(env: NodeJS.ProcessEnv, deps: ResetDependencies)
   if (problem) throw new DemoResetRefused(problem);
   const statement = truncateStatement(facts.tables);
   const identityIds = deps.identities ? await listAllIdentities(deps.identities) : [];
+  if (deps.identities) {
+    const mismatch = compareIdentities(identityIds, facts.authUserIds);
+    if (mismatch) throw new DemoResetRefused(mismatch);
+  }
 
   await deps.database.truncate(statement);
   const tables = facts.tables.filter((table) => table !== MIGRATIONS_TABLE).length;
