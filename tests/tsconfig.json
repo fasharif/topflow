@@ -12,5 +12,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["*.ts", "e2e/**/*.ts", "screenshots/**/*.ts", "support/**/*.ts"]
+  "include": ["*.ts", "e2e/**/*.ts", "screenshots/**/*.ts", "scripts/**/*.mts", "support/**/*.ts"]
 }

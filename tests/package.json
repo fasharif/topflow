@@ -7,9 +7,10 @@
   "scripts": {
     "e2e": "playwright test",
     "e2e:report": "playwright show-report reports/playwright",
+    "load": "bash load/run-k6.sh",
     "lint": "eslint . && prettier --check .",
-    "check-types": "tsc --noEmit -p tsconfig.json",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "check-types": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p load/tsconfig.json"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",
