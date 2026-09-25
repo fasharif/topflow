@@ -27,9 +27,9 @@ const mailAllowListEntry = z
   )
   .transform((entry) => entry.toLowerCase());
 
-/** Rate limits a public demo may not exceed: the production defaults. */
-export const DEMO_MAX_THROTTLE_LIMIT = 300;
-export const DEMO_MAX_AUTH_THROTTLE_LIMIT = 10;
+/** Default per-client rate limits per minute. A public demo may lower them, never raise them. */
+export const DEFAULT_THROTTLE_LIMIT = 300;
+export const DEFAULT_AUTH_THROTTLE_LIMIT = 10;
 
 export const envSchema = z
   .object({
@@ -65,12 +65,12 @@ export const envSchema = z
       .number()
       .int()
       .min(1)
-      .default(DEMO_MAX_THROTTLE_LIMIT),
+      .default(DEFAULT_THROTTLE_LIMIT),
     AUTH_THROTTLE_LIMIT: z.coerce
       .number()
       .int()
       .min(1)
-      .default(DEMO_MAX_AUTH_THROTTLE_LIMIT),
+      .default(DEFAULT_AUTH_THROTTLE_LIMIT),
 
     /**
      * Public portfolio demo (ADR-021): business email reaches only allow-listed addresses, Supabase
@@ -104,18 +104,18 @@ export const envSchema = z
             'must be false in demo mode: the published staff accounts are shared, so no visitor can hold their authenticator app',
         });
       }
-      if (env.THROTTLE_LIMIT > DEMO_MAX_THROTTLE_LIMIT) {
+      if (env.THROTTLE_LIMIT > DEFAULT_THROTTLE_LIMIT) {
         ctx.addIssue({
           code: 'custom',
           path: ['THROTTLE_LIMIT'],
-          message: `must not exceed ${DEMO_MAX_THROTTLE_LIMIT} in demo mode: rate limits stay on for the public demo`,
+          message: `must not exceed ${DEFAULT_THROTTLE_LIMIT} in demo mode: rate limits stay on for the public demo`,
         });
       }
-      if (env.AUTH_THROTTLE_LIMIT > DEMO_MAX_AUTH_THROTTLE_LIMIT) {
+      if (env.AUTH_THROTTLE_LIMIT > DEFAULT_AUTH_THROTTLE_LIMIT) {
         ctx.addIssue({
           code: 'custom',
           path: ['AUTH_THROTTLE_LIMIT'],
-          message: `must not exceed ${DEMO_MAX_AUTH_THROTTLE_LIMIT} in demo mode: rate limits stay on for the public demo`,
+          message: `must not exceed ${DEFAULT_AUTH_THROTTLE_LIMIT} in demo mode: rate limits stay on for the public demo`,
         });
       }
     }
