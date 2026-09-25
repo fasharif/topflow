@@ -8,6 +8,8 @@ import type { BffClient } from './bff';
 export const SEEDED = {
   /** Desert Bloom quotation awaiting the buyer's decision. */
   openQuotation: 'TF-QT-2026-D00001',
+  /** Desert Bloom quotation the buyer accepted above their limit, waiting for an approver. */
+  pendingApprovalQuotation: 'TF-QT-2026-D00002',
   /** Sara Ahmed's delivered retail order. */
   deliveredRetailOrder: 'TF-SO-2026-D00002',
   /** Desert Bloom sales order being picked. */

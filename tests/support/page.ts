@@ -2,11 +2,11 @@ import { expect, type Page } from '@playwright/test';
 
 /**
  * Waits until a client-rendered page has loaded its data: no pending requests and no loading
- * indicator (LoadingBlock renders role="status" with "Loading…").
+ * indicator (LoadingBlock renders role="status" with "Loading…", "Checking your access…" and similar).
  */
 export async function settle(page: Page): Promise<void> {
   await page.waitForLoadState('networkidle');
-  await expect(page.getByRole('status').filter({ hasText: /Loading|Looking up/ })).toHaveCount(0);
+  await expect(page.getByRole('status').filter({ hasText: /Loading|Looking up|Checking your access/ })).toHaveCount(0);
 }
 
 /** Opens a page and waits for its data, failing on a server error page. */
