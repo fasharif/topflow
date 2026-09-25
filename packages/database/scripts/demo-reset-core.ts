@@ -3,12 +3,9 @@
  * check is unit-tested. The reset empties every table of the public demo's database, removes the
  * demo project's Supabase Auth users and loads the demo data set again (ADR-021).
  */
-import { DEMO_ACCOUNT_PASSWORD, parseDemoModeFlag } from '@topflow/shared';
+import { DEMO_ACCOUNT_PASSWORD, DEMO_ORGANIZATION, parseDemoModeFlag } from '@topflow/shared';
 
 export const CONFIRM_FLAG = '--confirm';
-
-/** Desert Bloom Landscaping LLC: a fictional organization that only the demo seed creates. */
-export const DEMO_ORGANIZATION_TRN = '100234567800003';
 
 /** Prisma's migration history: the reset keeps it so the schema stays deployed. */
 const MIGRATIONS_TABLE = '_prisma_migrations';
@@ -96,7 +93,7 @@ export function assessTarget(facts: TargetFacts): string | null {
   if (facts.users > 0 && !facts.hasDemoOrganization) {
     return (
       `The database holds ${facts.users} account(s) but not the demo data set ` +
-      `(Desert Bloom Landscaping LLC, TRN ${DEMO_ORGANIZATION_TRN}), so it does not look like the demo database. Nothing was changed.`
+      `(${DEMO_ORGANIZATION.name}, TRN ${DEMO_ORGANIZATION.trn}), so it does not look like the demo database. Nothing was changed.`
     );
   }
   return null;

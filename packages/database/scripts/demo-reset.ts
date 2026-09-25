@@ -13,8 +13,8 @@ import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
 import { Client } from 'pg';
+import { DEMO_ORGANIZATION } from '@topflow/shared';
 import {
-  DEMO_ORGANIZATION_TRN,
   DemoResetRefused,
   checkPreconditions,
   describeDatabase,
@@ -36,7 +36,7 @@ function postgres(client: Client): DemoDatabase {
         return { tables, users: 0, hasDemoOrganization: false };
       }
       const users = await client.query<{ count: string }>('SELECT count(*)::text AS count FROM public.users');
-      const demo = await client.query('SELECT 1 FROM public.organizations WHERE trn = $1', [DEMO_ORGANIZATION_TRN]);
+      const demo = await client.query('SELECT 1 FROM public.organizations WHERE trn = $1', [DEMO_ORGANIZATION.trn]);
       return { tables, users: Number(users.rows[0]?.count ?? 0), hasDemoOrganization: (demo.rowCount ?? 0) > 0 };
     },
     async truncate(statement) {

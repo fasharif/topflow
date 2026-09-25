@@ -1,4 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
+import { DEMO_ORGANIZATION } from '@topflow/shared';
 import { loadConfig } from '../config/env';
 import { DemoPolicy } from './demo-policy';
 
@@ -32,6 +33,9 @@ describe('DemoPolicy', () => {
     expect(() =>
       rules.assertMayChangeAccount('admin@topflow.example'),
     ).not.toThrow();
+    expect(() =>
+      rules.assertMayChangeOrganization(DEMO_ORGANIZATION.trn, 'review'),
+    ).not.toThrow();
   });
 
   describe('in demo mode', () => {
@@ -58,6 +62,22 @@ describe('DemoPolicy', () => {
       expect(() =>
         rules.assertMayChangeAccount('someone.else@e2e.topflow.test'),
       ).not.toThrow();
+    });
+
+    it('keeps the demo organisation’s KYC status, terms and identifiers', () => {
+      for (const change of ['review', 'identifiers'] as const) {
+        expect(
+          refusal(() =>
+            rules.assertMayChangeOrganization(DEMO_ORGANIZATION.trn, change),
+          ),
+        ).toEqual({ status: 403, code: 'DEMO_RESTRICTED' });
+        expect(() =>
+          rules.assertMayChangeOrganization('100998877600003', change),
+        ).not.toThrow();
+        expect(() =>
+          rules.assertMayChangeOrganization(null, change),
+        ).not.toThrow();
+      }
     });
   });
 });

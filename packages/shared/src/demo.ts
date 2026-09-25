@@ -24,7 +24,7 @@ export interface DemoAccount {
  * Accounts created by the demo seed (`npm run db:seed`) and published in the README and on the demo's
  * sign-in page. They use reserved example domains (RFC 2606 and RFC 6761), so a published password can
  * never be mistaken for the password of a real mailbox. In demo mode the API keeps them usable for
- * every visitor: their role cannot be changed and they cannot be suspended.
+ * every visitor: their platform role, organisation membership and access cannot be changed.
  */
 export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
   { email: 'customer@example.com', label: 'Retail customer', tryThis: 'Checkout and order tracking' },
@@ -35,6 +35,13 @@ export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
   { email: 'warehouse@topflow.example', label: 'Top Flow warehouse', tryThis: 'Fulfilment and stock' },
   { email: 'admin@topflow.example', label: 'Administrator', tryThis: 'Everything, including users and the audit trail' },
 ];
+
+/**
+ * The fictional trade customer that the published buyer, approver and owner belong to. Only the demo
+ * seed creates it, so `npm run demo:reset` recognises the demo database by its TRN, and in demo mode
+ * the API keeps its KYC status, trading terms and legal identifiers fixed.
+ */
+export const DEMO_ORGANIZATION = { name: 'Desert Bloom Landscaping LLC', trn: '100234567800003' } as const;
 
 /** True when the address belongs to one of the published demo accounts (case-insensitive). */
 export function isDemoAccount(email: string): boolean {

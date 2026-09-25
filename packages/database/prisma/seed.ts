@@ -31,6 +31,7 @@ import { join, resolve, sep } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
 import {
   DEMO_ACCOUNT_PASSWORD,
+  DEMO_ORGANIZATION,
   bpsToPercent,
   calculateTotals,
   fromFils,
@@ -342,15 +343,15 @@ async function seedDemoAccounts() {
   }
 
   const organization = await prisma.organization.upsert({
-    where: { trn: '100234567800003' },
+    where: { trn: DEMO_ORGANIZATION.trn },
     update: {},
     create: {
-      name: 'Desert Bloom Landscaping LLC',
+      name: DEMO_ORGANIZATION.name,
       legalName: 'Desert Bloom Landscaping L.L.C.',
       type: OrgType.LANDSCAPING,
       status: OrgStatus.ACTIVE,
       tradeLicenseNumber: 'DED-778812',
-      trn: '100234567800003',
+      trn: DEMO_ORGANIZATION.trn,
       email: 'procurement@desertbloom.example',
       phoneNumber: '+971 4 388 2200',
       paymentTerms: PaymentTerms.NET_30,

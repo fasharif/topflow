@@ -2,7 +2,10 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import {
   DEMO_ACCOUNTS,
+  DEMO_ORGANIZATION,
   type AuthUser,
+  type MemberDto,
+  type OrganizationDto,
   type Paginated,
   type ProductDto,
   type RfqDto,
@@ -160,6 +163,12 @@ describe('Public demo mode (e2e)', () => {
       DEMO_ACCOUNTS.map((account) => account.email).sort(),
     );
     expect(seeded.every((user) => user.isActive)).toBe(true);
+    expect(
+      await prisma.organization.findUnique({
+        where: { trn: DEMO_ORGANIZATION.trn },
+        select: { name: true, status: true },
+      }),
+    ).toEqual({ name: DEMO_ORGANIZATION.name, status: 'ACTIVE' });
   });
 
   it('withholds business email from visitors and from Top Flow', async () => {
@@ -288,6 +297,145 @@ describe('Public demo mode (e2e)', () => {
       .send({ isActive: false })
       .expect(200);
     expect(identities.suspended.has(other.user.id)).toBe(true);
+  });
+
+  it('keeps the demo organisation and its published members fixed', async () => {
+    const owner = await sessionFor('owner@desertbloom.example');
+    const organizationId = owner.user.memberships[0].organizationId;
+    const tenant = { 'x-organization-id': organizationId };
+    const members = (
+      await http()
+        .get('/org/members')
+        .set(bearer(owner))
+        .set(tenant)
+        .expect(200)
+    ).body as MemberDto[];
+    const memberFor = (email: string) => {
+      const found = members.find((member) => member.email === email);
+      if (!found) throw new Error(`${email} is not a member`);
+      return found;
+    };
+    const approver = memberFor('approver@desertbloom.example');
+    const buyer = memberFor('buyer@desertbloom.example');
+
+    const sales = await sessionFor('sales@topflow.example');
+    const refusals = [
+      // The owner cannot demote, re-limit or remove the published buyer and approver...
+      () =>
+        http()
+          .patch(`/org/members/${approver.id}`)
+          .set(bearer(owner))
+          .set(tenant)
+          .send({ role: 'BUYER' }),
+      () =>
+        http()
+          .patch(`/org/members/${approver.id}`)
+          .set(bearer(owner))
+          .set(tenant)
+          .send({ approvalLimit: '0.00' }),
+      () =>
+        http()
+          .delete(`/org/members/${buyer.id}`)
+          .set(bearer(owner))
+          .set(tenant),
+      // ...or change the TRN, which would send the company back to KYC review.
+      () =>
+        http()
+          .patch('/org')
+          .set(bearer(owner))
+          .set(tenant)
+          .send({ trn: '100111222300003' }),
+      // Staff cannot suspend Desert Bloom or cut its credit.
+      () =>
+        http()
+          .patch(`/admin/organizations/${organizationId}/review`)
+          .set(bearer(sales))
+          .send({ status: 'SUSPENDED' }),
+      () =>
+        http()
+          .patch(`/admin/organizations/${organizationId}/review`)
+          .set(bearer(sales))
+          .send({ creditLimit: '0.00' }),
+    ];
+    for (const attempt of refusals) {
+      const response = await attempt().expect(403);
+      expect(response.body.code).toBe('DEMO_RESTRICTED');
+    }
+
+    const organization = await prisma.organization.findUniqueOrThrow({
+      where: { id: organizationId },
+    });
+    expect(organization).toMatchObject({
+      trn: DEMO_ORGANIZATION.trn,
+      status: 'ACTIVE',
+    });
+    expect(organization.creditLimit?.toString()).toBe('250000');
+    const after = await prisma.organizationMember.findMany({
+      where: { id: { in: [approver.id, buyer.id] } },
+    });
+    expect(after.map((member) => [member.id, member.role]).sort()).toEqual(
+      [
+        [approver.id, 'APPROVER'],
+        [buyer.id, 'BUYER'],
+      ].sort(),
+    );
+    expect(
+      after
+        .find((member) => member.id === approver.id)
+        ?.approvalLimit?.toString(),
+    ).toBe('50000');
+  });
+
+  it('still lets owners manage other members and staff review other organisations', async () => {
+    const owner = await sessionFor('owner@desertbloom.example');
+    const organizationId = owner.user.memberships[0].organizationId;
+    const tenant = { 'x-organization-id': organizationId };
+    const colleague = await sessionWith({
+      id: randomUUID(),
+      email: unique('colleague'),
+      userMetadata: { full_name: 'Demo Colleague' },
+    });
+    const member = await prisma.organizationMember.create({
+      data: { organizationId, userId: colleague.user.id, role: 'BUYER' },
+    });
+    await http()
+      .patch(`/org/members/${member.id}`)
+      .set(bearer(owner))
+      .set(tenant)
+      .send({ approvalLimit: '1000.00' })
+      .expect(200);
+    await http()
+      .delete(`/org/members/${member.id}`)
+      .set(bearer(owner))
+      .set(tenant)
+      .expect(204);
+
+    const applicant = await sessionWith({
+      id: randomUUID(),
+      email: unique('applicant'),
+      userMetadata: { full_name: 'Demo Applicant' },
+    });
+    const applied = (
+      await http()
+        .post('/me/organizations')
+        .set(bearer(applicant))
+        .send({
+          name: 'Demo Review Landscaping',
+          type: 'LANDSCAPING',
+          tradeLicenseNumber: `DED-DEMO-${Date.now()}`,
+        })
+        .expect(201)
+    ).body as AuthUser;
+    const reviewed = (
+      await http()
+        .patch(
+          `/admin/organizations/${applied.memberships[0].organizationId}/review`,
+        )
+        .set(bearer(await sessionFor('sales@topflow.example')))
+        .send({ status: 'ACTIVE' })
+        .expect(200)
+    ).body as OrganizationDto;
+    expect(reviewed.status).toBe('ACTIVE');
   });
 
   it('keeps rate limits on for public forms', async () => {
