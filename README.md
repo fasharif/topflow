@@ -3,12 +3,21 @@
 A monorepo with a storefront, a trade portal, a back office, an API and a mobile app for a UAE irrigation supplier, covering quotations, purchase approvals and credit terms as well as retail orders.
 
 [![CI](https://github.com/fasharif/topflow/actions/workflows/ci.yml/badge.svg)](https://github.com/fasharif/topflow/actions/workflows/ci.yml)
+[![System tests](https://github.com/fasharif/topflow/actions/workflows/system-tests.yml/badge.svg)](https://github.com/fasharif/topflow/actions/workflows/system-tests.yml)
 
 > **Portfolio project.** Built independently by Farah Sharif, with Top Flow's permission to use its name and product catalogue. This is not Top Flow's official online store, and nothing is hosted yet.
 
 ![The sign-in page of a demo build: the portfolio demo banner across the top and the list of published demo accounts under the form.](docs/images/demo-sign-in.png)
 
 *The sign-in page of a local demo build (`NEXT_PUBLIC_DEMO_MODE=true`), captured with headless Chromium on 26 September 2026. It is not a hosted site.*
+
+![A retail customer searches for a pop-up rotor, adds four to the basket and places the order, paying on delivery](docs/screenshots/walkthrough.gif)
+
+| Storefront | Trade purchase waiting for approval | Warehouse fulfilment |
+| --- | --- | --- |
+| ![Storefront home page with catalogue categories](docs/screenshots/storefront.png) | ![A quotation above the buyer's limit, waiting for the approver](docs/screenshots/trade-approval.png) | ![A trade order being picked, with the dispatch action](docs/screenshots/fulfilment.png) |
+
+Also: a [product page](docs/screenshots/product.png) with its approximate price range and the [KYC review](docs/screenshots/kyc-review.png) of a new trade account. The screenshots and the GIF are captured from the demo data with `npm run screenshots` and `npm run walkthrough:gif` in the [system-test workspace](tests/README.md).
 
 ## The problem
 
@@ -95,6 +104,7 @@ The browser never holds a token: the web app's server keeps the Supabase session
 | Mobile | Expo SDK 57, Expo Router, SecureStore | One React Native codebase for Android and iOS that reuses the shared package. |
 | Hosting (planned) | Serverless functions for web and API, Supabase for data | Supabase's free plan allows business use; for web and API only officially free options qualify, so the choice is deferred (ADR-019). |
 | Tooling | npm workspaces, Turborepo, ESLint, Prettier, Jest, Supertest, `node:test`, GitHub Actions, release-please | Builds in dependency order with caching, and one CI workflow for every workspace. |
+| Testing beyond unit tests | Playwright and axe-core (browser journeys, accessibility), k6 (load), Schemathesis (API contract), run from pinned containers where possible | Tests the running stack as users and clients meet it; the containers need only Docker (ADR-022). |
 
 ## Quick start
 
@@ -154,12 +164,17 @@ npm test                                # unit tests of every workspace
 npm run test:e2e -w @topflow/api        # end-to-end suites against a real database (DATABASE_URL)
 npm run test:scripts                    # the local setup script
 npm run build -w web && npm run test:demo -w web   # a build made with NEXT_PUBLIC_DEMO_MODE=true
+npm run e2e -w @topflow/system-tests    # browser journeys and axe scans against the running stack
 ```
 
 - **Unit tests** cover money/VAT maths, workflow state machines, the permission matrix, request schemas, Supabase token verification, guards, error mapping and configuration. For the demo they cover the mail guard, the demo policy, the demo settings, the safety checks of `npm run demo:reset` (including the check that the Supabase project and the database belong together) and every authentication Server Action of the web app in and out of demo mode.
 - **End-to-end tests** boot the real application (the production middleware stack) against PostgreSQL. They simulate Supabase Auth with locally signed tokens and exercise account provisioning, token rejection, staff MFA, staff invitations and suspension, team invitations, RBAC, tenant isolation, the full RFQ → quotation → approval → order flow, website quote requests and retail fulfilment. A test also asserts that every table has Row Level Security enabled. A second suite boots the API in demo mode and checks that visitors and Top Flow's inbox receive no email, that staff and customer invitations are refused while team invitations are kept without their email, that the demo accounts and the demo company cannot be changed while other accounts and companies can, and that rate limits still apply.
+- **Decision tables.** Purchase approval and release on credit terms are tested at their boundaries in unit tables (`approval.spec.ts`, `order-writer.service.spec.ts`) and over HTTP on new organisations (`decision-tables.e2e-spec.ts`); another end-to-end test checks the published OpenAPI description.
+- **System tests** ([tests/](tests/README.md)) run against the whole stack as the demo users: retail checkout, RFQ → approval above the buyer's limit → order, and a new company's sign-up, verification, fulfilment and stock deduction; tenant isolation, the warehouse role's limits and tampered prices; and axe-core scans of 35 pages at desktop and phone size, failing on serious or critical WCAG 2.2 A/AA issues.
+- **Load and contract tests**: k6 with p95 thresholds per endpoint (a smoke run in CI; measured results are [pending a quiet-machine run](docs/testing/PERFORMANCE.md)), and Schemathesis against the API's OpenAPI description with triaged findings in a baseline.
+- **Test plan and findings**: scope, risks, environments, exit criteria, decision tables and traceability are in [docs/testing/TEST-PLAN.md](docs/testing/TEST-PLAN.md); defects found are in [docs/testing/BUGS-FOUND.md](docs/testing/BUGS-FOUND.md).
 - **Demo build check.** `npm run test:demo -w web` starts the production build and checks over HTTP that a demo build shows the banner and noindex on its pages, disallows everything in `robots.txt` and shows the sign-up and reset notices; with `-- --off` it checks that an ordinary build shows none of them.
-- **CI** (`.github/workflows/ci.yml`) runs lint, type checks, unit tests and builds for every workspace, the demo build check on both web builds, and the end-to-end suites against a PostgreSQL service container after running the real demo reset on it.
+- **CI** (`.github/workflows/ci.yml`) runs lint, type checks, unit tests and builds for every workspace, the demo build check on both web builds, and the end-to-end suites against a PostgreSQL service container after running the real demo reset on it, and reports the API's coverage for both suites in the job summary. `system-tests.yml` starts the stack with the Supabase CLI and runs the system tests on pull requests and `develop`; `test-report-pages.yml` publishes the Playwright report to GitHub Pages once Pages is enabled for the repository.
 
 ## Folder structure
 
@@ -173,12 +188,13 @@ packages/
   database/   @topflow/database — Prisma schema, migrations, seed, demo reset, generated client
 scripts/      npm run setup for a local checkout
 supabase/     Supabase configuration: auth policy, branded email templates, storage buckets
-docs/         Architecture, decisions, operations runbook, academic evolution
+tests/        System tests: Playwright journeys with axe scans, k6 load tests, Schemathesis (tests/README.md)
+docs/         Architecture, decisions, operations runbook, test plan and bug log, academic evolution
 ```
 
 ## Design decisions
 
-The reasoning behind the main choices is recorded as short decision records in [docs/DECISIONS.md](docs/DECISIONS.md): among them the modular monolith (ADR-001), shared contracts (ADR-002), integer money and per-line VAT (ADR-006), immutable quotation revisions (ADR-007), Supabase Auth with authorisation kept in the API (ADR-012), httpOnly sessions behind a backend-for-frontend (ADR-013), deferred hosting (ADR-019) and the public demo mode (ADR-021).
+The reasoning behind the main choices is recorded as short decision records in [docs/DECISIONS.md](docs/DECISIONS.md): among them the modular monolith (ADR-001), shared contracts (ADR-002), integer money and per-line VAT (ADR-006), immutable quotation revisions (ADR-007), Supabase Auth with authorisation kept in the API (ADR-012), httpOnly sessions behind a backend-for-frontend (ADR-013), deferred hosting (ADR-019), the public demo mode (ADR-021) and the testing strategy (ADR-022).
 
 The original coursework was a Kotlin/Firebase Android app for a bicycle shop. [docs/ACADEMIC-EVOLUTION.md](docs/ACADEMIC-EVOLUTION.md) maps each prototype feature — and each of its engineering shortcuts, such as a hard-coded `admin/admin` login, card numbers typed into the app and totals computed on the device — to the production design used here.
 
