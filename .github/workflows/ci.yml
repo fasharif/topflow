@@ -45,10 +45,11 @@ jobs:
           npm test -w @topflow/api
           npm run build -w @topflow/api
 
-      - name: Web — lint, typecheck and production build
+      - name: Web — lint, typecheck, unit tests and production build
         run: |
           npm run lint -w web
           npm run check-types -w web
+          npm test -w web
           npm run build -w web
         env:
           API_INTERNAL_URL: http://localhost:3000
@@ -101,3 +102,77 @@ jobs:
       # Supabase Auth is simulated inside the suite (locally signed test tokens), so no network is needed.
       - name: Run end-to-end suite
         run: npm run test:e2e -w @topflow/api
+
+  infra-scripts:
+    name: Infrastructure scripts and workflows
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      # Only TypeScript is needed to type-check the scripts; they have no dependencies.
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Type-check and test the Node scripts (Compose environment, smoke test)
+        run: |
+          npx tsc -p infra/tsconfig.json
+          node --test "infra/**/*.test.mts"
+
+      - name: ShellCheck
+        run: shellcheck infra/scripts/*.sh infra/scripts/tests/*.sh infra/scripts/tests/fake-aws infra/compose/initdb/*.sh apps/api/docker/*.sh
+
+      - name: Deploy script against a fake AWS CLI
+        run: infra/scripts/tests/deploy-ecs.test.sh
+
+      - name: Lint the workflows (actionlint)
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 -color
+
+  restore-drill:
+    name: Backup restore drill (synthetic backup, throwaway key)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: topflow_drill
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/topflow_drill
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Migrated and seeded source database
+        run: |
+          npx turbo run build --filter=@topflow/shared --filter=@topflow/database
+          npm run db:deploy
+          npm run db:seed
+
+      - name: Install age
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq age
+
+      # Backs the database up in the nightly format, encrypts it to a key generated for this run,
+      # then restores it into a disposable container and checks every row count and the timing
+      # report; a wrong key, a damaged file and a missing table must fail.
+      - name: Restore drill
+        run: infra/scripts/tests/restore-drill.test.sh --container "${{ job.services.postgres.id }}" --database topflow_drill --image postgres:17
