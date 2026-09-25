@@ -30,9 +30,9 @@
     "release": "node apps/api/dist/preflight.js && npm run db:deploy"
   },
   "devDependencies": {
-    "prettier": "^3.7.4",
+    "prettier": "^3.9.8",
     "supabase": "^2.117.0",
-    "turbo": "^2.10.11",
+    "turbo": "^2.11.2",
     "typescript": "~6.0.3"
   },
   "engines": {

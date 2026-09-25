@@ -29,16 +29,16 @@
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
-    "@prisma/client": "^7.9.1",
+    "@prisma/client": "^7.10.0",
     "dotenv": "^16.0.3",
     "pg": "^8.23.0",
-    "prisma": "^7.9.1"
+    "prisma": "^7.10.0"
   },
   "devDependencies": {
-    "@supabase/supabase-js": "^2.116.0",
+    "@supabase/supabase-js": "^2.117.0",
     "@topflow/shared": "*",
     "@types/node": "^22.20.2",
     "@types/pg": "^8.23.1",
-    "tsx": "^4.23.13"
+    "tsx": "^4.23.15"
   }
 }
