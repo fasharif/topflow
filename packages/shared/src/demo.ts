@@ -22,17 +22,18 @@ export interface DemoAccount {
 
 /**
  * Accounts created by the demo seed (`npm run db:seed`) and published in the README and on the demo's
- * sign-in page. In demo mode the API keeps them usable for every visitor: their role cannot be changed
- * and they cannot be suspended.
+ * sign-in page. They use reserved example domains (RFC 2606 and RFC 6761), so a published password can
+ * never be mistaken for the password of a real mailbox. In demo mode the API keeps them usable for
+ * every visitor: their role cannot be changed and they cannot be suspended.
  */
 export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
   { email: 'customer@example.com', label: 'Retail customer', tryThis: 'Checkout and order tracking' },
-  { email: 'buyer@desertbloom.ae', label: 'Trade buyer (AED 5,000 limit)', tryThis: 'RFQs and accepting quotations' },
-  { email: 'approver@desertbloom.ae', label: 'Trade approver (AED 50,000 limit)', tryThis: "Approving purchases above the buyer's limit" },
-  { email: 'owner@desertbloom.ae', label: 'Trade owner', tryThis: 'Team invitations, delivery sites and the company profile' },
-  { email: 'sales@topflow.ae', label: 'Top Flow sales', tryThis: 'KYC, RFQ triage and the quotation builder' },
-  { email: 'warehouse@topflow.ae', label: 'Top Flow warehouse', tryThis: 'Fulfilment and stock' },
-  { email: 'admin@topflow.ae', label: 'Administrator', tryThis: 'Everything, including users and the audit trail' },
+  { email: 'buyer@desertbloom.example', label: 'Trade buyer (AED 5,000 limit)', tryThis: 'RFQs and accepting quotations' },
+  { email: 'approver@desertbloom.example', label: 'Trade approver (AED 50,000 limit)', tryThis: "Approving purchases above the buyer's limit" },
+  { email: 'owner@desertbloom.example', label: 'Trade owner', tryThis: 'Team invitations, delivery sites and the company profile' },
+  { email: 'sales@topflow.example', label: 'Top Flow sales', tryThis: 'KYC, RFQ triage and the quotation builder' },
+  { email: 'warehouse@topflow.example', label: 'Top Flow warehouse', tryThis: 'Fulfilment and stock' },
+  { email: 'admin@topflow.example', label: 'Administrator', tryThis: 'Everything, including users and the audit trail' },
 ];
 
 /** True when the address belongs to one of the published demo accounts (case-insensitive). */

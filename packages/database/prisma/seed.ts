@@ -79,10 +79,13 @@ const DAY = 86_400_000;
 const daysAgo = (days: number) => new Date(Date.now() - days * DAY);
 
 const accountEmail = (variable: string, fallback: string) => (process.env[variable]?.trim() || fallback).toLowerCase();
+// Demo accounts use reserved example domains (RFC 2606), so their published password never looks like
+// the password of a real mailbox. A production run creates Top Flow's own staff addresses.
+const STAFF_DOMAIN = PROFILE === 'production' ? 'topflow.ae' : 'topflow.example';
 const ACCOUNT_EMAILS = {
-  admin: accountEmail('SEED_ADMIN_EMAIL', 'admin@topflow.ae'),
-  sales: accountEmail('SEED_SALES_EMAIL', 'sales@topflow.ae'),
-  warehouse: accountEmail('SEED_WAREHOUSE_EMAIL', 'warehouse@topflow.ae'),
+  admin: accountEmail('SEED_ADMIN_EMAIL', `admin@${STAFF_DOMAIN}`),
+  sales: accountEmail('SEED_SALES_EMAIL', `sales@${STAFF_DOMAIN}`),
+  warehouse: accountEmail('SEED_WAREHOUSE_EMAIL', `warehouse@${STAFF_DOMAIN}`),
   customer: accountEmail('SEED_CUSTOMER_EMAIL', 'customer@example.com'),
 };
 
@@ -348,7 +351,7 @@ async function seedDemoAccounts() {
       status: OrgStatus.ACTIVE,
       tradeLicenseNumber: 'DED-778812',
       trn: '100234567800003',
-      email: 'procurement@desertbloom.ae',
+      email: 'procurement@desertbloom.example',
       phoneNumber: '+971 4 388 2200',
       paymentTerms: PaymentTerms.NET_30,
       creditLimit: '250000.00',
@@ -358,9 +361,9 @@ async function seedDemoAccounts() {
   });
 
   const team: Array<[string, string, OrgRole, string | null]> = [
-    ['owner@desertbloom.ae', 'Khalid Al Mansoori', OrgRole.OWNER, null],
-    ['approver@desertbloom.ae', 'Fatima Noor', OrgRole.APPROVER, '50000.00'],
-    ['buyer@desertbloom.ae', 'Joseph Mathew', OrgRole.BUYER, '5000.00'],
+    ['owner@desertbloom.example', 'Khalid Al Mansoori', OrgRole.OWNER, null],
+    ['approver@desertbloom.example', 'Fatima Noor', OrgRole.APPROVER, '50000.00'],
+    ['buyer@desertbloom.example', 'Joseph Mathew', OrgRole.BUYER, '5000.00'],
   ];
   for (const [email, fullName, role, approvalLimit] of team) {
     const user = await upsertUser(email, fullName, Role.CUSTOMER, '+971 55 700 1000');
@@ -381,9 +384,9 @@ async function seedDemoAccounts() {
   const pending = await prisma.organization.upsert({
     where: { trn: '100998877600003' },
     update: {},
-    create: { name: 'Al Waha Facility Management LLC', type: OrgType.FACILITY_MANAGEMENT, status: OrgStatus.PENDING_VERIFICATION, tradeLicenseNumber: 'DED-910221', trn: '100998877600003', email: 'procurement@alwaha.ae', phoneNumber: '+971 2 644 1100' },
+    create: { name: 'Al Waha Facility Management LLC', type: OrgType.FACILITY_MANAGEMENT, status: OrgStatus.PENDING_VERIFICATION, tradeLicenseNumber: 'DED-910221', trn: '100998877600003', email: 'procurement@alwaha.example', phoneNumber: '+971 2 644 1100' },
   });
-  const pendingOwner = await upsertUser('owner@alwaha.ae', 'Hamad Al Suwaidi', Role.CUSTOMER, '+971 50 900 4411');
+  const pendingOwner = await upsertUser('owner@alwaha.example', 'Hamad Al Suwaidi', Role.CUSTOMER, '+971 50 900 4411');
   await prisma.organizationMember.upsert({
     where: { organizationId_userId: { organizationId: pending.id, userId: pendingOwner.id } },
     update: {},
@@ -475,7 +478,7 @@ function formatted(address: Address): string {
 async function seedDemoDocuments(organizationId: string, customerId: string) {
   const byEmail = async (email: string) => prisma.user.findUniqueOrThrow({ where: { email } });
   const [buyer, approver, sales, warehouse] = await Promise.all(
-    ['buyer@desertbloom.ae', 'approver@desertbloom.ae', ACCOUNT_EMAILS.sales, ACCOUNT_EMAILS.warehouse].map(byEmail),
+    ['buyer@desertbloom.example', 'approver@desertbloom.example', ACCOUNT_EMAILS.sales, ACCOUNT_EMAILS.warehouse].map(byEmail),
   );
   const site = await prisma.address.findFirstOrThrow({ where: { organizationId, isDefault: true } });
   const home = await prisma.address.findFirstOrThrow({ where: { userId: customerId, isDefault: true } });

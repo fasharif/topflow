@@ -145,12 +145,12 @@ Locally, every seeded account uses the password `TopFlow2026!`. Because that pas
 | Email | Role | Try |
 | --- | --- | --- |
 | `customer@example.com` | Retail customer | Checkout, order tracking |
-| `buyer@desertbloom.ae` | Trade **buyer** (AED 5,000 limit) | RFQs, accepting quotations |
-| `approver@desertbloom.ae` | Trade **approver** (AED 50,000 limit) | Approving purchases above the buyer's limit |
-| `owner@desertbloom.ae` | Trade **owner** | Team invitations, delivery sites, company profile |
-| `sales@topflow.ae` | Top Flow sales | KYC, RFQ triage, quotation builder |
-| `warehouse@topflow.ae` | Top Flow warehouse | Fulfilment, stock |
-| `admin@topflow.ae` | Administrator | Everything, including staff invitations and the audit trail |
+| `buyer@desertbloom.example` | Trade **buyer** (AED 5,000 limit) | RFQs, accepting quotations |
+| `approver@desertbloom.example` | Trade **approver** (AED 50,000 limit) | Approving purchases above the buyer's limit |
+| `owner@desertbloom.example` | Trade **owner** | Team invitations, delivery sites, company profile |
+| `sales@topflow.example` | Top Flow sales | KYC, RFQ triage, quotation builder |
+| `warehouse@topflow.example` | Top Flow warehouse | Fulfilment, stock |
+| `admin@topflow.example` | Administrator | Everything, including staff invitations and the audit trail |
 
 ## Quality
 

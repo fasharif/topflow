@@ -30,7 +30,7 @@ describe('DemoPolicy', () => {
       rules.assertMayInvite('staff', 'new.colleague@gmail.com'),
     ).not.toThrow();
     expect(() =>
-      rules.assertMayChangeAccount('admin@topflow.ae'),
+      rules.assertMayChangeAccount('admin@topflow.example'),
     ).not.toThrow();
   });
 
@@ -53,7 +53,7 @@ describe('DemoPolicy', () => {
 
     it('keeps the published demo accounts unchanged', () => {
       expect(
-        refusal(() => rules.assertMayChangeAccount('sales@topflow.ae')),
+        refusal(() => rules.assertMayChangeAccount('sales@topflow.example')),
       ).toEqual({ status: 403, code: 'DEMO_RESTRICTED' });
       expect(() =>
         rules.assertMayChangeAccount('someone.else@e2e.topflow.test'),

@@ -143,19 +143,19 @@ Outside demo mode none of this applies. The settings are `DEMO_MODE` and `DEMO_M
 
 ### Demo accounts
 
-Created by the demo seed and published on the demo's sign-in page (the list lives in `packages/shared/src/demo.ts`). They all use the password `TopFlow2026!`.
+Created by the demo seed and published on the demo's sign-in page (the list lives in `packages/shared/src/demo.ts`). They all use the password `TopFlow2026!`. Their addresses are on reserved example domains (RFC 2606), so no mail can reach them and the published password is never the password of a real mailbox.
 
 | Email | Role | Try |
 | --- | --- | --- |
 | `customer@example.com` | Retail customer | Checkout and order tracking |
-| `buyer@desertbloom.ae` | Trade buyer (AED 5,000 approval limit) | RFQs and accepting quotations |
-| `approver@desertbloom.ae` | Trade approver (AED 50,000 approval limit) | Approving purchases above the buyer's limit |
-| `owner@desertbloom.ae` | Trade owner | Team invitations, delivery sites and the company profile |
-| `sales@topflow.ae` | Top Flow sales | KYC, RFQ triage and the quotation builder |
-| `warehouse@topflow.ae` | Top Flow warehouse | Fulfilment and stock |
-| `admin@topflow.ae` | Administrator | Everything, including users and the audit trail |
+| `buyer@desertbloom.example` | Trade buyer (AED 5,000 approval limit) | RFQs and accepting quotations |
+| `approver@desertbloom.example` | Trade approver (AED 50,000 approval limit) | Approving purchases above the buyer's limit |
+| `owner@desertbloom.example` | Trade owner | Team invitations, delivery sites and the company profile |
+| `sales@topflow.example` | Top Flow sales | KYC, RFQ triage and the quotation builder |
+| `warehouse@topflow.example` | Top Flow warehouse | Fulfilment and stock |
+| `admin@topflow.example` | Administrator | Everything, including users and the audit trail |
 
-The seed also creates `owner@alwaha.ae`, the owner of a company waiting in the KYC queue. It is not published. Desert Bloom Landscaping LLC and Al Waha Facility Management LLC are fictional.
+The seed also creates `owner@alwaha.example`, the owner of a company waiting in the KYC queue. It is not published. Desert Bloom Landscaping LLC and Al Waha Facility Management LLC are fictional.
 
 ### Setting up the hosted demo
 
@@ -177,7 +177,7 @@ The seed also creates `owner@alwaha.ae`, the owner of a company waiting in the K
    - `GET /` on the demo API answers `"demo": true`;
    - every page of the demo web app shows the banner, and `/robots.txt` says `Disallow: /`;
    - inviting a staff member with an address outside the allow-list is refused;
-   - `admin@topflow.ae` signs in with the published password.
+   - `admin@topflow.example` signs in with the published password.
 
 ### Nightly reset
 

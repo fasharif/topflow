@@ -250,7 +250,7 @@ describe('TopFlow Hub API (e2e)', () => {
     });
 
     it('requires two-factor authentication for the back office', async () => {
-      const unverified = await sessionFor('sales@topflow.ae', 'aal1');
+      const unverified = await sessionFor('sales@topflow.example', 'aal1');
       expect(unverified.user).toMatchObject({
         mfaRequired: true,
         assuranceLevel: 'aal1',
@@ -262,12 +262,12 @@ describe('TopFlow Hub API (e2e)', () => {
       expect(blocked.body.code).toBe('MFA_REQUIRED');
       await http()
         .get('/admin/dashboard')
-        .set(bearer(await sessionFor('sales@topflow.ae')))
+        .set(bearer(await sessionFor('sales@topflow.example')))
         .expect(200);
     });
 
     it('invites staff through Supabase Auth and suspends accounts', async () => {
-      const admin = await sessionFor('admin@topflow.ae');
+      const admin = await sessionFor('admin@topflow.example');
       const email = unique('staff');
       const invited = (
         await http()
@@ -316,7 +316,7 @@ describe('TopFlow Hub API (e2e)', () => {
     });
 
     it('accepts a team invitation only for the invited, signed-in email', async () => {
-      const owner = await sessionFor('owner@desertbloom.ae');
+      const owner = await sessionFor('owner@desertbloom.example');
       const organizationId = owner.user.memberships[0].organizationId;
       const email = unique('invitee');
       await http()
@@ -367,11 +367,11 @@ describe('TopFlow Hub API (e2e)', () => {
         .expect(403);
       await http()
         .get('/admin/dashboard')
-        .set(bearer(await sessionFor('sales@topflow.ae')))
+        .set(bearer(await sessionFor('sales@topflow.example')))
         .expect(200);
       await http()
         .get('/admin/audit-logs')
-        .set(bearer(await sessionFor('sales@topflow.ae')))
+        .set(bearer(await sessionFor('sales@topflow.example')))
         .expect(403);
     });
 
@@ -420,7 +420,7 @@ describe('TopFlow Hub API (e2e)', () => {
     });
 
     it('isolates organizations from each other', async () => {
-      const buyer = await sessionFor('buyer@desertbloom.ae');
+      const buyer = await sessionFor('buyer@desertbloom.example');
       const desertBloomId = buyer.user.memberships[0].organizationId;
 
       const owner = await sessionWith({
@@ -475,7 +475,7 @@ describe('TopFlow Hub API (e2e)', () => {
           })
           .expect(201)
       ).body as RfqDto;
-      const sales = await sessionFor('sales@topflow.ae');
+      const sales = await sessionFor('sales@topflow.example');
       const draft = (
         await http()
           .post('/admin/quotations')
@@ -496,7 +496,7 @@ describe('TopFlow Hub API (e2e)', () => {
     }
 
     it('lets a buyer accept a quotation within their limit and creates the sales order', async () => {
-      const buyer = await sessionFor('buyer@desertbloom.ae');
+      const buyer = await sessionFor('buyer@desertbloom.example');
       const org = buyer.user.memberships[0].organizationId;
       const quotation = await quoteAndSend(buyer, 'AX-EFS-001', 20);
 
@@ -526,8 +526,8 @@ describe('TopFlow Hub API (e2e)', () => {
     });
 
     it('routes purchases above the buyer limit to an approver (segregation of duties)', async () => {
-      const buyer = await sessionFor('buyer@desertbloom.ae');
-      const approver = await sessionFor('approver@desertbloom.ae');
+      const buyer = await sessionFor('buyer@desertbloom.example');
+      const approver = await sessionFor('approver@desertbloom.example');
       const org = buyer.user.memberships[0].organizationId;
       const quotation = await quoteAndSend(buyer, 'AX-EFS-003', 160);
 
@@ -616,7 +616,7 @@ describe('TopFlow Hub API (e2e)', () => {
       });
       expect(mail.lastMessageTo(email)?.subject).toContain(receipt.number);
 
-      const sales = await sessionFor('sales@topflow.ae');
+      const sales = await sessionFor('sales@topflow.example');
       const inbox = (
         await http()
           .get('/admin/rfqs')
@@ -709,7 +709,7 @@ describe('TopFlow Hub API (e2e)', () => {
           .expect(201)
       ).body as WebsiteQuoteReceiptDto;
 
-      const sales = await sessionFor('sales@topflow.ae');
+      const sales = await sessionFor('sales@topflow.example');
       const inbox = (
         await http()
           .get('/admin/rfqs')
@@ -855,7 +855,7 @@ describe('TopFlow Hub API (e2e)', () => {
           .post('/quote-requests')
           .send({
             name: 'Khalid Al Mansoori',
-            email: 'owner@desertbloom.ae',
+            email: 'owner@desertbloom.example',
             phone: '+971 55 700 1000',
             companyName: 'Desert Bloom Landscaping',
             items: [{ productId: item.id, quantity: 4 }],
@@ -863,7 +863,7 @@ describe('TopFlow Hub API (e2e)', () => {
           .expect(201)
       ).body as WebsiteQuoteReceiptDto;
 
-      const sales = await sessionFor('sales@topflow.ae');
+      const sales = await sessionFor('sales@topflow.example');
       const inbox = (
         await http()
           .get('/admin/rfqs')
@@ -877,7 +877,7 @@ describe('TopFlow Hub API (e2e)', () => {
       ).body as RfqDto;
       const account = detail.contactAccount;
       expect(account).toMatchObject({
-        email: 'owner@desertbloom.ae',
+        email: 'owner@desertbloom.example',
         organizations: [
           expect.objectContaining({ name: 'Desert Bloom Landscaping LLC' }),
         ],
@@ -916,7 +916,7 @@ describe('TopFlow Hub API (e2e)', () => {
         .set(bearer(sales))
         .expect(200);
 
-      const owner = await sessionFor('owner@desertbloom.ae');
+      const owner = await sessionFor('owner@desertbloom.example');
       await http()
         .get(`/org/quotations/${draft.id}`)
         .set(bearer(owner))
@@ -933,7 +933,7 @@ describe('TopFlow Hub API (e2e)', () => {
   describe('retail orders', () => {
     it('prices checkout on the server and moves the order through fulfilment', async () => {
       const customer = await sessionFor('customer@example.com');
-      const warehouse = await sessionFor('warehouse@topflow.ae');
+      const warehouse = await sessionFor('warehouse@topflow.example');
       const addresses = (
         await http().get('/me/addresses').set(bearer(customer)).expect(200)
       ).body as AddressDto[];
@@ -993,7 +993,7 @@ describe('TopFlow Hub API (e2e)', () => {
 
     it('leaves a paid order for Top Flow to cancel, then records the refund', async () => {
       const customer = await sessionFor('customer@example.com');
-      const sales = await sessionFor('sales@topflow.ae');
+      const sales = await sessionFor('sales@topflow.example');
       const addresses = (
         await http().get('/me/addresses').set(bearer(customer)).expect(200)
       ).body as AddressDto[];
@@ -1078,7 +1078,7 @@ describe('TopFlow Hub API (e2e)', () => {
         .expect(409);
       await http()
         .post(`/admin/orders/${order.id}/refund`)
-        .set(bearer(await sessionFor('warehouse@topflow.ae')))
+        .set(bearer(await sessionFor('warehouse@topflow.example')))
         .send({})
         .expect(403);
     });

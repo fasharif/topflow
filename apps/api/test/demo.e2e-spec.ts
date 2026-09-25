@@ -183,7 +183,7 @@ describe('Public demo mode (e2e)', () => {
   });
 
   it('withholds team invitation emails but keeps the invitation', async () => {
-    const owner = await sessionFor('owner@desertbloom.ae');
+    const owner = await sessionFor('owner@desertbloom.example');
     const organizationId = owner.user.memberships[0].organizationId;
     const invitee = unique('invitee');
     await http()
@@ -201,7 +201,7 @@ describe('Public demo mode (e2e)', () => {
   });
 
   it('refuses staff invitations to addresses outside the allow-list', async () => {
-    const admin = await sessionFor('admin@topflow.ae');
+    const admin = await sessionFor('admin@topflow.example');
     const stranger = unique('staff');
     const invitationsBefore = identities.invitations.length;
 
@@ -237,7 +237,7 @@ describe('Public demo mode (e2e)', () => {
   it('refuses customer invitations from website requests outside the allow-list', async () => {
     const visitor = unique('lead');
     const receipt = await websiteRequest(visitor, '198.51.100.12');
-    const sales = await sessionFor('sales@topflow.ae');
+    const sales = await sessionFor('sales@topflow.example');
     const inbox = (
       await http()
         .get('/admin/rfqs')
@@ -258,9 +258,9 @@ describe('Public demo mode (e2e)', () => {
   });
 
   it('keeps the published demo accounts usable for every visitor', async () => {
-    const admin = await sessionFor('admin@topflow.ae');
+    const admin = await sessionFor('admin@topflow.example');
     const sales = await prisma.user.findUniqueOrThrow({
-      where: { email: 'sales@topflow.ae' },
+      where: { email: 'sales@topflow.example' },
     });
 
     for (const change of [{ isActive: false }, { role: 'CUSTOMER' }]) {

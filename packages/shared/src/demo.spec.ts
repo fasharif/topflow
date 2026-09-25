@@ -34,10 +34,18 @@ describe('demo mode', () => {
       }
     });
 
+    it('uses only reserved example domains, so no published password belongs to a real mailbox', () => {
+      for (const { email } of DEMO_ACCOUNTS) {
+        const domain = email.slice(email.lastIndexOf('@') + 1);
+        expect(domain === 'example.com' || domain.endsWith('.example')).toBe(true);
+      }
+    });
+
     it('recognises demo accounts regardless of case and spacing', () => {
-      expect(isDemoAccount(' Admin@TopFlow.ae ')).toBe(true);
-      expect(isDemoAccount('buyer@desertbloom.ae')).toBe(true);
-      expect(isDemoAccount('owner@alwaha.ae')).toBe(false);
+      expect(isDemoAccount(' Admin@TopFlow.Example ')).toBe(true);
+      expect(isDemoAccount('buyer@desertbloom.example')).toBe(true);
+      expect(isDemoAccount('owner@alwaha.example')).toBe(false);
+      expect(isDemoAccount('admin@topflow.ae')).toBe(false);
       expect(isDemoAccount('someone@example.com')).toBe(false);
     });
   });
