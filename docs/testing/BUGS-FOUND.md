@@ -24,6 +24,7 @@ All reproductions ran on 26 September 2026 on a Windows 11 laptop, against the l
 | [BUG-08](#bug-08--getting-started-copies-a-file-that-does-not-exist) | Getting started copies a file that does not exist | Low | Setting up the stack | Open (addressed on other branches) |
 | [BUG-09](#bug-09--the-readme-understates-the-catalogue) | The README understates the catalogue | Low | Seeding | Fixed |
 | [BUG-10](#bug-10--the-web-apps-readme-describes-the-previous-architecture) | The web app's README describes the previous architecture | Low | Reading the code | Open |
+| [BUG-11](#bug-11--organization-links-in-the-users-list-rely-on-colour) | Organization links in the users list rely on colour | Low | axe scan | Fixed |
 
 ---
 
@@ -161,6 +162,21 @@ The other 5 baseline entries are rules JSON Schema cannot express and are accept
 
 `apps/web/README.md` still describes `npm run db:up`, a `/api` rewrite in `next.config.ts` and an access token held in memory with a refresh cookie. Since ADR-013 the web app uses Supabase sessions in httpOnly cookies and a route handler, and `db:up` no longer exists. `feature/demo-mode` edits this file, so it is not changed here.
 
+## BUG-11 — Organization links in the users list rely on colour
+
+**Severity:** Low. WCAG 2.2 success criterion 1.4.1 (Use of Color) fails; axe-core rates the rule `link-in-text-block` as *serious*. Only staff see the page.
+
+**Steps**
+
+1. Sign in as `admin@topflow.ae` and open `/admin/users` with a user in several organizations on the page.
+2. Look at the *Organizations* column without hovering.
+
+**Expected:** the organization names are recognisable as links without relying on colour.
+
+**Actual:** each name is a link in the same colour as the surrounding text, underlined only on hover, followed by "· Role". axe reported it on 26 September 2026 once a Schemathesis customer with 42 trade accounts was listed; with one membership per user the rule does not trigger, although the styling is the same.
+
+**Fix** (commit `fix(web): underline organization links in the back-office users list`): the links are underlined. Regression test: *organization links in the users list are underlined* in `tests/e2e/accessibility.spec.ts`, which checks the style directly because axe depends on how much text a row holds.
+
 ---
 
 ## Schemathesis triage
@@ -186,4 +202,5 @@ No check found a server error (5xx) in any run. With the configuration and basel
 These are not defects, but the rules differ in ways a reviewer might not expect:
 
 - **Approval limits and credit limits measure different amounts.** A buyer's spending limit is compared with the net value (goods after discount plus delivery, excluding VAT); the credit limit is compared with order totals including VAT. Excluding VAT from budgets is common for VAT-registered companies, and credit covers what the customer owes, so both look intentional; the test plan's decision tables record them as found.
+- **One account can open any number of trade accounts.** `POST /me/organizations` has no limit per user: in one Schemathesis run a single customer account opened 42 companies, each waiting in the KYC queue. The general rate limit applies, but a limit per account (or a check for an existing pending application) would keep the queue clean.
 - **Orders waiting for payment count against the credit limit.** An order released as *Pending payment* because it exceeded the credit limit still counts as exposure until it is paid or cancelled, so an abandoned order blocks credit for later orders until sales cancel it.

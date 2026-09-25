@@ -43,7 +43,7 @@ Likelihood and impact are rated Low, Medium or High; the level is the higher of 
 | R5 | A staff role does more than its permissions (warehouse approving a company, a purchase or a payment; a customer in the back office) | Low | High | High | Role checks in the browser path; API RBAC tests |
 | R6 | Stock is deducted twice, never, or at the wrong step | Medium | Medium | Medium | Company journey (stock unchanged at picking, lower by the quantity at dispatch); API fulfilment test |
 | R7 | VAT or rounding differs between preview, document and invoice | Low | High | High | Money unit tests; totals asserted in the journeys |
-| R8 | Keyboard or screen-reader users cannot complete a task | Medium | Medium | Medium | axe scans at two sizes; BUG-01 |
+| R8 | Keyboard or screen-reader users cannot complete a task | Medium | Medium | Medium | axe scans at two sizes; BUG-01, BUG-11 |
 | R9 | Clients rely on an API description that does not match the API | Medium | Medium | Medium | Schemathesis; OpenAPI end-to-end test; BUG-03 to BUG-07 |
 | R10 | Key pages slow down under load | Unknown until measured | Medium | Medium | k6 thresholds; measured run pending |
 | R11 | Sign-up, confirmation or sign-in breaks with a Supabase change | Low | High | High | Company journey (real sign-up and Mailpit confirmation); sign-in of every demo account; API token tests |
@@ -196,10 +196,10 @@ Run on 26 September 2026 on a Windows 11 laptop with Docker Desktop (16 CPUs, 7.
 | Shared unit tests | `npm test -w @topflow/shared` | 74 passed |
 | API unit tests | `npm run test:cov -w @topflow/api` | 50 passed |
 | API end-to-end tests | `npm run test:e2e:cov -w @topflow/api` | 34 passed (22 in `app.e2e-spec.ts`, 12 in `decision-tables.e2e-spec.ts`) |
-| Playwright | `npm run e2e -w @topflow/system-tests` | 24 passed: 8 sign-ins, 12 journeys and checks on desktop, 4 accessibility tests on a phone |
+| Playwright | `npm run e2e -w @topflow/system-tests` | 26 passed: 8 sign-ins, 13 journeys and checks on desktop, 5 accessibility tests on a phone |
 | k6 smoke | `npm run load -w @topflow/system-tests` | All thresholds met, 0 failed requests |
 | Schemathesis | `npm run contract -w @topflow/system-tests` | 8,681 generated cases passed against the baseline; no server error in any run |
 
 API coverage from the same runs (statements, excluding specs and entry points): end-to-end suite 79.3 % (1,697 of 2,141), unit suite 15.5 % (331 of 2,141). CI prints both in its job summary.
 
-Ten defects were recorded; six are fixed on this branch with regression tests or documentation changes, four are open. See BUGS-FOUND.md.
+Eleven defects were recorded; seven are fixed on this branch with regression tests or documentation changes, four are open. See BUGS-FOUND.md.
