@@ -10,12 +10,13 @@ Domain contracts shared by the API, the web app and the mobile app. Everything h
 | `money.ts` | Integer-fils arithmetic, basis-point rates, per-line VAT, document totals, AED formatting |
 | `commerce.ts` | Retail delivery-fee policy |
 | `numbering.ts` | Sequential document number formatting (`TF-SO-2026-000123`) |
+| `demo.ts` | The public demo's published accounts and password, banner text and strict `DEMO_MODE` parsing (ADR-021) |
 | `schemas/` | Zod request schemas — the API validates with them and clients reuse them for form validation |
 | `types.ts` | API response DTOs |
 
 ```bash
 npm run build -w @topflow/shared   # emit dist/ (consumers depend on the build)
-npm test -w @topflow/shared        # unit tests for maths, workflows, permissions and schemas
+npm test -w @topflow/shared        # unit tests for maths, workflows, permissions, schemas and demo settings
 ```
 
 **Rule of thumb:** if a business rule must behave identically on the server and in a client — a status transition, a VAT calculation, a password policy — it belongs here.
