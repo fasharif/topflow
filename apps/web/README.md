@@ -32,13 +32,12 @@ Next.js 16 (App Router, Turbopack, React 19) front end for the Top Flow commerce
 ## Running locally
 
 ```bash
-npm run db:up            # local Postgres (from the repo root)
+npm run supabase:start   # local Supabase: PostgreSQL, Auth and a mail catcher (from the repo root)
 npm run dev              # API on :3000, web on :3002
 ```
 
-Environment (`apps/web/.env.local`):
+Environment: copy `.env.example` to `.env.local`; each variable is described there.
 
-```bash
-API_INTERNAL_URL=http://localhost:3000   # where the /api rewrite and Server Components reach the API
-NEXT_PUBLIC_DEMO_MODE=true               # show seeded demo accounts on the sign-in page
-```
+## Demo mode
+
+`NEXT_PUBLIC_DEMO_MODE=true` builds the public portfolio demo ([ADR-021](../../docs/DECISIONS.md)). Every page shows the banner *"Portfolio demo: data resets every night. This is not Top Flow's official store."*, the sign-in page lists the demo accounts, robots.txt and page metadata keep the site out of search engines, and the Server Actions refuse sign-up, confirmation and password reset emails, password changes and authenticator enrolment, because the demo accounts are shared. The value is inlined at build time and validated when the app builds and when the server starts (`instrumentation.ts`): anything other than `true` or `false` stops it.

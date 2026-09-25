@@ -4,6 +4,7 @@ import { ROLE_LABELS, Role, createStaffUserSchema, type UserAdminDto } from '@to
 import { useState, type FormEvent } from 'react';
 import { Alert, Button, Card, CardHeader, Field, Input, Select } from '@/components/ui';
 import { ApiError, api, errorMessage } from '@/lib/api';
+import { DEMO_MODE } from '@/lib/demo';
 import { apiFieldErrors, zodFieldErrors, type FieldErrors } from '@/lib/forms';
 
 const STAFF_ROLES = [Role.SALES, Role.WAREHOUSE, Role.ADMIN] as const;
@@ -73,6 +74,13 @@ export function StaffUserForm({ onCreated, onCancel }: { onCreated: (user: UserA
         description="We email an invitation. They choose their own password, and back-office access asks them to set up two-factor authentication."
       />
       <form onSubmit={submit} noValidate className="grid gap-4 p-5 sm:grid-cols-2">
+        {DEMO_MODE && (
+          <div className="sm:col-span-2">
+            <Alert tone="info" title="Portfolio demo">
+              Invitations are sent by email, so the demo refuses them unless the address is on its allow-list.
+            </Alert>
+          </div>
+        )}
         {field('fullName', 'Full name', 'text')}
         {field('email', 'Work email', 'email', 'name@topflow.ae')}
         {field('phoneNumber', 'Mobile number (optional)', 'tel', '+971 50 123 4567')}

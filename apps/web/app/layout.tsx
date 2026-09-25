@@ -3,7 +3,9 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 import { LucideProvider } from 'lucide-react';
 import type { Metadata, Viewport } from 'next';
 import { IBM_Plex_Mono, IBM_Plex_Sans } from 'next/font/google';
+import { DemoBanner } from '@/components/demo-banner';
 import { SessionBootstrap } from '@/components/session-bootstrap';
+import { DEMO_MODE } from '@/lib/demo';
 import { SITE_URL } from '@/lib/site';
 import './globals.css';
 
@@ -22,6 +24,8 @@ export const metadata: Metadata = {
   applicationName: 'TopFlow Hub',
   openGraph: { type: 'website', siteName: 'Top Flow Hub', locale: 'en_AE', title: TITLE, description: DESCRIPTION },
   twitter: { card: 'summary', title: TITLE, description: DESCRIPTION },
+  // The portfolio demo must never be mistaken for Top Flow's store in search results.
+  ...(DEMO_MODE && { robots: { index: false, follow: false } }),
 };
 
 export const viewport: Viewport = {
@@ -38,6 +42,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
         >
           Skip to main content
         </a>
+        <DemoBanner />
         <SessionBootstrap />
         <LucideProvider strokeWidth={1.75}>{children}</LucideProvider>
         <Analytics />
