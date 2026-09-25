@@ -45,6 +45,13 @@ Supabase Auth settings (site URL, redirect allow-list, password policy, MFA, ema
 
 **New migration.** Change `packages/database/prisma/schema.prisma`, run `npm run db:migrate` locally, review the generated SQL, commit it. Production applies it on the next release.
 
+**Versions and the changelog.** [release-please](https://github.com/googleapis/release-please) numbers the platform from the Conventional Commit messages on `develop` (`feat:` → minor, `fix:` → patch, `!` or `BREAKING CHANGE:` → major). After each push to `develop`, `.github/workflows/release-please.yml` opens or updates a release pull request against `develop` that sets the version in the root `package.json` and `package-lock.json` and writes `CHANGELOG.md`. Merging that pull request tags the commit (`v1.0.0` first) and publishes a GitHub release with the same notes; until then nothing is tagged.
+
+- `release-please-config.json` holds the settings: the Node strategy for the repository root, tags without a component name, the changelog sections (features, bug fixes, performance, reverts, documentation; tests, CI and chores are left out) and `initial-version: 1.0.0`, because no release exists yet.
+- `.release-please-manifest.json` records the last released version. It says `0.0.0`, which release-please treats as "never released", and the release pull request updates it.
+- One-off repository setting: *Settings → Actions → General → Allow GitHub Actions to create and approve pull requests*. Pull requests opened with the built-in token do not start other workflows, so run CI on the release pull request by pushing an empty commit to its branch, or give the action a fine-grained token in a `RELEASE_PLEASE_TOKEN` secret and pass it as `token`.
+- The workspace packages keep their own internal version numbers, and the API reports `APP_VERSION`, which each deployment sets. The release number lives in the root `package.json`.
+
 ## 4. Backups and restore
 
 **What runs.** `.github/workflows/backup.yml` runs every night at 05:17 UAE time (and on demand from the Actions tab). It stores `topflow-hub-db-<timestamp>.tar.gz.age` for 30 days. The archive contains `roles.sql`, `schema.sql` and `data.sql` from `supabase db dump`, encrypted to the public key in `BACKUP_AGE_RECIPIENT`.
