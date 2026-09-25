@@ -1,5 +1,7 @@
 # TopFlow Hub — B2B/B2C commerce platform for Top Flow
 
+> **Portfolio project.** Built independently by Farah Sharif, with Top Flow's permission to use its name and product catalogue. This is not Top Flow's official online store.
+
 > **Top Flow — Irrigation & Flow Control Supplies, UAE** supplies electrofusion and HDPE fittings, sprinklers and rotors, drip irrigation, pipes and fittings, valves, filtration and landscaping products to two very different audiences:
 
 - **Consumers** who want to buy a few rotors for a villa garden online, at VAT-inclusive prices, paying on delivery.
@@ -11,7 +13,7 @@
 | --- | --- | --- |
 | Local | http://localhost:3002 | http://localhost:3000 (`/docs`) |
 
-> Nothing is hosted yet: no free plan both allows a commercial site and fits this application, so the platform runs locally while Top Flow decides where to publish it ([ADR-019](docs/DECISIONS.md)).
+> Nothing is hosted yet: the platform runs locally. The hosting options and their trade-offs are recorded in [ADR-019](docs/DECISIONS.md).
 
 ---
 
@@ -149,7 +151,7 @@ npm run test:e2e -w @topflow/api        # end-to-end suite against a real databa
 
 ## Deployment
 
-The platform is deployment-ready but not hosted. Vercel's free plan allows non-commercial use only, and no other free plan both permits a business site and fits a server-rendered app with its own API, so the choice is deferred ([ADR-019](docs/DECISIONS.md)); Netlify's free plan is the default when Top Flow decides to publish.
+The platform is deployment-ready but not hosted yet. [ADR-019](docs/DECISIONS.md) records the trade-offs: Vercel's free plan allows non-commercial use only, few free plans fit a server-rendered app with its own API, and Netlify's free plan is the default if the platform is published as a business site.
 
 | Piece | Intended home |
 | --- | --- |

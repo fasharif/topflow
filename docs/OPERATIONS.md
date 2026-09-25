@@ -6,7 +6,7 @@ How TopFlow Hub is configured, released, backed up and restored. Architecture ba
 
 ## 1. Environments
 
-| | Production | Preview | Local |
+| | Production (planned, not deployed yet) | Preview | Local |
 | --- | --- | --- | --- |
 | Web | https://topflow-hub.vercel.app (Vercel `topflow-hub`) | Vercel preview URL per branch | http://localhost:3002 |
 | API | https://topflow-hub-api.vercel.app (Vercel `topflow-hub-api`) | Vercel preview URL per branch | http://localhost:3000 |
@@ -39,7 +39,7 @@ Supabase Auth settings (site URL, redirect allow-list, password policy, MFA, ema
 
 1. Merge into `develop`. Vercel builds both projects from the commit.
 2. The API's production build runs `apps/api/scripts/release.mjs`: the environment preflight, then `prisma migrate deploy`. If either fails, the build fails and the previous deployment keeps serving.
-3. Check `https://topflow-hub-api.vercel.app/health/ready` (`database: "up"`) and sign in to the web app.
+3. Check the API's `/health/ready` endpoint (planned address: `https://topflow-hub-api.vercel.app/health/ready`) for `database: "up"`, and sign in to the web app.
 
 **Rollback.** Use Vercel *Instant Rollback* on the affected project. Migrations are forward-only: keep them additive (add columns before using them, remove old columns in a later release) so the previous version still works against the new schema.
 
