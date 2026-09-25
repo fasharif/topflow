@@ -5,7 +5,8 @@
   "description": "TopFlow Hub — B2B/B2C irrigation & flow-control commerce platform for Top Flow (Turborepo monorepo)",
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "tests"
   ],
   "packageManager": "npm@11.17.0",
   "overrides": {

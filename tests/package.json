@@ -1,0 +1,26 @@
+{
+  "name": "@topflow/system-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Black-box tests against the running stack: Playwright journeys with axe accessibility checks, k6 load tests and Schemathesis API fuzzing",
+  "license": "UNLICENSED",
+  "scripts": {
+    "e2e": "playwright test",
+    "e2e:report": "playwright show-report reports/playwright",
+    "lint": "eslint . && prettier --check .",
+    "check-types": "tsc --noEmit -p tsconfig.json",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@eslint/js": "9.39.5",
+    "@playwright/test": "1.63.0",
+    "@topflow/shared": "*",
+    "@types/k6": "2.2.1",
+    "@types/node": "24.13.6",
+    "eslint": "9.39.5",
+    "globals": "16.5.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.69.0"
+  }
+}
