@@ -44,7 +44,7 @@ jobs:
             exit 1
           fi
 
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v3
         if: steps.config.outputs.configured == 'true'
         with:
           version: 2.117.0
@@ -83,7 +83,7 @@ jobs:
           echo "name=$name" >> "$GITHUB_OUTPUT"
           ls -l "$name.tar.gz.age"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: steps.config.outputs.configured == 'true'
         with:
           name: ${{ steps.encrypt.outputs.name }}
