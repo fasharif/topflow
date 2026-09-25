@@ -18,6 +18,19 @@ const csv = z.string().transform((value) =>
     .filter(Boolean),
 );
 
+/** An exact address (`name@example.com`) or a whole domain (`@example.com`), compared in lower case. */
+const mailAllowListEntry = z
+  .string()
+  .regex(
+    /^[^\s@,]*@[^\s@,]+\.[^\s@,]+$/,
+    'entries must be email addresses (name@example.com) or domains (@example.com)',
+  )
+  .transform((entry) => entry.toLowerCase());
+
+/** Rate limits a public demo may not exceed: the production defaults. */
+export const DEMO_MAX_THROTTLE_LIMIT = 300;
+export const DEMO_MAX_AUTH_THROTTLE_LIMIT = 10;
+
 export const envSchema = z
   .object({
     NODE_ENV: z
@@ -48,8 +61,24 @@ export const envSchema = z
     SWAGGER_ENABLED: booleanFlag.optional(),
 
     THROTTLE_TTL_MS: z.coerce.number().int().min(1000).default(60_000),
-    THROTTLE_LIMIT: z.coerce.number().int().min(1).default(300),
-    AUTH_THROTTLE_LIMIT: z.coerce.number().int().min(1).default(10),
+    THROTTLE_LIMIT: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .default(DEMO_MAX_THROTTLE_LIMIT),
+    AUTH_THROTTLE_LIMIT: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .default(DEMO_MAX_AUTH_THROTTLE_LIMIT),
+
+    /**
+     * Public portfolio demo (ADR-021): business email reaches only allow-listed addresses, Supabase
+     * invitations are refused and the published demo accounts cannot be suspended or re-roled.
+     */
+    DEMO_MODE: booleanFlag.default(false),
+    /** Addresses or @domains that still receive email (and invitations) in demo mode. */
+    DEMO_MAIL_ALLOWLIST: csv.pipe(z.array(mailAllowListEntry)).default([]),
 
     MAIL_TRANSPORT: z.enum(['console', 'resend']).default('console'),
     MAIL_FROM: z.string().default('Top Flow <no-reply@topflow.ae>'),
@@ -66,6 +95,31 @@ export const envSchema = z
     COMPANY_BANK_DETAILS: z.string().optional(),
   })
   .superRefine((env, ctx) => {
+    if (env.DEMO_MODE) {
+      if (env.STAFF_MFA_REQUIRED) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['STAFF_MFA_REQUIRED'],
+          message:
+            'must be false in demo mode: the published staff accounts are shared, so no visitor can hold their authenticator app',
+        });
+      }
+      if (env.THROTTLE_LIMIT > DEMO_MAX_THROTTLE_LIMIT) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['THROTTLE_LIMIT'],
+          message: `must not exceed ${DEMO_MAX_THROTTLE_LIMIT} in demo mode: rate limits stay on for the public demo`,
+        });
+      }
+      if (env.AUTH_THROTTLE_LIMIT > DEMO_MAX_AUTH_THROTTLE_LIMIT) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['AUTH_THROTTLE_LIMIT'],
+          message: `must not exceed ${DEMO_MAX_AUTH_THROTTLE_LIMIT} in demo mode: rate limits stay on for the public demo`,
+        });
+      }
+    }
+
     if (env.NODE_ENV !== 'production') return;
     if (!env.SUPABASE_URL.startsWith('https://')) {
       ctx.addIssue({
@@ -130,6 +184,12 @@ export interface AppConfig {
     from: string;
     resendApiKey?: string;
   };
+  /** Public portfolio demo (ADR-021). */
+  demo: {
+    enabled: boolean;
+    /** Lower-case addresses (`name@example.com`) and domains (`@example.com`). */
+    mailAllowList: string[];
+  };
   company: {
     legalName: string;
     trn?: string;
@@ -184,6 +244,10 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       transport: env.MAIL_TRANSPORT,
       from: env.MAIL_FROM,
       resendApiKey: env.RESEND_API_KEY,
+    },
+    demo: {
+      enabled: env.DEMO_MODE,
+      mailAllowList: env.DEMO_MAIL_ALLOWLIST,
     },
     company: {
       legalName: env.COMPANY_LEGAL_NAME,

@@ -14,7 +14,7 @@ async function bootstrap(): Promise<void> {
 
   await app.listen(config.port, '0.0.0.0');
   Logger.log(
-    `Top Flow API v${config.app.version} listening on :${config.port} (${config.env})` +
+    `Top Flow API v${config.app.version} listening on :${config.port} (${config.env}${config.demo.enabled ? ', demo mode' : ''})` +
       (config.http.swaggerEnabled ? ' — docs at /docs' : ''),
     'Bootstrap',
   );
