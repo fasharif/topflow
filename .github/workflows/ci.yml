@@ -38,6 +38,9 @@ jobs:
       - name: Shared contracts — unit tests
         run: npm test -w @topflow/shared
 
+      - name: Local setup script — typecheck and unit tests
+        run: npm run test:scripts
+
       - name: Database scripts — typecheck and unit tests (demo reset safety checks)
         run: |
           npm run check-types -w @topflow/database
