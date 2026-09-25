@@ -19,6 +19,21 @@ All commands read `DATABASE_URL` from the environment or `packages/database/.env
 | `npm run db:deploy -w @topflow/database` | Apply pending migrations (CI, production) |
 | `npm run db:seed -w @topflow/database` | Load demo catalog, staff and a verified trade account (refuses to run in production) |
 | `npm run db:studio -w @topflow/database` | Browse data with Prisma Studio |
+| `npm run demo:reset -w @topflow/database -- --confirm` | Empty and reseed the public demo (needs `DEMO_MODE=true`; see below) |
+| `npm test -w @topflow/database` | Unit tests of the demo reset's safety checks |
+
+## Resetting the public demo
+
+`scripts/demo-reset.ts` returns the public portfolio demo to its seeded state every night ([ADR-021](../../docs/DECISIONS.md), [operations runbook](../../docs/OPERATIONS.md#10-public-demo)). It:
+
+1. refuses to start unless `DEMO_MODE=true` and `--confirm` are given, `NODE_ENV` is not `production` and no production seed setting is present;
+2. refuses any database that holds accounts but not the demo data set (the fictional Desert Bloom Landscaping LLC), and changes nothing;
+3. lists the demo project's Supabase Auth users (when `SUPABASE_URL` and `SUPABASE_SECRET_KEY` are set), which proves the credentials before anything is deleted;
+4. empties every table except `_prisma_migrations` in one `TRUNCATE … RESTART IDENTITY CASCADE` transaction;
+5. deletes those Supabase Auth users, so changed passwords, enrolled authenticators and visitors' own accounts disappear;
+6. runs `prisma/seed.ts` with the demo profile and the published password, which creates the demo accounts again.
+
+The decisions live in `scripts/demo-reset-core.ts` and are unit-tested with in-memory fakes; the CI end-to-end job also runs the real script against PostgreSQL before its tests.
 
 ## Migration workflow for data-changing releases
 

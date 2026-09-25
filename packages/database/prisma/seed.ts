@@ -30,6 +30,7 @@ import { appendFileSync, readFileSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
 import {
+  DEMO_ACCOUNT_PASSWORD,
   bpsToPercent,
   calculateTotals,
   fromFils,
@@ -70,7 +71,7 @@ if (!connectionString) fail('DATABASE_URL is not set.');
 
 const PROFILE = process.env.SEED_PROFILE === 'production' ? 'production' : 'demo';
 const SEED_ACCOUNTS = process.env.SEED_ACCOUNTS !== 'false';
-const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? 'TopFlow2026!';
+const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? DEMO_ACCOUNT_PASSWORD;
 const RESET_PASSWORDS = process.env.SEED_RESET_PASSWORDS === 'true';
 const CREDENTIALS_FILE = process.env.SEED_CREDENTIALS_FILE ? resolve(process.env.SEED_CREDENTIALS_FILE) : null;
 const REPOSITORY_ROOT = resolve(__dirname, '..', '..', '..');
