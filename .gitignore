@@ -56,10 +56,9 @@ packages/database/generated/
 **/skills-lock.json
 *.tsbuildinfo
 
-# Terraform (lock files are committed; state, plans and variable files with real values are not)
+# Terraform: lock files and terraform.tfvars (no secrets) are committed; state and plans are not
 **/.terraform/
 *.tfstate
 *.tfstate.*
 *.tfplan
-infra/terraform/**/terraform.tfvars
 crash.log
