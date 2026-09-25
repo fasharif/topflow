@@ -46,6 +46,20 @@ describe('loadConfig', () => {
     expect(config.http.swaggerEnabled).toBe(true);
   });
 
+  it('lets the release preflight reject a malformed Sentry DSN', () => {
+    const base = { DATABASE_URL: 'postgres://db' };
+    expect(() => loadConfig({ ...base, SENTRY_DSN: 'sentry' })).toThrow(
+      /SENTRY_DSN/,
+    );
+    expect(() => loadConfig({ ...base, SENTRY_DSN: '' })).not.toThrow();
+    expect(() =>
+      loadConfig({
+        ...base,
+        SENTRY_DSN: 'https://key@o1.ingest.sentry.io/1',
+      }),
+    ).not.toThrow();
+  });
+
   it('hides API docs in production and parses the CORS allowlist', () => {
     const config = loadConfig({
       ...production,

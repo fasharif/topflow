@@ -7,9 +7,11 @@
     "build": "next build",
     "start": "next start -p 3002",
     "lint": "eslint",
-    "check-types": "next typegen && tsc --noEmit"
+    "check-types": "next typegen && tsc --noEmit",
+    "test": "jest"
   },
   "dependencies": {
+    "@sentry/nextjs": "^11.0.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
     "@topflow/shared": "*",
@@ -24,12 +26,33 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
+    "jest": "^30.0.0",
     "tailwindcss": "^4",
+    "ts-jest": "^29.2.5",
     "typescript": "^5"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "roots": [
+      "<rootDir>/lib"
+    ],
+    "testRegex": "\\.spec\\.ts$",
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/$1"
+    },
+    "transform": {
+      "^.+\\.ts$": [
+        "ts-jest",
+        {
+          "tsconfig": "tsconfig.spec.json"
+        }
+      ]
+    }
   }
 }

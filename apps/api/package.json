@@ -29,6 +29,7 @@
     "@nestjs/swagger": "^11.4.7",
     "@nestjs/throttler": "^6.5.0",
     "@prisma/adapter-pg": "^7.9.1",
+    "@sentry/nestjs": "^11.0.0",
     "@supabase/supabase-js": "^2.116.0",
     "@topflow/database": "*",
     "@topflow/shared": "*",
