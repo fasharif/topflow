@@ -7,6 +7,8 @@
   "scripts": {
     "e2e": "playwright test",
     "e2e:report": "playwright show-report reports/playwright",
+    "screenshots": "playwright test --config playwright.screenshots.config.ts",
+    "walkthrough:gif": "bash scripts/walkthrough-gif.sh",
     "load": "bash load/run-k6.sh",
     "contract": "bash contract/run-schemathesis.sh",
     "lint": "eslint . && prettier --check .",
