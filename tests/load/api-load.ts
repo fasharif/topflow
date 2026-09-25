@@ -83,13 +83,15 @@ interface SetupData {
   productIds: string[];
 }
 
-/** Headers of the web app's server calling on behalf of shopper number `vu`. */
-function shopperHeaders(): Record<string, string> {
+/**
+ * Headers of the web app's server calling on behalf of shopper number `shopper` (by default one
+ * shopper per virtual user), so each is rate limited on its own.
+ */
+function shopperHeaders(shopper: number = exec.vu.idInTest): Record<string, string> {
   if (!INTERNAL_API_SECRET) return {};
-  const vu = exec.vu.idInTest;
   return {
     'x-topflow-internal-auth': INTERNAL_API_SECRET,
-    'x-topflow-client-ip': `10.20.${Math.floor(vu / 250)}.${(vu % 250) + 1}`,
+    'x-topflow-client-ip': `10.${Math.floor(shopper / 62_500) % 256}.${Math.floor(shopper / 250) % 250}.${(shopper % 250) + 1}`,
   };
 }
 
@@ -116,8 +118,15 @@ export function setup(): SetupData {
   );
   const retail = page.items.filter((item) => !item.isTradeOnly);
   if (retail.length === 0) fail('The catalogue is empty: seed the database first (npm run db:seed)');
+
+  // Warm-up, untagged so it stays out of the endpoint thresholds: the API fetches and caches the
+  // Supabase signing keys on the first authenticated request.
+  const accessToken = jsonBody<{ access_token: string }>(signIn).access_token;
+  const me = http.get(`${API_URL}/auth/me`, { headers: { authorization: `Bearer ${accessToken}` } });
+  if (me.status !== 200) fail(`The API refused the customer's token (status ${me.status})`);
+
   return {
-    accessToken: jsonBody<{ access_token: string }>(signIn).access_token,
+    accessToken,
     slugs: retail.map((item) => item.slug),
     productIds: retail.map((item) => item.id),
   };
@@ -165,7 +174,11 @@ export function quote(data: SetupData): void {
       projectReference: 'k6 load test',
       items: [{ productId: pick(data.productIds), quantity: 2 }],
     }),
-    { headers: { 'content-type': 'application/json', ...shopperHeaders() }, tags: { endpoint: 'quote-request' } },
+    // Every quote request comes from a different visitor, as on the website.
+    {
+      headers: { 'content-type': 'application/json', ...shopperHeaders(100_000 + exec.scenario.iterationInTest) },
+      tags: { endpoint: 'quote-request' },
+    },
   );
   check(response, { 'quote request: 201': (r) => r.status === 201 });
 }
