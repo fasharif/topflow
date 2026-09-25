@@ -154,6 +154,10 @@ describe('TopFlow Hub API (e2e)', () => {
       expect(
         schemas.CreateWebsiteQuoteRequestDto.properties?.phone,
       ).toHaveProperty('pattern');
+      // OpenAPI 3.0 only allows boolean exclusive bounds next to minimum/maximum.
+      expect(JSON.stringify(document)).not.toMatch(
+        /"exclusive(Minimum|Maximum)":-?\d/,
+      );
       expect(document.paths['/me/orders'].post.responses.default).toEqual(
         expect.objectContaining({
           content: {

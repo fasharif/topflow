@@ -85,6 +85,12 @@ describe('request schemas', () => {
     expect(updateProductSchema.parse({ name: 'Rotor v2' })).toEqual({ name: 'Rotor v2' });
   });
 
+  it('accepts category ids from 1 and no category at all', () => {
+    expect(updateProductSchema.safeParse({ categoryId: 0 }).success).toBe(false);
+    expect(updateProductSchema.parse({ categoryId: 1 })).toEqual({ categoryId: 1 });
+    expect(updateProductSchema.parse({ categoryId: null })).toEqual({ categoryId: null });
+  });
+
   it('coerces catalog query strings', () => {
     expect(productQuerySchema.parse({ page: '2', includeInactive: 'true' })).toMatchObject({
       page: 2,
