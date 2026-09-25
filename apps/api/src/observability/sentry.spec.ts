@@ -4,6 +4,7 @@ import {
   sentryOptions,
   type ErrorReportingSdk,
 } from './sentry';
+import { scrubEvent } from './sentry-config';
 
 const DSN = 'https://public-key@o123456.ingest.sentry.io/7654321';
 
@@ -54,7 +55,31 @@ describe('error reporting (Sentry)', () => {
       release: 'sha-1a2b3c4',
       tracesSampleRate: 0.2,
       sendDefaultPii: false,
+      beforeSend: scrubEvent,
     });
+  });
+
+  it('strips credentials, client addresses, query strings and bodies from events', () => {
+    const event = scrubEvent({
+      request: {
+        url: 'https://api.example.com/org/quotations?search=secret',
+        headers: {
+          Authorization: 'Bearer token',
+          cookie: 'sb=1',
+          'x-topflow-internal-auth': 'secret',
+          'x-forwarded-for': '203.0.113.7',
+          'user-agent': 'Mozilla/5.0',
+        },
+        cookies: { sb: '1' },
+        query_string: 'search=secret',
+        data: { password: 'secret' },
+      },
+    });
+    expect(event.request).toEqual({
+      url: 'https://api.example.com/org/quotations',
+      headers: { 'user-agent': 'Mozilla/5.0' },
+    });
+    expect(scrubEvent({})).toEqual({});
   });
 
   it('prefers SENTRY_ENVIRONMENT and traces nothing by default', () => {

@@ -17,12 +17,36 @@ export interface WebSentryOptions {
   tracesSampleRate: number;
   /** Never send cookies, IP addresses or user details to Sentry. */
   sendDefaultPii: false;
+  beforeSend: typeof scrubEvent;
+}
+
+/** The part of a Sentry event that can carry request details. */
+export interface ScrubbableEvent {
+  request?: { url?: string; headers?: Record<string, string>; cookies?: unknown; query_string?: unknown; data?: unknown };
 }
 
 type Env = Record<string, string | undefined>;
 
 /** Headers that carry sessions, secrets or shoppers' addresses: never sent to Sentry. */
 const PRIVATE_HEADERS = new Set(['authorization', 'cookie', 'x-topflow-internal-auth', 'x-topflow-client-ip', 'x-forwarded-for', 'x-real-ip']);
+
+/**
+ * Last filter before an event leaves the server: whatever the SDK collected about the request,
+ * credentials, client addresses, query strings and bodies are removed.
+ */
+export function scrubEvent<T extends ScrubbableEvent>(event: T): T {
+  const request = event.request;
+  if (request) {
+    for (const name of Object.keys(request.headers ?? {})) {
+      if (PRIVATE_HEADERS.has(name.toLowerCase())) delete request.headers?.[name];
+    }
+    delete request.cookies;
+    delete request.query_string;
+    delete request.data;
+    if (request.url) request.url = request.url.split('?')[0];
+  }
+  return event;
+}
 
 /**
  * Sentry options for the web server, read at runtime so one image serves every environment.
@@ -50,6 +74,7 @@ export function sentryOptions(env: Env = process.env): WebSentryOptions | null {
     release: env.APP_VERSION?.trim() || undefined,
     tracesSampleRate: rate,
     sendDefaultPii: false,
+    beforeSend: scrubEvent,
   };
 }
 

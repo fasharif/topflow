@@ -1,4 +1,4 @@
-import { redactRequest, reportRequestError, sentryOptions, startErrorReporting, type ErrorContext, type ErrorReportingSdk, type ErrorRequest } from './sentry';
+import { redactRequest, reportRequestError, scrubEvent, sentryOptions, startErrorReporting, type ErrorContext, type ErrorReportingSdk, type ErrorRequest } from './sentry';
 
 const DSN = 'https://public-key@o123456.ingest.sentry.io/7654321';
 
@@ -52,7 +52,21 @@ describe('web error reporting (Sentry)', () => {
       release: 'sha-1a2b3c4',
       tracesSampleRate: 0,
       sendDefaultPii: false,
+      beforeSend: scrubEvent,
     });
+  });
+
+  it('strips credentials, client addresses, query strings and bodies from any event', () => {
+    const event = scrubEvent({
+      request: {
+        url: 'https://hub.example.com/checkout?coupon=secret',
+        headers: { Cookie: 'sb=1', authorization: 'Bearer token', 'x-real-ip': '203.0.113.7', accept: 'text/html' },
+        cookies: { sb: '1' },
+        query_string: 'coupon=secret',
+        data: { password: 'secret' },
+      },
+    });
+    expect(event.request).toEqual({ url: 'https://hub.example.com/checkout', headers: { accept: 'text/html' } });
   });
 
   it('reports server errors without the query string, cookies or secrets', async () => {

@@ -26,6 +26,46 @@ const sentryEnvSchema = z.object({
   APP_VERSION: z.string().default('3.0.0'),
 });
 
+/** The part of a Sentry event that can carry request details. */
+export interface ScrubbableEvent {
+  request?: {
+    url?: string;
+    headers?: Record<string, string>;
+    cookies?: unknown;
+    query_string?: unknown;
+    data?: unknown;
+  };
+}
+
+/** Headers that carry sessions, secrets or shoppers' addresses. */
+const PRIVATE_HEADERS = new Set([
+  'authorization',
+  'cookie',
+  'x-topflow-internal-auth',
+  'x-topflow-client-ip',
+  'x-forwarded-for',
+  'x-real-ip',
+]);
+
+/**
+ * Last filter before an event leaves the process: whatever the SDK collected about the request,
+ * credentials, client addresses, query strings and bodies are removed.
+ */
+export function scrubEvent<T extends ScrubbableEvent>(event: T): T {
+  const request = event.request;
+  if (request) {
+    for (const name of Object.keys(request.headers ?? {})) {
+      if (PRIVATE_HEADERS.has(name.toLowerCase()))
+        delete request.headers?.[name];
+    }
+    delete request.cookies;
+    delete request.query_string;
+    delete request.data;
+    if (request.url) request.url = request.url.split('?')[0];
+  }
+  return event;
+}
+
 export interface SentryOptions {
   dsn: string;
   environment: string;
@@ -33,6 +73,7 @@ export interface SentryOptions {
   tracesSampleRate: number;
   /** Never send cookies, IP addresses or user details to Sentry. */
   sendDefaultPii: false;
+  beforeSend: typeof scrubEvent;
 }
 
 /** Sentry options from the environment, or null when error reporting is not configured. */
@@ -53,5 +94,6 @@ export function sentryOptions(
     release: env.APP_VERSION,
     tracesSampleRate: env.SENTRY_TRACES_SAMPLE_RATE ?? 0,
     sendDefaultPii: false,
+    beforeSend: scrubEvent,
   };
 }
