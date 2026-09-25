@@ -1,6 +1,7 @@
 import type { EmailOtpType } from '@supabase/supabase-js';
 import { NextResponse, type NextRequest } from 'next/server';
 import { safeNextPath } from '@/lib/auth/redirects';
+import { publicOrigin } from '@/lib/site';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 
 const EMAIL_LINK_TYPES: readonly string[] = ['signup', 'invite', 'magiclink', 'recovery', 'email_change', 'email'];
@@ -11,7 +12,8 @@ const EMAIL_LINK_TYPES: readonly string[] = ['signup', 'invite', 'magiclink', 'r
  * session in httpOnly cookies, and the visitor continues to a safe page on this site.
  */
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = request.nextUrl;
+  const { searchParams } = request.nextUrl;
+  const origin = publicOrigin(request.nextUrl.origin);
   const type = searchParams.get('type');
   const setsPassword = type === 'recovery' || type === 'invite';
   const next = safeNextPath(searchParams.get('next'), origin, setsPassword ? '/auth/set-password' : '/account');
