@@ -21,8 +21,8 @@ export function absoluteUrl(path: string): string {
   return `${SITE_URL}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
-/** The origin of NEXT_PUBLIC_SITE_URL, or null when it is unset or invalid (Vercel previews, local development). */
-export function configuredOrigin(value: string | undefined = process.env.NEXT_PUBLIC_SITE_URL): string | null {
+/** The origin of a configured site URL, or null when it is empty or invalid. */
+export function originOf(value: string | undefined): string | null {
   const configured = value?.trim();
   if (!configured) return null;
   try {
@@ -30,6 +30,11 @@ export function configuredOrigin(value: string | undefined = process.env.NEXT_PU
   } catch {
     return null;
   }
+}
+
+/** The origin of NEXT_PUBLIC_SITE_URL, or null when it is unset (Vercel previews, local development). */
+export function configuredOrigin(): string | null {
+  return originOf(process.env.NEXT_PUBLIC_SITE_URL);
 }
 
 /**
