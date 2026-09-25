@@ -19,7 +19,8 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "node test/run-e2e.mjs"
+    "test:e2e": "node test/run-e2e.mjs",
+    "test:e2e:cov": "node test/run-e2e.mjs --coverage"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -93,9 +94,17 @@
       "[\\\\/]node_modules[\\\\/](?!jose[\\\\/])"
     ],
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "**/*.(t|j)s",
+      "!**/*.spec.ts",
+      "!main.ts",
+      "!preflight.ts"
     ],
-    "coverageDirectory": "../coverage",
+    "coverageDirectory": "../coverage/unit",
+    "coverageReporters": [
+      "text-summary",
+      "json-summary",
+      "lcov"
+    ],
     "testEnvironment": "node"
   }
 }

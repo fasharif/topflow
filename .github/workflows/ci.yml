@@ -46,12 +46,21 @@ jobs:
           npm run check-types -w @topflow/database
           npm test -w @topflow/database
 
-      - name: API — lint, typecheck, unit tests, build
+      - name: API — lint, typecheck, unit tests with coverage, build
         run: |
           npm run lint -w @topflow/api
           npm run check-types -w @topflow/api
-          npm test -w @topflow/api
+          npm run test:cov -w @topflow/api
           npm run build -w @topflow/api
+
+      - name: API — unit test coverage summary
+        run: node apps/api/scripts/coverage-summary.mjs >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: api-coverage-unit
+          path: apps/api/coverage/unit
+          retention-days: 14
 
       # The smoke test starts the production build and checks, over HTTP, that an ordinary build carries
       # no demo banner, noindex or demo notices.
@@ -131,5 +140,14 @@ jobs:
           DEMO_MODE: "true"
 
       # Supabase Auth is simulated inside the suite (locally signed test tokens), so no network is needed.
-      - name: Run end-to-end suite
-        run: npm run test:e2e -w @topflow/api
+      - name: Run end-to-end suite with coverage
+        run: npm run test:e2e:cov -w @topflow/api
+
+      - name: End-to-end coverage summary
+        run: node apps/api/scripts/coverage-summary.mjs >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: api-coverage-e2e
+          path: apps/api/coverage/e2e
+          retention-days: 14
