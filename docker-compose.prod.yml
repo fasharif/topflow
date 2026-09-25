@@ -256,6 +256,7 @@ services:
 
   seed:
     profiles: [demo]
+    image: ${IMAGE_PREFIX:-topflow-hub}-seed:${IMAGE_TAG:-local}
     build:
       <<: *api-build
       target: seed
