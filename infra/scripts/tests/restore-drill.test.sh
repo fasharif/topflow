@@ -42,8 +42,11 @@ recipient="$(age-keygen -y "$work/key.txt")"
   --recipient "$recipient" --out "$work/backup.tar.gz.age"
 ok "a synthetic backup is written in the nightly format"
 
+# The tables the demo seed fills. The drill's default list also requires audit_logs, which a live
+# database always has but a freshly migrated and seeded one (CI's source) does not.
+seeded_tables="users,organizations,products,quote_requests,quotations,orders"
 "$scripts/restore-drill.sh" --backup "$work/backup.tar.gz.age" --identity "$work/key.txt" \
-  --image "$image" --report "$work/report.md"
+  --image "$image" --require "$seeded_tables" --report "$work/report.md"
 grep -q '^### Restore drill: passed' "$work/report.md" || not_ok "the report is missing"
 grep -Eq '^\| \*\*Total\*\* \| \*\*[0-9]+\.[0-9]\*\* \|$' "$work/report.md" || not_ok "the report has no total time"
 ok "the drill restores the backup, matches every row count and reports the time"
