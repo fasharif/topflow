@@ -2,8 +2,10 @@ name: Containers
 
 # Builds the three images (api, migrate, web), fails on critical vulnerabilities (Trivy), starts
 # the production-like Compose stack with them and runs the smoke test, including a real sign-in
-# through Supabase Auth. Pushes to develop then publish the images to GHCR, tagged sha-<commit>
-# and develop, for .github/workflows/deploy.yml.
+# through Supabase Auth. Pushes to develop then publish exactly those images to GHCR (the same
+# image IDs, never a rebuild), tagged sha-<commit> and develop, with a signed build provenance
+# attestation and an SBOM attestation per image. .github/workflows/deploy.yml verifies the
+# provenance and deploys by digest.
 
 on:
   push:
@@ -28,6 +30,9 @@ jobs:
     timeout-minutes: 45
     outputs:
       tag: ${{ steps.version.outputs.tag }}
+      api_id: ${{ steps.ids.outputs.api }}
+      migrate_id: ${{ steps.ids.outputs.migrate }}
+      web_id: ${{ steps.ids.outputs.web }}
     steps:
       - uses: actions/checkout@v7
 
@@ -73,6 +78,14 @@ jobs:
           load: true
           cache-from: type=gha,scope=web
           cache-to: type=gha,scope=web,mode=max
+
+      # The publish job pushes images with exactly these IDs.
+      - name: Record the image IDs
+        id: ids
+        run: |
+          for image in api migrate web; do
+            echo "$image=$(docker image inspect --format '{{.Id}}' "topflow-hub-$image:ci")" >> "$GITHUB_OUTPUT"
+          done
 
       # Fails on any critical vulnerability; high ones are listed in the job summary.
       - name: Scan images with Trivy
@@ -131,30 +144,58 @@ jobs:
         if: always()
         run: docker compose -f docker-compose.prod.yml --env-file infra/compose/.env --profile demo down -v || true
 
+      # Only on develop, and only after the scan and the smoke test passed: the images that were
+      # tested, handed to the publish job (which alone may write packages).
+      - name: Save the tested images
+        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        run: |
+          mkdir -p "$RUNNER_TEMP/tested-images"
+          for image in api migrate web; do
+            docker save "topflow-hub-$image:ci" | gzip -1 > "$RUNNER_TEMP/tested-images/$image.tar.gz"
+          done
+
+      - uses: actions/upload-artifact@v7
+        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        with:
+          name: tested-images
+          path: ${{ runner.temp }}/tested-images/
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error
+
   publish:
     name: Publish to GHCR (${{ matrix.image }})
     needs: images
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: write
+      # Signs the attestations with a short-lived Sigstore certificate and stores them.
+      id-token: write
+      attestations: write
     strategy:
       matrix:
-        include:
-          - image: api
-            file: apps/api/Dockerfile
-            target: api
-          - image: migrate
-            file: apps/api/Dockerfile
-            target: migrate
-          - image: web
-            file: apps/web/Dockerfile
-            target: runtime
+        image: [api, migrate, web]
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/topflow-hub-${{ matrix.image }}
+      TAG: ${{ needs.images.outputs.tag }}
+      TESTED_ID: ${{ needs.images.outputs[format('{0}_id', matrix.image)] }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: tested-images
+          path: ${{ runner.temp }}/tested-images
 
-      - uses: docker/setup-buildx-action@v4
+      - name: Load the image that was scanned and smoke-tested
+        run: |
+          docker load --quiet --input "$RUNNER_TEMP/tested-images/${{ matrix.image }}.tar.gz"
+          loaded="$(docker image inspect --format '{{.Id}}' "topflow-hub-${{ matrix.image }}:ci")"
+          if [ "$loaded" != "$TESTED_ID" ]; then
+            echo "::error::Loaded image $loaded, but the images job tested $TESTED_ID."
+            exit 1
+          fi
 
       - uses: docker/login-action@v4
         with:
@@ -162,19 +203,39 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Rebuilt from the layers the images job built, scanned and smoke-tested (the GitHub Actions
-      # cache), not from scratch.
-      - name: Build and push
-        uses: docker/build-push-action@v7
+      - name: Push
+        id: push
+        run: |
+          docker tag "topflow-hub-${{ matrix.image }}:ci" "$IMAGE:$TAG"
+          docker tag "topflow-hub-${{ matrix.image }}:ci" "$IMAGE:develop"
+          docker push --quiet "$IMAGE:$TAG"
+          docker push --quiet "$IMAGE:develop"
+          digest="$(docker buildx imagetools inspect "$IMAGE:$TAG" --format '{{json .Manifest}}' | jq -r '.digest // empty')"
+          if ! [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::Could not read the pushed digest of $IMAGE:$TAG."
+            exit 1
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "- \`$IMAGE:$TAG\` = \`$digest\` (image ID \`$TESTED_ID\`)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: SBOM (CycloneDX)
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$RUNNER_TEMP:/out" \
+            "$TRIVY_IMAGE" image --quiet --format cyclonedx --output "/out/sbom-${{ matrix.image }}.cdx.json" "$IMAGE:$TAG"
+
+      - name: Attest build provenance
+        uses: actions/attest@v4
         with:
-          context: .
-          file: ${{ matrix.file }}
-          target: ${{ matrix.target }}
-          build-args: APP_VERSION=${{ needs.images.outputs.tag }}
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/topflow-hub-${{ matrix.image }}:${{ needs.images.outputs.tag }}
-            ghcr.io/${{ github.repository_owner }}/topflow-hub-${{ matrix.image }}:develop
-          cache-from: |
-            type=gha,scope=api
-            type=gha,scope=${{ matrix.image }}
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+          create-storage-record: false
+
+      - name: Attest the SBOM
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          sbom-path: ${{ runner.temp }}/sbom-${{ matrix.image }}.cdx.json
+          push-to-registry: true
+          create-storage-record: false
