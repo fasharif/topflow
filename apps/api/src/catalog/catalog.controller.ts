@@ -7,7 +7,6 @@ import {
   HttpStatus,
   Param,
   ParseIntPipe,
-  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -48,6 +47,7 @@ import {
 import { CatalogContextService } from './catalog-context.service';
 import { CategoriesService } from './categories.service';
 import { ProductsService } from './products.service';
+import { UuidParam } from '../common/uuid-param';
 
 @ApiTags('Catalog')
 @ApiHeader({
@@ -55,6 +55,7 @@ import { ProductsService } from './products.service';
   required: false,
   description:
     'Optional: show trade-only products and negotiated prices for this organization',
+  schema: { type: 'string', format: 'uuid' },
 })
 @Controller('catalog')
 export class CatalogController {
@@ -130,7 +131,7 @@ export class AdminCatalogController {
   @Patch('products/:id')
   @RequirePermissions(Permission.CATALOG_WRITE)
   updateProduct(
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
     @Body() dto: UpdateProductDto,
     @CurrentUser() user: AuthenticatedUser,
     @Meta() meta: RequestMeta,
@@ -144,7 +145,7 @@ export class AdminCatalogController {
     summary: 'Archive (unpublish) a product — history is preserved',
   })
   archiveProduct(
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
     @CurrentUser() user: AuthenticatedUser,
     @Meta() meta: RequestMeta,
   ): Promise<ProductDto> {
@@ -154,7 +155,7 @@ export class AdminCatalogController {
   @Patch('products/:id/stock')
   @RequirePermissions(Permission.STOCK_WRITE)
   adjustStock(
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
     @Body() dto: AdjustStockDto,
     @CurrentUser() user: AuthenticatedUser,
     @Meta() meta: RequestMeta,

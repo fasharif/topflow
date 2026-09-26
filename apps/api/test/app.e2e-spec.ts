@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import {
   calculateTotals,
   fromFils,
+  ORGANIZATION_HEADER,
   retailDeliveryFeeFils,
   toFils,
   type AddressDto,
@@ -167,6 +168,45 @@ describe('TopFlow Hub API (e2e)', () => {
           },
         }),
       );
+    });
+
+    it('describes ids and the organization header as UUIDs in its OpenAPI description', async () => {
+      type Parameter = {
+        in: string;
+        name: string;
+        required?: boolean;
+        schema?: { type?: string; format?: string };
+      };
+      const document = (await http().get('/docs-json').expect(200)).body as {
+        paths: Record<string, Record<string, { parameters?: Parameter[] }>>;
+      };
+      const parameters = Object.entries(document.paths).flatMap(
+        ([path, item]) =>
+          Object.entries(item).flatMap(([method, operation]) =>
+            (operation.parameters ?? []).map((parameter) => ({
+              operation: `${method.toUpperCase()} ${path}`,
+              ...parameter,
+            })),
+          ),
+      );
+      // Every path id is validated with ParseUUIDPipe, except the product slug and the numeric
+      // category ids; the organisation guard refuses a header that is not a UUID (BUG-06).
+      const stringIds = parameters.filter(
+        (p) =>
+          p.in === 'path' && p.schema?.type === 'string' && p.name !== 'slug',
+      );
+      expect(stringIds.length).toBeGreaterThan(30);
+      expect(stringIds.filter((p) => p.schema?.format !== 'uuid')).toEqual([]);
+      const headers = parameters.filter(
+        (p) => p.in === 'header' && p.name === ORGANIZATION_HEADER,
+      );
+      expect(headers.length).toBeGreaterThan(20);
+      expect(headers.filter((p) => p.schema?.format !== 'uuid')).toEqual([]);
+      expect(
+        headers.filter(
+          (p) => p.operation.includes(' /org') && p.required !== true,
+        ),
+      ).toEqual([]);
     });
 
     it('trusts a forwarded client address only from the web app', async () => {

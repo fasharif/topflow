@@ -5,8 +5,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Param,
-  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -19,7 +17,6 @@ import {
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import {
-  ORGANIZATION_HEADER,
   OrgPermission,
   Permission,
   type AddressDto,
@@ -56,14 +53,11 @@ import {
   UpdateOrganizationDto,
 } from './organizations.dto';
 import { OrganizationsService } from './organizations.service';
+import { ORGANIZATION_HEADER_DOC, UuidParam } from '../common/uuid-param';
 
 @ApiTags('B2B · Organization')
 @ApiBearerAuth()
-@ApiHeader({
-  name: ORGANIZATION_HEADER,
-  required: true,
-  description: 'Organization (tenant) to act in',
-})
+@ApiHeader(ORGANIZATION_HEADER_DOC)
 @Controller('org')
 export class OrganizationController {
   constructor(
@@ -106,7 +100,7 @@ export class OrganizationController {
   })
   updateMember(
     @CurrentOrganization() org: OrganizationContext,
-    @Param('memberId', ParseUUIDPipe) memberId: string,
+    @UuidParam('memberId') memberId: string,
     @Body() dto: UpdateMemberDto,
     @CurrentUser() user: AuthenticatedUser,
     @Meta() meta: RequestMeta,
@@ -119,7 +113,7 @@ export class OrganizationController {
   @RequireOrgPermission(OrgPermission.MEMBERS_MANAGE)
   removeMember(
     @CurrentOrganization() org: OrganizationContext,
-    @Param('memberId', ParseUUIDPipe) memberId: string,
+    @UuidParam('memberId') memberId: string,
     @CurrentUser() user: AuthenticatedUser,
     @Meta() meta: RequestMeta,
   ): Promise<void> {
@@ -150,7 +144,7 @@ export class OrganizationController {
   @RequireOrgPermission(OrgPermission.MEMBERS_MANAGE)
   revokeInvitation(
     @CurrentOrganization() org: OrganizationContext,
-    @Param('invitationId', ParseUUIDPipe) invitationId: string,
+    @UuidParam('invitationId') invitationId: string,
     @CurrentUser() user: AuthenticatedUser,
     @Meta() meta: RequestMeta,
   ): Promise<void> {
@@ -178,7 +172,7 @@ export class OrganizationController {
   @RequireOrgPermission(OrgPermission.SITES_MANAGE)
   updateSite(
     @CurrentOrganization() org: OrganizationContext,
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
     @Body() dto: UpdateAddressDto,
   ): Promise<AddressDto> {
     return this.addressBook.update(
@@ -193,7 +187,7 @@ export class OrganizationController {
   @RequireOrgPermission(OrgPermission.SITES_MANAGE)
   removeSite(
     @CurrentOrganization() org: OrganizationContext,
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
   ): Promise<void> {
     return this.addressBook.remove({ organizationId: org.organizationId }, id);
   }
@@ -249,7 +243,7 @@ export class AdminOrganizationsController {
 
   @Get(':id')
   detail(
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
   ): Promise<{ organization: OrganizationDto; members: MemberDto[] }> {
     return this.organizations.adminGet(id);
   }
@@ -260,7 +254,7 @@ export class AdminOrganizationsController {
       'KYC decision and commercial terms (status, payment terms, credit limit, discount)',
   })
   review(
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
     @Body() dto: ReviewOrganizationDto,
     @CurrentUser() user: AuthenticatedUser,
     @Meta() meta: RequestMeta,

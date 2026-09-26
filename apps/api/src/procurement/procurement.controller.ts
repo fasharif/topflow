@@ -5,8 +5,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Param,
-  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -20,7 +18,6 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
-  ORGANIZATION_HEADER,
   OrgPermission,
   Permission,
   type Paginated,
@@ -54,6 +51,7 @@ import {
 } from './procurement.dto';
 import { QuotationsService } from './quotations.service';
 import { RfqService } from './rfq.service';
+import { ORGANIZATION_HEADER_DOC, UuidParam } from '../common/uuid-param';
 
 function pdfFile({
   filename,
@@ -71,7 +69,7 @@ function pdfFile({
 
 @ApiTags('B2B · Procurement')
 @ApiBearerAuth()
-@ApiHeader({ name: ORGANIZATION_HEADER, required: true })
+@ApiHeader(ORGANIZATION_HEADER_DOC)
 @Controller('org')
 export class OrgProcurementController {
   constructor(
@@ -106,7 +104,7 @@ export class OrgProcurementController {
   @RequireOrgPermission(OrgPermission.ORDERS_VIEW)
   getRfq(
     @CurrentOrganization() org: OrganizationContext,
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
   ): Promise<RfqDto> {
     return this.rfqs.getForOrganization(org, id);
   }
@@ -116,7 +114,7 @@ export class OrgProcurementController {
   @RequireOrgPermission(OrgPermission.RFQ_CREATE)
   cancelRfq(
     @CurrentOrganization() org: OrganizationContext,
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
     @CurrentUser() user: AuthenticatedUser,
     @Meta() meta: RequestMeta,
   ): Promise<RfqDto> {
@@ -136,7 +134,7 @@ export class OrgProcurementController {
   @RequireOrgPermission(OrgPermission.ORDERS_VIEW)
   getQuotation(
     @CurrentOrganization() org: OrganizationContext,
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
   ): Promise<QuotationDto> {
     return this.quotations.orgGet(org, id);
   }
@@ -146,7 +144,7 @@ export class OrgProcurementController {
   @RequireOrgPermission(OrgPermission.ORDERS_VIEW)
   async quotationPdf(
     @CurrentOrganization() org: OrganizationContext,
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
   ): Promise<StreamableFile> {
     return pdfFile(
       await this.quotations.renderPdf(id, {
@@ -164,7 +162,7 @@ export class OrgProcurementController {
   })
   respond(
     @CurrentOrganization() org: OrganizationContext,
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
     @Body() dto: RespondQuotationDto,
     @CurrentUser() user: AuthenticatedUser,
     @Meta() meta: RequestMeta,
@@ -181,7 +179,7 @@ export class OrgProcurementController {
   })
   decide(
     @CurrentOrganization() org: OrganizationContext,
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
     @Body() dto: ApprovalDecisionDto,
     @CurrentUser() user: AuthenticatedUser,
     @Meta() meta: RequestMeta,
@@ -208,7 +206,7 @@ export class MyQuotationsController {
   @Get(':id')
   get(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
   ): Promise<QuotationDto> {
     return this.quotations.personalGet(user, id);
   }
@@ -217,7 +215,7 @@ export class MyQuotationsController {
   @ApiProduces('application/pdf')
   async pdf(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
   ): Promise<StreamableFile> {
     return pdfFile(
       await this.quotations.renderPdf(id, { customerId: user.id }),
@@ -232,7 +230,7 @@ export class MyQuotationsController {
   })
   respond(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
     @Body() dto: RespondPersonalQuotationDto,
     @Meta() meta: RequestMeta,
   ): Promise<QuotationDto> {
@@ -257,14 +255,14 @@ export class AdminProcurementController {
 
   @Get('rfqs/:id')
   @RequirePermissions(Permission.RFQS_MANAGE)
-  getRfq(@Param('id', ParseUUIDPipe) id: string): Promise<RfqDto> {
+  getRfq(@UuidParam('id') id: string): Promise<RfqDto> {
     return this.rfqs.adminGet(id);
   }
 
   @Patch('rfqs/:id')
   @RequirePermissions(Permission.RFQS_MANAGE)
   updateRfq(
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
     @Body() dto: UpdateRfqDto,
     @CurrentUser() user: AuthenticatedUser,
     @Meta() meta: RequestMeta,
@@ -280,7 +278,7 @@ export class AdminProcurementController {
       'Link a website request to an existing customer, or invite its contact to create an account',
   })
   assignRfqCustomer(
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
     @Body() dto: AssignRfqCustomerDto,
     @CurrentUser() user: AuthenticatedUser,
     @Meta() meta: RequestMeta,
@@ -311,14 +309,14 @@ export class AdminProcurementController {
 
   @Get('quotations/:id')
   @RequirePermissions(Permission.QUOTATIONS_MANAGE)
-  getQuotation(@Param('id', ParseUUIDPipe) id: string): Promise<QuotationDto> {
+  getQuotation(@UuidParam('id') id: string): Promise<QuotationDto> {
     return this.quotations.adminGet(id);
   }
 
   @Patch('quotations/:id')
   @RequirePermissions(Permission.QUOTATIONS_MANAGE)
   updateQuotation(
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
     @Body() dto: UpdateQuotationDto,
     @CurrentUser() user: AuthenticatedUser,
     @Meta() meta: RequestMeta,
@@ -330,7 +328,7 @@ export class AdminProcurementController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @RequirePermissions(Permission.QUOTATIONS_MANAGE)
   discardQuotation(
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
     @CurrentUser() user: AuthenticatedUser,
     @Meta() meta: RequestMeta,
   ): Promise<void> {
@@ -341,7 +339,7 @@ export class AdminProcurementController {
   @HttpCode(HttpStatus.OK)
   @RequirePermissions(Permission.QUOTATIONS_MANAGE)
   sendQuotation(
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
     @CurrentUser() user: AuthenticatedUser,
     @Meta() meta: RequestMeta,
   ): Promise<QuotationDto> {
@@ -355,7 +353,7 @@ export class AdminProcurementController {
       'Start the next revision as a draft (lines copied unless provided)',
   })
   reviseQuotation(
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
     @Body() dto: UpdateQuotationDto,
     @CurrentUser() user: AuthenticatedUser,
     @Meta() meta: RequestMeta,
@@ -366,9 +364,7 @@ export class AdminProcurementController {
   @Get('quotations/:id/pdf')
   @ApiProduces('application/pdf')
   @RequirePermissions(Permission.QUOTATIONS_MANAGE)
-  async quotationPdf(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<StreamableFile> {
+  async quotationPdf(@UuidParam('id') id: string): Promise<StreamableFile> {
     return pdfFile(await this.quotations.renderPdf(id));
   }
 }

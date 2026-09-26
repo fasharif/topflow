@@ -4,8 +4,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Param,
-  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -17,7 +15,6 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
-  ORGANIZATION_HEADER,
   OrgPermission,
   Permission,
   type OrderDto,
@@ -45,6 +42,7 @@ import {
   UpdateOrderStatusDto,
 } from './orders.dto';
 import { OrdersService } from './orders.service';
+import { ORGANIZATION_HEADER_DOC, UuidParam } from '../common/uuid-param';
 
 @ApiTags('Orders')
 @ApiBearerAuth()
@@ -75,7 +73,7 @@ export class MyOrdersController {
   @Get(':id')
   get(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
   ): Promise<OrderDto> {
     return this.orders.getMine(user, id);
   }
@@ -84,7 +82,7 @@ export class MyOrdersController {
   @HttpCode(HttpStatus.OK)
   cancel(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
     @Body() dto: CancelOrderDto,
     @Meta() meta: RequestMeta,
   ): Promise<OrderDto> {
@@ -94,7 +92,7 @@ export class MyOrdersController {
 
 @ApiTags('B2B · Orders')
 @ApiBearerAuth()
-@ApiHeader({ name: ORGANIZATION_HEADER, required: true })
+@ApiHeader(ORGANIZATION_HEADER_DOC)
 @Controller('org/orders')
 export class OrgOrdersController {
   constructor(private readonly orders: OrdersService) {}
@@ -112,7 +110,7 @@ export class OrgOrdersController {
   @RequireOrgPermission(OrgPermission.ORDERS_VIEW)
   get(
     @CurrentOrganization() org: OrganizationContext,
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
   ): Promise<OrderDto> {
     return this.orders.getForOrganization(org, id);
   }
@@ -126,7 +124,7 @@ export class OrgOrdersController {
   })
   cancel(
     @CurrentOrganization() org: OrganizationContext,
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
     @Body() dto: CancelOrderDto,
     @CurrentUser() user: AuthenticatedUser,
     @Meta() meta: RequestMeta,
@@ -151,7 +149,7 @@ export class AdminOrdersController {
   @RequirePermissions(Permission.ORDERS_READ_ALL)
   get(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
   ): Promise<OrderDto> {
     return this.orders.adminGet(user, id);
   }
@@ -163,7 +161,7 @@ export class AdminOrdersController {
   })
   transition(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
     @Body() dto: UpdateOrderStatusDto,
     @Meta() meta: RequestMeta,
   ): Promise<OrderDto> {
@@ -178,7 +176,7 @@ export class AdminOrdersController {
   })
   recordPayment(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
     @Body() dto: RecordPaymentDto,
     @Meta() meta: RequestMeta,
   ): Promise<OrderDto> {
@@ -193,7 +191,7 @@ export class AdminOrdersController {
   })
   recordRefund(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
     @Body() dto: RecordRefundDto,
     @Meta() meta: RequestMeta,
   ): Promise<OrderDto> {
