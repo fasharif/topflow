@@ -75,7 +75,8 @@ function supabaseDirectory(supabase: NonNullable<ResetPlan['supabase']>): Identi
   return {
     async listIds(page, perPage) {
       const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
-      if (error) throw new Error(`Could not list Supabase Auth users: ${error.message}`);
+      // resetDemo turns this into a one-line refusal: nothing has changed at this point.
+      if (error) throw new Error(error.message);
       return data.users.map((user) => user.id);
     },
     async remove(id) {

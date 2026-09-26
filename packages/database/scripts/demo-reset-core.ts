@@ -277,6 +277,19 @@ export interface ResetSummary {
   identitiesRemoved: number;
 }
 
+/** Every sign-in of the demo project, or a refusal that says in one line why they could not be read. */
+async function readIdentities(directory: IdentityDirectory): Promise<string[]> {
+  try {
+    return await listAllIdentities(directory);
+  } catch (error) {
+    if (error instanceof DemoResetRefused) throw error;
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new DemoResetRefused(
+      `Could not list the Supabase Auth users of SUPABASE_URL (${reason}). Check SUPABASE_URL and SUPABASE_SECRET_KEY. Nothing was changed.`,
+    );
+  }
+}
+
 /**
  * 1. Refuse a database that holds accounts other than the demo seed's but not the demo data set.
  * 2. List the demo project's sign-ins (read-only) and refuse unless they are exactly the database's
@@ -289,8 +302,12 @@ export async function resetDemo(env: NodeJS.ProcessEnv, deps: ResetDependencies)
   const problem = assessTarget(facts);
   if (problem) throw new DemoResetRefused(problem);
   const statement = truncateStatement(facts.tables);
-  const identityIds = deps.identities ? await listAllIdentities(deps.identities) : [];
+  let identityIds: string[] = [];
   if (deps.identities) {
+    // Without auth.users there is nothing to compare a listing with, so none is requested.
+    const noAuthTable = facts.authUserIds === null ? compareIdentities([], null) : null;
+    if (noAuthTable) throw new DemoResetRefused(noAuthTable);
+    identityIds = await readIdentities(deps.identities);
     const mismatch = compareIdentities(identityIds, facts.authUserIds);
     if (mismatch) throw new DemoResetRefused(mismatch);
   }

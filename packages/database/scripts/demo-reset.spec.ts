@@ -292,10 +292,10 @@ describe('resetDemo', () => {
     expect(steps).toEqual(['list page 1']);
   });
 
-  it('changes nothing when Supabase settings are given for a database without auth.users', async () => {
+  it('changes nothing, and lists no sign-ins, when Supabase settings are given for a database without auth.users', async () => {
     const { deps, steps } = harness({ authUserIds: null });
-    await expect(resetDemo(ready, deps)).rejects.toBeInstanceOf(DemoResetRefused);
-    expect(steps).toEqual(['list page 1']);
+    await expect(resetDemo(ready, deps)).rejects.toThrow(/no auth\.users table/);
+    expect(steps).toEqual([]);
   });
 
   it('changes nothing when the target does not look like the demo database', async () => {
@@ -307,10 +307,14 @@ describe('resetDemo', () => {
   it('empties nothing when the Supabase credentials do not work', async () => {
     const { deps, steps } = harness();
     deps.identities = {
-      listIds: () => Promise.reject(new Error('Could not list Supabase Auth users: Invalid API key')),
+      listIds: () => Promise.reject(new Error('Invalid API key')),
       remove: () => Promise.resolve(),
     };
-    await expect(resetDemo(ready, deps)).rejects.toThrow('Invalid API key');
+    const refusal = resetDemo(ready, deps);
+    await expect(refusal).rejects.toBeInstanceOf(DemoResetRefused);
+    await expect(refusal).rejects.toThrow(
+      'Could not list the Supabase Auth users of SUPABASE_URL (Invalid API key). Check SUPABASE_URL and SUPABASE_SECRET_KEY. Nothing was changed.',
+    );
     expect(steps).toEqual([]);
   });
 
