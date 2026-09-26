@@ -196,17 +196,34 @@ The unit table covers every rule, with boundary rows one fils below the limit (B
 
 ## 9. Results of this cycle
 
-Run on 26 September 2026 on a Windows 11 laptop with Docker Desktop (16 CPUs, 7.9 GB for all containers), shared with other builds. The final run started from a clean clone of the branch: the API and the web app from production builds, a freshly started Supabase CLI stack (Auth, PostgreSQL 17 and Mailpit only, on non-default ports because the defaults were taken on that machine) seeded with the demo profile, and a new `postgres:17` container for the API suites. Only pass and fail results and counts are reported here, not timings.
+Run on 26 September 2026 on a Windows 11 laptop with Docker Desktop (16 CPUs, 7.9 GB for all containers), shared with other builds. The final run started from a clean clone of commit `af5c251` of the branch (the commits after it change Markdown only): `npm ci`, the API and the web app from production builds, a freshly started Supabase CLI stack (Auth, PostgreSQL 17 and Mailpit only, on ports 54325, 54326 and 54328 because the defaults were taken by another stack on that machine) seeded with the demo profile, and a new `postgres:17` container for the API suites, prepared as in CI with `db:deploy`, `db:seed` and the demo reset. Only pass and fail results and counts are reported here, not timings.
 
 | Suite | Command | Result |
 | --- | --- | --- |
-| Shared unit tests | `npm test -w @topflow/shared` | 74 passed |
-| API unit tests | `npm run test:cov -w @topflow/api` | 50 passed |
-| API end-to-end tests | `npm run test:e2e:cov -w @topflow/api` | 34 passed (22 in `app.e2e-spec.ts`, 12 in `decision-tables.e2e-spec.ts`) |
-| Playwright | `npm run e2e -w @topflow/system-tests` | 26 passed: 8 sign-ins, 13 journeys and checks on desktop, 5 accessibility tests on a phone |
-| k6 smoke | `npm run load -w @topflow/system-tests` | All thresholds met, 0 failed requests |
-| Schemathesis | `npm run contract -w @topflow/system-tests` | 8,683 generated cases passed against the baseline; no server error in any run |
+| Static checks | `npx turbo run lint`, `npx turbo run check-types`; shellcheck 0.11 on the tool scripts; actionlint 1.7.12 | All passed; no finding in the 7 workflows |
+| Shared unit tests | `npm test -w @topflow/shared` | 91 passed |
+| API unit tests | `npm run test:cov -w @topflow/api` | 84 passed |
+| Web unit tests | `npm test -w web` | 30 passed |
+| Database and setup scripts | `npm test -w @topflow/database`, `npm run test:scripts` | 35 and 6 passed |
+| Web builds | `npm run build -w web` and `npm run test:demo -w web`, ordinary and demo build | Both built; both smoke checks passed |
+| API end-to-end tests | `npm run test:e2e:cov -w @topflow/api` | 53 passed: 26 in `app.e2e-spec.ts`, 17 in `decision-tables.e2e-spec.ts` (including five concurrency rounds), 10 in `demo.e2e-spec.ts` |
+| Playwright | `npm run e2e -w @topflow/system-tests` with `CI=1` | 30 passed, none retried: 8 sign-ins, 17 journeys and checks on desktop, 5 accessibility tests on a phone (41 pages at each size) |
+| k6 smoke | `npm run load -w @topflow/system-tests` | 25 of 25 checks passed, 0 of 27 requests failed; the summary holds no access token |
+| Schemathesis | `npm run contract -w @topflow/system-tests` | No new failure in any pass; table below |
+| README media | `npm run screenshots` and `npm run walkthrough:gif` against a demo build | 14 passed (8 sign-ins, 6 captures, each with the demo banner); GIF written. The committed images come from the same scripts run in the working copy |
 
-API coverage from the same runs (statements, excluding specs and entry points): end-to-end suite 79.3 % (1,697 of 2,141), unit suite 15.5 % (331 of 2,141). CI prints both in its job summary.
+Schemathesis, from `node tests/scripts/schemathesis-summary.mts tests/reports/schemathesis`:
 
-Eleven defects were recorded; seven are fixed on this branch with regression tests or documentation changes, four are open. See BUGS-FOUND.md.
+| Pass | Operations tested | Test cases | New failures | Known (baseline) | Only 401/403 | Repeated 404 | Mostly rejected |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| customer | 82 of 82 | 9,085 | 0 | 11 | 29 | 7 | 47 |
+| staff | 13 of 82 | 1,949 | 0 | 0 | 0 | 5 | 1 |
+| trade | 24 of 82 | 2,889 | 0 | 3 | 0 | 14 | 9 |
+
+Schemathesis 4.28.0, seed 20260926. The customer pass is refused by the back office and the trade portal, as it should be; the staff and trade passes reach those operations. The repeated 404s of the staff and trade passes are lookups by id for documents the new accounts do not have. The reasons behind the other warnings and every baseline entry are in BUGS-FOUND.md.
+
+API coverage from the same runs (statements, excluding specs and entry points): end-to-end suites 80.8 % (1,842 of 2,281; branches 65.0 %), unit suite 19.9 % (453 of 2,281). CI prints both in its job summary.
+
+**Not run here.** The GitHub Actions workflows (`ci.yml`, `system-tests.yml`, `test-report-pages.yml`) have not run on a GitHub runner, because nothing can be pushed from this machine; each step was run locally as above. The one behaviour that differs on a Linux runner, the ownership of files the tool containers write, was reproduced on a Linux-native Docker mount: a summary written by a container running as root could not be rewritten by user 1000, one written as user 1000 could, which is why the containers now run as the calling user on Linux. Measured k6 results are pending a quiet machine (PERFORMANCE.md).
+
+Sixteen defects are recorded in BUGS-FOUND.md, all fixed: thirteen on this branch with regression tests, three on `feature/demo-mode`.
