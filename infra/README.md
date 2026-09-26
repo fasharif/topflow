@@ -81,7 +81,7 @@ SMOKE_PASSWORD='TopFlow2026!' node infra/scripts/smoke-test.mts --web https://lo
 | Deploy script, against a fake AWS CLI | `infra/scripts/tests/deploy-ecs.test.sh` | bash, jq |
 | Restore drill, with a synthetic backup and a throwaway key | `infra/scripts/tests/restore-drill.test.sh --container <postgres container> --database <db>` | Docker, age |
 | Terraform: fmt, validate, `terraform test` (mocked provider), tflint, Trivy | `infra/scripts/check-terraform.sh` | Docker |
-| Shell scripts | `shellcheck infra/scripts/*.sh infra/scripts/tests/*.sh infra/scripts/tests/fake-aws` | ShellCheck |
+| Shell scripts | `docker run --rm -v "$PWD:/mnt:ro" -w /mnt koalaman/shellcheck:v0.11.0 infra/scripts/*.sh infra/scripts/tests/*.sh infra/scripts/tests/fake-aws infra/compose/initdb/*.sh apps/api/docker/*.sh` | Docker |
 
 CI runs all of them ([ci.yml](../.github/workflows/ci.yml), [infra.yml](../.github/workflows/infra.yml)), plus the Compose stack with the smoke test ([containers.yml](../.github/workflows/containers.yml)).
 

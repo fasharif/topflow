@@ -123,8 +123,12 @@ jobs:
           npx tsc -p infra/tsconfig.json
           node --test "infra/**/*.test.mts"
 
+      # A pinned ShellCheck, so CI and a workstation check with the same version (ubuntu-latest
+      # ships an older one with different rule codes).
       - name: ShellCheck
-        run: shellcheck infra/scripts/*.sh infra/scripts/tests/*.sh infra/scripts/tests/fake-aws infra/compose/initdb/*.sh apps/api/docker/*.sh
+        run: >-
+          docker run --rm -v "$PWD:/mnt:ro" -w /mnt koalaman/shellcheck:v0.11.0
+          infra/scripts/*.sh infra/scripts/tests/*.sh infra/scripts/tests/fake-aws infra/compose/initdb/*.sh apps/api/docker/*.sh
 
       - name: Deploy script against a fake AWS CLI
         run: infra/scripts/tests/deploy-ecs.test.sh

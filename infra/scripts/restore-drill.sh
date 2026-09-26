@@ -71,7 +71,7 @@ seconds() { printf '%d.%01d' $(($1 / 1000)) $((($1 % 1000) / 100)); }
 workdir="$(mktemp -d)"
 container="topflow-restore-drill-$$-$RANDOM"
 password="$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
-# shellcheck disable=SC2329 # called by the EXIT trap below
+# shellcheck disable=SC2317,SC2329 # called by the EXIT trap below (SC2317 before ShellCheck 0.11, SC2329 since)
 cleanup() {
   if [[ "$keep" == false ]]; then
     docker rm --force "$container" >/dev/null 2>&1 || true
