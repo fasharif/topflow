@@ -127,39 +127,54 @@ test.describe('security: prices come from the server', () => {
       await open(page, `/products/${product.slug}`);
       await page.getByRole('spinbutton', { name: 'Quantity' }).fill(String(quantity));
       await page.getByRole('button', { name: 'Add to basket' }).click();
-      await page.evaluate(() => {
+      await expect(page.getByRole('status').filter({ hasText: `Added ${quantity}` })).toBeVisible();
+      const stored = await page.evaluate(() => {
         const key = 'topflow.cart.v2';
         const lines = JSON.parse(window.localStorage.getItem(key) ?? '[]') as Array<Record<string, unknown>>;
         window.localStorage.setItem(key, JSON.stringify(lines.map((line) => ({ ...line, unitPrice: '0.01', retailPrice: '0.01' }))));
+        return JSON.parse(window.localStorage.getItem(key) ?? '[]') as Array<Record<string, unknown>>;
       });
+      // The edit really happened: otherwise this test would pass without tampering with anything.
+      expect(stored).toEqual([expect.objectContaining({ productId: product.id, quantity, unitPrice: '0.01', retailPrice: '0.01' })]);
     });
 
     await test.step('checkout shows the catalogue price, not the edited one', async () => {
       await open(page, '/checkout');
-      await expect(page.getByText(formatMoney(expected.totalAmount)).first()).toBeVisible();
+      await expect(page.getByText(formatMoney(expected.totalAmount)).filter({ visible: true }).first()).toBeVisible();
       await expect(page.getByText(formatMoney(tampered.totalAmount))).toHaveCount(0);
     });
 
     let orderId = '';
     await test.step('the order request is rewritten on its way out, with a price and totals', async () => {
+      const rewritten: Array<Record<string, unknown>> = [];
       await page.route('**/api/me/orders', async (route) => {
+        if (route.request().method() !== 'POST') return route.fallback();
         const body = route.request().postDataJSON() as { items: Array<Record<string, unknown>> };
-        await route.continue({
-          postData: JSON.stringify({
-            ...body,
-            items: body.items.map((item) => ({ ...item, unitPrice: '0.01', price: '0.01' })),
-            subtotal: '0.02',
-            totalAmount: '0.02',
-          }),
-        });
+        const tamperedBody = {
+          ...body,
+          items: body.items.map((item) => ({ ...item, unitPrice: '0.01', price: '0.01' })),
+          subtotal: '0.02',
+          totalAmount: '0.02',
+        };
+        rewritten.push(tamperedBody);
+        await route.continue({ postData: JSON.stringify(tamperedBody) });
       });
       await page.getByRole('button', { name: 'Place order' }).click();
       await page.waitForURL(/\/account\/orders\/[^/?]+\?placed=1$/);
       orderId = new URL(page.url()).pathname.split('/').pop() ?? '';
+      // Exactly one order request went out, and it carried the forged prices.
+      expect(rewritten).toEqual([
+        expect.objectContaining({
+          items: [expect.objectContaining({ productId: product.id, quantity, unitPrice: '0.01' })],
+          totalAmount: '0.02',
+          // The total the page showed, which the API checks against its own (BUG-02).
+          expectedTotal: expected.totalAmount,
+        }),
+      ]);
     });
 
     await test.step('the order is priced from the catalogue', async () => {
-      await expect(page.getByText(formatMoney(expected.totalAmount)).first()).toBeVisible();
+      await expect(page.getByText(formatMoney(expected.totalAmount)).filter({ visible: true }).first()).toBeVisible();
       const order = await api.get<OrderDto>(`/me/orders/${orderId}`);
       expect(order).toMatchObject(expected);
       expect(order.items[0]?.unitPrice).toBe(product.unitPrice);
