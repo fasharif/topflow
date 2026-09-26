@@ -9,10 +9,10 @@
  * but not the demo data, and refuses Supabase settings whose users are not exactly the database's own
  * auth.users. The safety checks live in demo-reset-core.ts.
  */
-import 'dotenv/config';
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
+import { config as loadEnvFile } from 'dotenv';
 import { Client } from 'pg';
 import { DEMO_ORGANIZATION } from '@topflow/shared';
 import {
@@ -104,7 +104,11 @@ function runSeed(env: NodeJS.ProcessEnv): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const checked = checkPreconditions(process.env, process.argv.slice(2));
+  // DEMO_MODE must be given for the run itself, so it is read before packages/database/.env fills in
+  // DATABASE_URL and the other settings (a .env file never overrides the shell).
+  const shell = { ...process.env };
+  loadEnvFile();
+  const checked = checkPreconditions(process.env, process.argv.slice(2), shell);
   if (!checked.ok) {
     console.error(`Demo reset refused:\n${checked.problems.map((problem) => `  - ${problem}`).join('\n')}`);
     process.exitCode = 1;

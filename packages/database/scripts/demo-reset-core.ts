@@ -61,16 +61,34 @@ function describeProject(project: string): string {
   return project === 'local' ? 'a local Supabase stack' : `project ${project}`;
 }
 
+/** parseDemoModeFlag without the exception: an invalid value counts as off. */
+function demoModeOn(value: string | undefined): boolean {
+  try {
+    return parseDemoModeFlag(value);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Everything that must hold before the reset touches a database. All problems are reported at once,
  * so a misconfigured scheduled run explains itself in a single log.
+ *
+ * `shell` is the environment as the shell or the workflow set it, captured before any `.env` file was
+ * read. DEMO_MODE must come from there: the switch is given for the run itself, so a DEMO_MODE=true
+ * forgotten in packages/database/.env (the file that also holds DATABASE_URL) never empties a database.
  */
-export function checkPreconditions(env: NodeJS.ProcessEnv, args: readonly string[]): Preconditions {
+export function checkPreconditions(env: NodeJS.ProcessEnv, args: readonly string[], shell: NodeJS.ProcessEnv = env): Preconditions {
   const problems: string[] = [];
+  const shellDemoMode = shell.DEMO_MODE;
 
   try {
-    if (!parseDemoModeFlag(env.DEMO_MODE)) {
-      problems.push('DEMO_MODE=true is required: demo:reset only runs against the public demo database.');
+    if (!parseDemoModeFlag(shellDemoMode)) {
+      problems.push(
+        shellDemoMode === undefined && demoModeOn(env.DEMO_MODE)
+          ? 'DEMO_MODE=true comes only from a .env file. Set it for this run, in the shell or the workflow, so a value left in a file never empties a database.'
+          : 'DEMO_MODE=true is required: demo:reset only runs against the public demo database.',
+      );
     }
   } catch (error) {
     problems.push(error instanceof Error ? error.message : String(error));

@@ -26,7 +26,7 @@ All commands read `DATABASE_URL` from the environment or `packages/database/.env
 
 `scripts/demo-reset.ts` returns the public portfolio demo to its seeded state every night ([ADR-021](../../docs/DECISIONS.md), [operations runbook](../../docs/OPERATIONS.md#10-public-demo)). It:
 
-1. refuses to start unless `DEMO_MODE=true` and `--confirm` are given, `NODE_ENV` is not `production` and no production seed setting is present, or when `SUPABASE_URL` and `DATABASE_URL` name different Supabase projects;
+1. refuses to start unless `DEMO_MODE=true` and `--confirm` are given for the run (a `DEMO_MODE` found only in `.env` is refused, so a forgotten file value never empties a database), `NODE_ENV` is not `production` and no production seed setting is present, or when `SUPABASE_URL` and `DATABASE_URL` name different Supabase projects;
 2. refuses any database that holds accounts the demo seed does not create but not the demo data set (the fictional Desert Bloom Landscaping LLC), and changes nothing. The seed creates Desert Bloom before any account, so a seed that stops part-way never locks the next reset out;
 3. lists the Supabase Auth users of `SUPABASE_URL` (when `SUPABASE_URL` and `SUPABASE_SECRET_KEY` are set) and refuses, changing nothing, unless they are exactly the rows of the target database's own `auth.users` table: a key from another project, such as production, never gets as far as a deletion;
 4. empties every table except `_prisma_migrations` in one `TRUNCATE … RESTART IDENTITY CASCADE` transaction;

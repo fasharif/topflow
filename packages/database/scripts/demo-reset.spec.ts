@@ -45,6 +45,20 @@ describe('demo reset safety checks', () => {
       expect(problemsOf({ ...ready, DEMO_MODE: 'yes' })).toEqual([expect.stringContaining('DEMO_MODE must be "true" or "false"')]);
     });
 
+    it('refuses a DEMO_MODE=true that comes only from a .env file', () => {
+      // The shell set no DEMO_MODE; packages/database/.env supplied it along with DATABASE_URL.
+      expect(checkPreconditions(ready, [CONFIRM_FLAG], {})).toEqual({
+        ok: false,
+        problems: [expect.stringMatching(/^DEMO_MODE=true comes only from a \.env file\. Set it for this run/)],
+      });
+      expect(checkPreconditions(ready, [CONFIRM_FLAG], { DEMO_MODE: 'true' })).toMatchObject({ ok: true });
+      // A shell value wins: DEMO_MODE=false in the shell is off whatever the file says.
+      expect(checkPreconditions(ready, [CONFIRM_FLAG], { DEMO_MODE: 'false' })).toEqual({
+        ok: false,
+        problems: ['DEMO_MODE=true is required: demo:reset only runs against the public demo database.'],
+      });
+    });
+
     it('refuses to run without the explicit confirmation flag', () => {
       expect(problemsOf(ready, [])).toEqual([`Pass ${CONFIRM_FLAG} to confirm that every table of the target database will be emptied.`]);
       expect(problemsOf(ready, ['--confirm=yes'])).toEqual([
