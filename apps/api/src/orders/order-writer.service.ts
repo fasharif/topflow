@@ -22,6 +22,12 @@ export type QuotationForOrder = Prisma.QuotationGetPayload<{
   include: { items: true; quoteRequest: true; organization: true };
 }>;
 
+/** An organisation's trading terms, read while its row is locked. */
+interface LockedTerms {
+  paymentTerms: PaymentTerms;
+  creditLimit: string;
+}
+
 export interface CreatedOrder {
   id: string;
   orderNumber: string;
@@ -61,6 +67,11 @@ export class OrderWriter {
    *    order would exceed the credit limit, in which case the order waits for payment.
    * A quotation for an individual customer becomes a retail order, confirmed and paid on
    * delivery to the address they chose when accepting (`delivery`).
+   *
+   * The organisation's row is locked (SELECT … FOR UPDATE) before its exposure is summed, so
+   * releases for one organisation run one after another: two quotations accepted at the same
+   * moment cannot both see the old exposure and together pass the credit limit. The terms are
+   * read again under the lock, so a limit changed by sales meanwhile is respected too.
    */
   async createFromQuotation(
     tx: Prisma.TransactionClient,
@@ -80,23 +91,31 @@ export class OrderWriter {
       status = OrderStatus.CONFIRMED;
       paymentMethod = PaymentMethod.CASH_ON_DELIVERY;
       releaseNote = 'Payment on delivery';
-    } else if (org && org.paymentTerms !== PaymentTerms.PREPAID) {
-      const outstanding = await tx.order.aggregate({
-        where: {
-          organizationId: org.id,
-          paymentStatus: PaymentStatus.UNPAID,
-          status: { not: OrderStatus.CANCELLED },
-        },
-        _sum: { totalAmount: true },
-      });
-      const exposureFils =
-        toFils(outstanding._sum.totalAmount ?? 0) + toFils(quotation.total);
-      if (exposureFils <= toFils(org.creditLimit)) {
-        status = OrderStatus.CONFIRMED;
-        paymentMethod = PaymentMethod.CREDIT_ACCOUNT;
-        releaseNote = `Released on ${PAYMENT_TERMS_LABELS[org.paymentTerms]} credit`;
-      } else {
-        releaseNote = 'Credit limit exceeded — awaiting payment before release';
+    } else if (org) {
+      const [terms] = await tx.$queryRaw<LockedTerms[]>`
+        SELECT "paymentTerms"::text AS "paymentTerms", "creditLimit"::text AS "creditLimit"
+        FROM "organizations"
+        WHERE "id" = ${org.id}
+        FOR UPDATE`;
+      if (terms && terms.paymentTerms !== PaymentTerms.PREPAID) {
+        const outstanding = await tx.order.aggregate({
+          where: {
+            organizationId: org.id,
+            paymentStatus: PaymentStatus.UNPAID,
+            status: { not: OrderStatus.CANCELLED },
+          },
+          _sum: { totalAmount: true },
+        });
+        const exposureFils =
+          toFils(outstanding._sum.totalAmount ?? 0) + toFils(quotation.total);
+        if (exposureFils <= toFils(terms.creditLimit)) {
+          status = OrderStatus.CONFIRMED;
+          paymentMethod = PaymentMethod.CREDIT_ACCOUNT;
+          releaseNote = `Released on ${PAYMENT_TERMS_LABELS[terms.paymentTerms]} credit`;
+        } else {
+          releaseNote =
+            'Credit limit exceeded — awaiting payment before release';
+        }
       }
     }
 

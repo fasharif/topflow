@@ -17,6 +17,8 @@ import { OrderWriter, type QuotationForOrder } from './order-writer.service';
 interface Scenario {
   organization: { paymentTerms: PaymentTerms; creditLimit: string } | null;
   organizationId?: string | null;
+  /** The row as stored when it is locked, if different from the quotation's copy. */
+  lockedTerms?: { paymentTerms: PaymentTerms; creditLimit: string };
   exposure: string | null;
   total: string;
 }
@@ -58,7 +60,18 @@ async function release(scenario: Scenario) {
   const create = jest.fn(({ data }: { data: Record<string, unknown> }) =>
     Promise.resolve({ id: 'order-1', ...data }),
   );
+  // SELECT … FOR UPDATE on the organisation: the terms as stored, read under the row lock.
+  const lockTerms = jest
+    .fn()
+    .mockResolvedValue(
+      scenario.lockedTerms
+        ? [scenario.lockedTerms]
+        : scenario.organization
+          ? [scenario.organization]
+          : [],
+    );
   const tx = {
+    $queryRaw: lockTerms,
     order: { aggregate, create },
     orderStatusEvent: { create: jest.fn().mockResolvedValue({}) },
   } as unknown as Prisma.TransactionClient;
@@ -76,7 +89,7 @@ async function release(scenario: Scenario) {
     { requestId: 'decision-table', ipAddress: null, userAgent: null },
   );
   const data = create.mock.calls[0]?.[0].data ?? {};
-  return { result, data, aggregate };
+  return { result, data, aggregate, lockTerms };
 }
 
 const NET_30 = (creditLimit: string) => ({
@@ -130,6 +143,46 @@ describe('OrderWriter.createFromQuotation — decision table B', () => {
     });
     expect(result.status).toBe(OrderStatus.PENDING_PAYMENT);
     expect(aggregate).not.toHaveBeenCalled();
+  });
+
+  it('locks the organization row before summing its exposure', async () => {
+    const { aggregate, lockTerms } = await release({
+      organization: NET_30('1050.00'),
+      exposure: '0.00',
+      total: '1.00',
+    });
+    const [sql, organizationId] = lockTerms.mock.calls[0] as [
+      TemplateStringsArray,
+      string,
+    ];
+    expect(sql.join('?')).toMatch(
+      /FROM "organizations"\s+WHERE "id" = \?\s+FOR UPDATE/,
+    );
+    expect(organizationId).toBe('org-1');
+    expect(lockTerms.mock.invocationCallOrder[0]).toBeLessThan(
+      aggregate.mock.invocationCallOrder[0],
+    );
+  });
+
+  it('applies the terms as stored when the row is locked, not the quotation’s copy', async () => {
+    const lowered = await release({
+      organization: NET_30('1050.00'),
+      lockedTerms: NET_30('100.00'),
+      exposure: '0.00',
+      total: '500.00',
+    });
+    expect(lowered.result.status).toBe(OrderStatus.PENDING_PAYMENT);
+    const prepaid = await release({
+      organization: NET_30('1050.00'),
+      lockedTerms: {
+        paymentTerms: PaymentTerms.PREPAID,
+        creditLimit: '1050.00',
+      },
+      exposure: '0.00',
+      total: '500.00',
+    });
+    expect(prepaid.result.status).toBe(OrderStatus.PENDING_PAYMENT);
+    expect(prepaid.aggregate).not.toHaveBeenCalled();
   });
 
   it('counts only unpaid, not cancelled orders of the same organization', async () => {
