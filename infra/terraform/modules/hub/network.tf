@@ -101,20 +101,14 @@ resource "aws_security_group" "alb" {
 # The load balancer is the public entry point, so it accepts HTTPS (and HTTP, which it redirects)
 # from anywhere.
 resource "aws_vpc_security_group_ingress_rule" "alb" {
-  for_each = {
-    https_ipv4 = { port = 443, cidr_ipv4 = "0.0.0.0/0", cidr_ipv6 = null }
-    https_ipv6 = { port = 443, cidr_ipv4 = null, cidr_ipv6 = "::/0" }
-    http_ipv4  = { port = 80, cidr_ipv4 = "0.0.0.0/0", cidr_ipv6 = null }
-    http_ipv6  = { port = 80, cidr_ipv4 = null, cidr_ipv6 = "::/0" }
-  }
+  for_each = { https = 443, http = 80 }
 
   security_group_id = aws_security_group.alb.id
-  description       = "Public ${each.value.port == 443 ? "HTTPS" : "HTTP (redirected to HTTPS)"}"
+  description       = "Public ${each.value == 443 ? "HTTPS" : "HTTP (redirected to HTTPS)"}"
   ip_protocol       = "tcp"
-  from_port         = each.value.port
-  to_port           = each.value.port
-  cidr_ipv4         = each.value.cidr_ipv4
-  cidr_ipv6         = each.value.cidr_ipv6
+  from_port         = each.value
+  to_port           = each.value
+  cidr_ipv4         = "0.0.0.0/0"
 }
 
 resource "aws_vpc_security_group_egress_rule" "alb_to_tasks" {

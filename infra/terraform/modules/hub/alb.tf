@@ -1,13 +1,14 @@
 # Application Load Balancer: HTTPS only (HTTP redirects), host-based routing to the web app and the
 # API, access logs in S3.
 
-# Internet-facing by design: it is the public entry point of the web app and the API.
+# Internet-facing by design: it is the public entry point of the web app and the API. IPv4 only:
+# a dual-stack load balancer would need IPv6 ranges on the VPC and its subnets.
 #trivy:ignore:AVD-AWS-0053
 resource "aws_lb" "main" {
   name                       = local.name
   load_balancer_type         = "application"
   internal                   = false
-  ip_address_type            = "dualstack"
+  ip_address_type            = "ipv4"
   subnets                    = aws_subnet.public[*].id
   security_groups            = [aws_security_group.alb.id]
   drop_invalid_header_fields = true
