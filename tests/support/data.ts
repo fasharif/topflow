@@ -1,4 +1,4 @@
-import type { OrderSummaryDto, OrganizationDto, Paginated, ProductDto, QuotationSummaryDto } from '@topflow/shared';
+import type { OrderSummaryDto, OrganizationDto, Paginated, ProductDto, QuotationSummaryDto, RfqDto } from '@topflow/shared';
 import type { BffClient } from './bff';
 
 /**
@@ -12,6 +12,10 @@ export const SEEDED = {
   pendingApprovalQuotation: 'TF-QT-2026-D00002',
   /** Sara Ahmed's delivered retail order. */
   deliveredRetailOrder: 'TF-SO-2026-D00002',
+  /** Sara Ahmed's confirmed retail order, not yet picked. */
+  confirmedRetailOrder: 'TF-SO-2026-D00003',
+  /** Desert Bloom RFQ waiting for the sales team. */
+  submittedRfq: 'TF-RFQ-2026-D00001',
   /** Desert Bloom sales order being picked. */
   tradeOrderInProgress: 'TF-SO-2026-D00001',
 } as const;
@@ -47,6 +51,23 @@ export async function staffOrderId(api: BffClient, orderNumber: string): Promise
 export async function organizationQuotationId(api: BffClient, organizationId: string, number: string): Promise<string> {
   const page = await api.get<Paginated<QuotationSummaryDto>>('/org/quotations', { organizationId, query: { search: number } });
   return single(page, `quotation ${number}`).id;
+}
+
+export async function organizationOrderId(api: BffClient, organizationId: string, orderNumber: string): Promise<string> {
+  return single(await api.get<Paginated<OrderSummaryDto>>('/org/orders', { organizationId, query: { search: orderNumber } }), `order ${orderNumber}`)
+    .id;
+}
+
+export async function organizationRfqId(api: BffClient, organizationId: string, number: string): Promise<string> {
+  return single(await api.get<Paginated<RfqDto>>('/org/rfqs', { organizationId, query: { search: number } }), `RFQ ${number}`).id;
+}
+
+export async function staffRfqId(api: BffClient, number: string): Promise<string> {
+  return single(await api.get<Paginated<RfqDto>>('/admin/rfqs', { query: { search: number } }), `RFQ ${number}`).id;
+}
+
+export async function staffQuotationId(api: BffClient, number: string): Promise<string> {
+  return single(await api.get<Paginated<QuotationSummaryDto>>('/admin/quotations', { query: { search: number } }), `quotation ${number}`).id;
 }
 
 export async function organizationByName(api: BffClient, name: string): Promise<OrganizationDto> {

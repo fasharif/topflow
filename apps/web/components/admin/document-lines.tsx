@@ -3,45 +3,69 @@ import { Table, Td, Th } from '@/components/ui';
 import { aed } from '@/lib/format';
 import { formatPercent } from './detail';
 
-/** Read-only priced lines of a quotation or order. */
+/**
+ * Read-only priced lines of a quotation or order: a table when the space it is given is at least
+ * 48rem wide (a container query, so the side panel next to it counts), stacked lines otherwise, so
+ * the net and total columns are never hidden behind a sideways scroll.
+ */
 export function DocumentLinesTable({ lines, showListPrice = false }: { lines: DocumentLineDto[]; showListPrice?: boolean }) {
   const hasDiscount = lines.some((line) => line.discountRate !== '0.00');
   return (
-    <Table label="Priced lines">
-      <thead>
-        <tr>
-          <Th>Product</Th>
-          <Th className="text-right">Qty</Th>
-          {showListPrice && <Th className="text-right">List price</Th>}
-          {hasDiscount && <Th className="text-right">Discount</Th>}
-          <Th className="text-right">Unit price</Th>
-          <Th className="text-right">Net</Th>
-          <Th className="text-right">VAT</Th>
-          <Th className="text-right">Total</Th>
-        </tr>
-      </thead>
-      <tbody>
-        {lines.map((line) => (
-          <tr key={line.id}>
-            <Td>
-              <p className="font-medium text-ink-900">{line.productName}</p>
-              <p className="font-mono text-xs text-slate-500">{line.sku}</p>
-            </Td>
-            <Td className="whitespace-nowrap text-right tabular-nums">
-              {line.quantity} <span className="text-slate-500">{UOM_LABELS[line.uom]}</span>
-            </Td>
-            {showListPrice && <Td className="whitespace-nowrap text-right tabular-nums text-slate-600">{line.listPrice ? aed(line.listPrice) : '—'}</Td>}
-            {hasDiscount && (
-              <Td className="whitespace-nowrap text-right tabular-nums text-slate-600">{line.discountRate === '0.00' ? '—' : formatPercent(line.discountRate)}</Td>
-            )}
-            <Td className="whitespace-nowrap text-right tabular-nums">{aed(line.unitPrice)}</Td>
-            <Td className="whitespace-nowrap text-right tabular-nums">{aed(line.lineSubtotal)}</Td>
-            <Td className="whitespace-nowrap text-right tabular-nums text-slate-600">{aed(line.vatAmount)}</Td>
-            <Td className="whitespace-nowrap text-right font-medium tabular-nums text-ink-900">{aed(line.lineTotal)}</Td>
+    <div className="@container">
+      <Table label="Priced lines" className="hidden @3xl:block">
+        <thead>
+          <tr>
+            <Th>Product</Th>
+            <Th className="text-right">Qty</Th>
+            {showListPrice && <Th className="text-right">List price</Th>}
+            {hasDiscount && <Th className="text-right">Discount</Th>}
+            <Th className="text-right">Unit price</Th>
+            <Th className="text-right">Net</Th>
+            <Th className="text-right">VAT</Th>
+            <Th className="text-right">Total</Th>
           </tr>
+        </thead>
+        <tbody>
+          {lines.map((line) => (
+            <tr key={line.id}>
+              <Td>
+                <p className="font-medium text-ink-900">{line.productName}</p>
+                <p className="font-mono text-xs text-slate-500">{line.sku}</p>
+              </Td>
+              <Td className="whitespace-nowrap text-right tabular-nums">
+                {line.quantity} <span className="text-slate-500">{UOM_LABELS[line.uom]}</span>
+              </Td>
+              {showListPrice && <Td className="whitespace-nowrap text-right tabular-nums text-slate-600">{line.listPrice ? aed(line.listPrice) : '—'}</Td>}
+              {hasDiscount && (
+                <Td className="whitespace-nowrap text-right tabular-nums text-slate-600">{line.discountRate === '0.00' ? '—' : formatPercent(line.discountRate)}</Td>
+              )}
+              <Td className="whitespace-nowrap text-right tabular-nums">{aed(line.unitPrice)}</Td>
+              <Td className="whitespace-nowrap text-right tabular-nums">{aed(line.lineSubtotal)}</Td>
+              <Td className="whitespace-nowrap text-right tabular-nums text-slate-600">{aed(line.vatAmount)}</Td>
+              <Td className="whitespace-nowrap text-right font-medium tabular-nums text-ink-900">{aed(line.lineTotal)}</Td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+      <ul aria-label="Priced lines" className="divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white shadow-xs @3xl:hidden">
+        {lines.map((line) => (
+          <li key={line.id} className="px-4 py-3 text-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-medium text-ink-900">{line.productName}</p>
+                <p className="font-mono text-xs text-slate-500">{line.sku}</p>
+              </div>
+              <p className="whitespace-nowrap font-medium tabular-nums text-ink-900">{aed(line.lineTotal)}</p>
+            </div>
+            <p className="mt-1 text-xs text-slate-600">
+              {line.quantity} {UOM_LABELS[line.uom]} × {aed(line.unitPrice)}
+              {line.discountRate !== '0.00' && ` (−${formatPercent(line.discountRate)}${showListPrice && line.listPrice ? ` off ${aed(line.listPrice)}` : ''})`}
+              {' · '}net {aed(line.lineSubtotal)} + VAT {aed(line.vatAmount)}
+            </p>
+          </li>
         ))}
-      </tbody>
-    </Table>
+      </ul>
+    </div>
   );
 }
 

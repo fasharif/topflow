@@ -107,7 +107,7 @@ test.describe('money path 3: company verification, fulfilment and stock deductio
         const order = await owner.api.get<OrderDto>(`/org/orders/${orderId}`, { organizationId });
         expect(quotation.items[0]?.discountRate, 'the trade discount agreed at verification').toBe('5.00');
         expect(order).toMatchObject({ status: 'CONFIRMED', paymentMethod: 'CREDIT_ACCOUNT', totalAmount: quotation.total });
-        await expect(page.getByText(formatMoney(quotation.total)).first()).toBeVisible();
+        await expect(page.getByText(formatMoney(quotation.total)).filter({ visible: true }).first()).toBeVisible();
       });
 
       const stockBefore = (await productBySku(warehouse.api, product.sku)).stockQuantity;
