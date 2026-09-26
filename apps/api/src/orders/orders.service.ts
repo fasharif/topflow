@@ -9,6 +9,7 @@ import {
 import type { Prisma } from '@topflow/database';
 import {
   DocumentType,
+  ErrorCode,
   ORDER_STATUS_LABELS,
   ORDER_STATUS_PERMISSION,
   ORDER_TRANSITIONS,
@@ -21,6 +22,7 @@ import {
   assertTransition,
   bpsToPercent,
   calculateTotals,
+  formatMoney,
   fromFils,
   hasPermission,
   isCustomerCancellable,
@@ -131,16 +133,6 @@ export class OrdersService {
       }
     }
 
-    const address = input.addressId
-      ? await this.addressBook.get({ userId: user.id }, input.addressId)
-      : null;
-    const snapshot = address
-      ? addressSnapshot(address)
-      : addressSnapshot(input.address!);
-    if (!address && input.saveAddress && input.address) {
-      await this.addressBook.create({ userId: user.id }, input.address);
-    }
-
     const lines = [...quantities].map(([productId, quantity]) => ({
       product: byId.get(productId)!,
       quantity,
@@ -159,6 +151,28 @@ export class OrdersService {
         vatRateBps: VAT_RATE_BPS,
       },
     );
+
+    // The customer agreed to the total they were shown. If the catalogue changed since (or the
+    // browser showed a stale or edited price), refuse rather than charge a different amount.
+    if (
+      input.expectedTotal !== undefined &&
+      toFils(input.expectedTotal) !== totals.totalFils
+    ) {
+      throw new ConflictException({
+        message: `Prices have changed since you opened checkout. Your order now comes to ${formatMoney(fromFils(totals.totalFils))}. Check the new total and place the order again.`,
+        code: ErrorCode.PRICE_CHANGED,
+      });
+    }
+
+    const address = input.addressId
+      ? await this.addressBook.get({ userId: user.id }, input.addressId)
+      : null;
+    const snapshot = address
+      ? addressSnapshot(address)
+      : addressSnapshot(input.address!);
+    if (!address && input.saveAddress && input.address) {
+      await this.addressBook.create({ userId: user.id }, input.address);
+    }
 
     const now = new Date();
     const order = await this.prisma.$transaction(async (tx) => {

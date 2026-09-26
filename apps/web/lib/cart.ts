@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { ProductDto, UnitOfMeasure } from '@topflow/shared';
 import { api } from './api';
 
@@ -9,7 +9,8 @@ import { api } from './api';
  * SharedPreferences cart, so shoppers can build a cart before signing in. Only product ids
  * and quantities matter to the server; the cached names/prices are for display. The basket and
  * checkout pages refresh them from the catalogue (useCartPriceRefresh), so the totals shown are
- * the ones the order will be charged, and the server prices every order again.
+ * the ones the order will be charged. The server prices every order again, and checkout sends the
+ * total it showed, so an order whose total changed in between is refused rather than charged.
  */
 export interface CartLine {
   productId: string;
@@ -132,15 +133,22 @@ function catalogueFields(product: ProductDto): Omit<CartLine, 'productId' | 'qua
   };
 }
 
+/** The basket as it is now (outside React; components use useCart). */
+export function cartLines(): CartLine[] {
+  return lines;
+}
+
 /**
  * Replaces the names and prices cached in the basket with the catalogue's current ones: a price
  * changed in the back office, or edited in the browser's storage, must not be what the shopper
- * sees before ordering. Lines whose product cannot be loaded are kept for checkout to report.
+ * sees before ordering. Lines whose product cannot be loaded are kept for checkout to report, and
+ * their ids are returned, so the page can say that those prices could not be checked.
  */
-export async function refreshCartPrices(loadProduct: (productId: string) => Promise<ProductDto>): Promise<void> {
+export async function refreshCartPrices(loadProduct: (productId: string) => Promise<ProductDto>): Promise<{ unchecked: string[] }> {
   const ids = [...new Set(lines.map((line) => line.productId))];
   const loaded = await Promise.all(ids.map((id) => loadProduct(id).catch(() => null)));
   const current = new Map(loaded.flatMap((product) => (product ? [[product.id, catalogueFields(product)] as const] : [])));
+  const unchecked = ids.filter((id) => !current.has(id));
   let changed = false;
   const next = lines.map((line) => {
     const fields = current.get(line.productId);
@@ -150,18 +158,40 @@ export async function refreshCartPrices(loadProduct: (productId: string) => Prom
     return updated;
   });
   if (changed) commit(next);
+  return { unchecked };
 }
 
-/** Refreshes the basket from the catalogue once it has been read, and whenever its products change. */
-export function useCartPriceRefresh(): void {
+/** Loads a product from the catalogue for refreshCartPrices. */
+export function loadCatalogueProduct(productId: string): Promise<ProductDto> {
+  return api<ProductDto>(`/catalog/products/${encodeURIComponent(productId)}`);
+}
+
+/** Whether the basket's prices have been checked against the catalogue on this page. */
+export type PriceCheck = 'checking' | 'current' | 'unverified';
+
+/**
+ * Refreshes the basket from the catalogue once it has been read, and whenever its products change.
+ * Returns `unverified` when a product could not be loaded, so the page can say that its price may
+ * be out of date instead of silently showing the cached one.
+ */
+export function useCartPriceRefresh(): PriceCheck {
   const hydrated = useCartHydrated();
   const productIds = useCart()
     .lines.map((line) => line.productId)
     .join(',');
+  const [checked, setChecked] = useState<{ productIds: string; unverified: boolean } | null>(null);
   useEffect(() => {
     if (!hydrated || productIds === '') return;
-    void refreshCartPrices((productId) => api<ProductDto>(`/catalog/products/${encodeURIComponent(productId)}`));
+    let current = true;
+    void refreshCartPrices(loadCatalogueProduct).then(({ unchecked }) => {
+      if (current) setChecked({ productIds, unverified: unchecked.length > 0 });
+    });
+    return () => {
+      current = false;
+    };
   }, [hydrated, productIds]);
+  if (checked?.productIds !== productIds) return 'checking';
+  return checked.unverified ? 'unverified' : 'current';
 }
 
 export function useCart(): { lines: CartLine[]; itemCount: number } {

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { OrderChannel, OrderStatus, PaymentMethod } from '../enums';
 import { addressSchema } from './account';
-import { idSchema, lineItemSchema, optionalText, paginationSchema } from './common';
+import { idSchema, lineItemSchema, moneySchema, optionalText, paginationSchema } from './common';
 
 /**
  * Retail checkout. Prices are never accepted from the client — the server re-prices
@@ -20,6 +20,11 @@ export const checkoutSchema = z
     saveAddress: z.boolean().optional(),
     paymentMethod: z.enum([PaymentMethod.CASH_ON_DELIVERY, PaymentMethod.CARD]),
     notes: optionalText(1000),
+    /**
+     * The total (VAT included) the customer was shown. It never sets the price: when the server's
+     * total differs, the order is refused with 409 PRICE_CHANGED so the customer can check again.
+     */
+    expectedTotal: moneySchema.optional(),
   })
   .refine((data) => data.addressId !== undefined || data.address !== undefined, {
     error: 'Choose a delivery address',

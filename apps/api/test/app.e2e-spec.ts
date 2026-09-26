@@ -2,6 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import {
   calculateTotals,
+  formatMoney,
   fromFils,
   ORGANIZATION_HEADER,
   retailDeliveryFeeFils,
@@ -1126,6 +1127,50 @@ describe('TopFlow Hub API (e2e)', () => {
       expect((await product('AX-EFS-002')).stockQuantity).toBe(
         fitting.stockQuantity - 2,
       );
+    });
+
+    it('refuses an order whose total differs from the total the customer was shown', async () => {
+      const customer = await sessionFor('customer@example.com');
+      const addresses = (
+        await http().get('/me/addresses').set(bearer(customer)).expect(200)
+      ).body as AddressDto[];
+      const fitting = await product('AX-EFS-002');
+      const netSubtotal = toFils(fitting.unitPrice);
+      const expected = calculateTotals(
+        [{ listPriceFils: netSubtotal, quantity: 1 }],
+        { deliveryFeeFils: retailDeliveryFeeFils(netSubtotal) },
+      );
+      const checkout = (expectedTotal: string) =>
+        http()
+          .post('/me/orders')
+          .set(bearer(customer))
+          .send({
+            items: [{ productId: fitting.id, quantity: 1 }],
+            addressId: addresses[0].id,
+            paymentMethod: 'CASH_ON_DELIVERY',
+            expectedTotal,
+          });
+      // A total shown from a stale or edited basket (one fils less) is refused, nothing is ordered.
+      const ordersBefore = (
+        await http().get('/me/orders').set(bearer(customer)).expect(200)
+      ).body as Paginated<unknown>;
+      const refused = await checkout(fromFils(expected.totalFils - 1)).expect(
+        409,
+      );
+      expect(refused.body).toMatchObject({
+        code: 'PRICE_CHANGED',
+        message: expect.stringContaining(
+          `now comes to ${formatMoney(fromFils(expected.totalFils))}`,
+        ),
+      });
+      const ordersAfter = (
+        await http().get('/me/orders').set(bearer(customer)).expect(200)
+      ).body as Paginated<unknown>;
+      expect(ordersAfter.total).toBe(ordersBefore.total);
+      // The total the server computes is accepted.
+      const order = (await checkout(fromFils(expected.totalFils)).expect(201))
+        .body as OrderDto;
+      expect(order.totalAmount).toBe(fromFils(expected.totalFils));
     });
 
     it('leaves a paid order for Top Flow to cancel, then records the refund', async () => {
