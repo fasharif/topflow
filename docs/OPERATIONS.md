@@ -28,7 +28,7 @@ Secrets live only in the Vercel project settings, GitHub Actions secrets and Sup
 | `APP_PUBLIC_URL`, `CORS_ORIGINS`, `TRUST_PROXY=true`, `NODE_ENV=production` | API | Links in emails, allowed browser origins |
 | `MAIL_TRANSPORT`, `MAIL_FROM`, `RESEND_API_KEY` | API | Business emails (quotations, orders, team invitations) |
 | `COMPANY_*` | API | Printed on quotation PDFs |
-| `DISPATCH_WEBHOOK_SECRET` (and `_PREVIOUS` while rotating) | API | Shared with the dispatch delivery service, which signs its webhooks with it ([section 10](#10-delivery-tracking-dispatch), ADR-024). Unset: the webhook endpoint answers 503 |
+| `DISPATCH_WEBHOOK_SECRET` (and `_PREVIOUS` while rotating) | API | Shared with the dispatch service (delivery tracking), which signs its webhooks with it ([section 10](#10-delivery-tracking-the-dispatch-service), ADR-024). Unset: the webhook endpoint answers 503 |
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Web | Publishable key (`sb_publishable_…`) |
 | `NEXT_PUBLIC_SITE_URL` | Web (production only) | Public origin used in email redirects, metadata and the sitemap |
 | `API_INTERNAL_URL` | Web | API origin |
@@ -88,7 +88,8 @@ psql "$TARGET_DB_URL" --single-transaction --variable ON_ERROR_STOP=1 \
 | Staff get "two-factor authentication required" | Expected until they verify with their authenticator app (`/auth/mfa`) |
 | 429 Too Many Requests | Per-client limits (`THROTTLE_*`); confirm `INTERNAL_API_SECRET` matches in both projects, otherwise every shopper shares the web server's quota |
 | Supabase project paused | Restore it from the dashboard; check that the nightly backup job (which keeps it awake) is succeeding |
-| Orders stay *Dispatched* although dispatch shows them delivered | Look at dispatch's webhook list (console → Webhooks). 401 `INVALID_SIGNATURE`: the two secrets differ or a clock is off by more than the tolerance. 409: the order was not *Dispatched* when the event arrived; dispatch retries with backoff, then marks the event failed, and *Send again* in its console replays it. 422: the order number is unknown or the order was cancelled |
+| Orders stay *Dispatched* although the dispatch service shows them delivered | Look at the dispatch service's webhook list (its console → Webhooks). 401 `INVALID_SIGNATURE`: the two secrets differ or a clock is off by more than the tolerance. 422: the order number is unknown or the order was cancelled. 503: `DISPATCH_WEBHOOK_SECRET` is not set here; the dispatch service retries for about four minutes, then *Send again* in its console replays the event |
+| An order jumped from *Processing* to *Delivered* when it was dispatched | Expected: the driver had already completed the delivery (a `PENDING` row in `dispatch_events`), and it was applied when the warehouse marked the order dispatched. The timeline says so |
 
 Every API response and error carries `x-request-id`; search the Vercel logs for it.
 
@@ -112,10 +113,10 @@ npm run dev
 npm run supabase:stop       # when finished (data is kept in Docker volumes)
 ```
 
-## 10. Delivery tracking (dispatch)
+## 10. Delivery tracking (the dispatch service)
 
-dispatch is a separate delivery-tracking service (ADR-024 in [DECISIONS.md](DECISIONS.md)). It sends signed webhooks to `POST /integrations/dispatch/events`; the API checks the HMAC signature and its timestamp, records the event id in `dispatch_events` and, for `delivery.completed`, moves a *Dispatched* order to *Delivered* through the order state machine, with a timeline entry and an audit record attributed to the integration.
+The dispatch service is a separate delivery-tracking project ([fasharif/dispatch](https://github.com/fasharif/dispatch); ADR-024 in [DECISIONS.md](DECISIONS.md)). It sends signed webhooks to `POST /integrations/dispatch/events`; the API checks the HMAC signature and its timestamp, records the event id in `dispatch_events` and, for `delivery.completed`, moves a *Dispatched* order to *Delivered* through the order state machine, with a timeline entry and an audit record attributed to the integration.
 
-- **Connect them:** set `DISPATCH_WEBHOOK_SECRET` here and the same value as `WEBHOOK_SECRET` in dispatch, whose `WEBHOOK_URL` points at `<API origin>/integrations/dispatch/events`.
-- **What arrived:** every accepted event is a row in `dispatch_events` (id, type, order, outcome `APPLIED` or `IGNORED`, full payload). A repeated event id is answered `DUPLICATE` and changes nothing.
-- **Answers dispatch acts on:** 2xx done; 409 retry later (order not dispatched yet); 401, 400 and 422 are final and land in dispatch's failed list.
+- **Connect them:** set `DISPATCH_WEBHOOK_SECRET` here and the same value as `WEBHOOK_SECRET` in the dispatch service, whose `WEBHOOK_URL` points at `<API origin>/integrations/dispatch/events`.
+- **What arrived:** every accepted event is a row in `dispatch_events` (id, type, order, outcome, full payload). Outcomes: `APPLIED` (the order was delivered), `IGNORED` (nothing to change: another event type, including types this version does not know, or an order already delivered) and `PENDING` (a completed delivery for an order not dispatched yet; applied when the warehouse marks it *Dispatched*). A repeated event id is answered `DUPLICATE` and changes nothing.
+- **Answers the dispatch service acts on:** 200 done (any of the outcomes above); 401, 400 and 422 are final and land in its failed list; 503 (integration not configured) is retried for about four minutes.
