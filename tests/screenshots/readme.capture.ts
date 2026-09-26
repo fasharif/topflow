@@ -1,5 +1,7 @@
 import { mkdirSync, renameSync } from 'node:fs';
 import path from 'node:path';
+import type { Page } from '@playwright/test';
+import { DEMO_BANNER_TEXT } from '@topflow/shared';
 import { AL_WAHA } from '../support/accounts';
 import { SEEDED, organizationByName, organizationQuotationId, productBySku, staffOrderId } from '../support/data';
 import { stack } from '../support/env';
@@ -16,13 +18,28 @@ test.beforeAll(() => {
   mkdirSync(WALKTHROUGH, { recursive: true });
 });
 
-const shot = (name: string) => ({ path: path.join(SCREENSHOTS, `${name}.png`), animations: 'disabled' as const });
+/**
+ * Every README image must say that this is a portfolio demo, not Top Flow's store, because images
+ * travel without the README around them. The web app shows the banner only when it is built with
+ * NEXT_PUBLIC_DEMO_MODE=true.
+ */
+async function expectDemoBanner(page: Page): Promise<void> {
+  await expect(
+    page.getByText(DEMO_BANNER_TEXT),
+    'No portfolio demo banner: build the web app with NEXT_PUBLIC_DEMO_MODE=true before capturing README media',
+  ).toBeVisible();
+}
+
+async function capture(page: Page, name: string): Promise<void> {
+  await expectDemoBanner(page);
+  await page.screenshot({ path: path.join(SCREENSHOTS, `${name}.png`), animations: 'disabled' });
+}
 
 test('storefront home page', async ({ actAs }) => {
   const { page } = await actAs('customer');
   await page.context().clearCookies();
   await open(page, '/');
-  await page.screenshot(shot('storefront'));
+  await capture(page, 'storefront');
 });
 
 test('product page with an approximate price range', async ({ actAs }) => {
@@ -30,7 +47,7 @@ test('product page with an approximate price range', async ({ actAs }) => {
   const product = await productBySku(api, SHOWCASE_SKU);
   await open(page, `/products/${product.slug}`);
   await expect(page.getByRole('heading', { level: 1, name: product.name })).toBeVisible();
-  await page.screenshot(shot('product'));
+  await capture(page, 'product');
 });
 
 test('trade portal: a purchase waiting for the approver', async ({ actAs }) => {
@@ -38,7 +55,7 @@ test('trade portal: a purchase waiting for the approver', async ({ actAs }) => {
   const quotationId = await organizationQuotationId(api, await api.organizationId(), SEEDED.pendingApprovalQuotation);
   await open(page, `/business/quotations/${quotationId}`);
   await expect(page.getByText('Your approval is needed')).toBeVisible();
-  await page.screenshot(shot('trade-approval'));
+  await capture(page, 'trade-approval');
 });
 
 test('back office: KYC review of a new trade account', async ({ actAs }) => {
@@ -46,7 +63,7 @@ test('back office: KYC review of a new trade account', async ({ actAs }) => {
   const organization = await organizationByName(api, AL_WAHA.name);
   await open(page, `/admin/organizations/${organization.id}`);
   await expect(page.getByText('Awaiting KYC review')).toBeVisible();
-  await page.screenshot(shot('kyc-review'));
+  await capture(page, 'kyc-review');
 });
 
 test('back office: order fulfilment for the warehouse', async ({ actAs }) => {
@@ -54,7 +71,7 @@ test('back office: order fulfilment for the warehouse', async ({ actAs }) => {
   const orderId = await staffOrderId(api, SEEDED.tradeOrderInProgress);
   await open(page, `/admin/orders/${orderId}`);
   await expect(page.getByRole('button', { name: 'Mark as Dispatched' })).toBeVisible();
-  await page.screenshot(shot('fulfilment'));
+  await capture(page, 'fulfilment');
 });
 
 test('walkthrough video: a retail customer buys a rotor', async ({ browser, actAs }) => {
@@ -70,6 +87,7 @@ test('walkthrough video: a retail customer buys a rotor', async ({ browser, actA
   const pause = () => page.waitForTimeout(900);
 
   await open(page, '/');
+  await expectDemoBanner(page);
   await pause();
   const search = page.getByRole('main').getByRole('searchbox', { name: 'Search the catalogue' });
   await search.fill('pop-up rotor');
@@ -89,6 +107,7 @@ test('walkthrough video: a retail customer buys a rotor', async ({ browser, actA
   await pause();
   await page.getByRole('button', { name: 'Place order' }).click();
   await expect(page.getByText("Order placed — we'll call you before delivery")).toBeVisible();
+  await expectDemoBanner(page);
   await page.waitForTimeout(2_000);
 
   const video = page.video();

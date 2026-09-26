@@ -3,7 +3,9 @@ import { stack } from './support/env';
 
 /**
  * Captures the README screenshots (docs/screenshots/*.png) and records the walkthrough video that
- * scripts/walkthrough-gif.sh turns into a GIF. Run against a stack seeded with the demo profile:
+ * scripts/walkthrough-gif.sh turns into a GIF. Run against a stack seeded with the demo profile and
+ * a web app built with NEXT_PUBLIC_DEMO_MODE=true, so every image carries the portfolio demo banner
+ * (each capture checks for it):
  *
  *   npm run screenshots -w @topflow/system-tests
  */
