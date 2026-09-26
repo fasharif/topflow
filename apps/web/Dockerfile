@@ -7,7 +7,9 @@
 # One image serves every environment. NEXT_PUBLIC_* variables are deliberately absent at build
 # time, so Next.js does not inline them: the server reads NEXT_PUBLIC_SUPABASE_URL,
 # NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY and NEXT_PUBLIC_SITE_URL from its environment at runtime
-# (Supabase runs only on the server, ADR-013). See ADR-023 in docs/DECISIONS.md.
+# (Supabase runs only on the server, ADR-013). The exception is NEXT_PUBLIC_DEMO_MODE, which a
+# client component reads: it is fixed at build time, so a demo image is a separate build. See
+# ADR-023 in docs/DECISIONS.md.
 #
 # Runs as the unprivileged `node` user without npm, from the ECR Public mirror of the Docker
 # Official Node.js image (no Docker Hub pull limits), pinned by digest.
