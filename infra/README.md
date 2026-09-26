@@ -13,6 +13,7 @@ infra/
     cost-estimate.mts    monthly cost of the AWS layout, from AWS's public price list
     restore-drill.sh     timed restore of an encrypted nightly backup into a throwaway container
     make-test-backup.sh  a backup in the nightly format from any PostgreSQL container
+    image-sizes.sh       the image size table below
     check-terraform.sh   fmt, validate, terraform test, tflint and Trivy, all in containers
     tests/               deploy script against a fake AWS CLI; restore drill end to end
   terraform/
@@ -29,7 +30,7 @@ infra/
 | `topflow-hub-migrate` | `apps/api/Dockerfile`, target `migrate` | the release step (`release`): environment preflight, then `prisma migrate deploy` | the API's preflight plus the Prisma CLI and the migrations |
 | `topflow-hub-web` | `apps/web/Dockerfile` | the Next.js standalone server | traced server, static assets, public files; `NEXT_PUBLIC_*` read at runtime |
 
-All three run as the `node` user (uid 1000) without npm, npx, corepack or yarn, keep their application files owned by root, have a health check (`GET /health`) and start from `public.ecr.aws/docker/library/node:24.21.0-alpine3.24`, pinned by digest. The ECR Public mirror of the Docker Official Images avoids Docker Hub's pull limits.
+All three run as the `node` user (uid 1000) without npm, npx, corepack or yarn, keep their application files owned by root and start from `public.ecr.aws/docker/library/node:24.21.0-alpine3.24`, pinned by tag and digest on a literal `FROM` line, where Dependabot's Docker updates look for it (not yet confirmed for `public.ecr.aws`, see [Not run yet](#not-run-yet)). The ECR Public mirror of the Docker Official Images avoids Docker Hub's pull limits. `topflow-hub-api` and `topflow-hub-web` have a health check (`GET /health`); `topflow-hub-migrate` is a one-shot job and has none. The web image serves every environment from one build, with one exception: `NEXT_PUBLIC_DEMO_MODE`, which a client component reads, is fixed when the image is built (ADR-023).
 
 ```bash
 docker build -f apps/api/Dockerfile --target api     -t topflow-hub-api .
@@ -37,16 +38,16 @@ docker build -f apps/api/Dockerfile --target migrate -t topflow-hub-migrate .
 docker build -f apps/web/Dockerfile                  -t topflow-hub-web .
 ```
 
-Sizes as Docker reports them (`docker image inspect --format '{{.Size}}' <image>` and `du -sh /app` inside the image), measured on 26 September 2026 with Docker Desktop 29.8.0 on Windows 11 (linux/amd64 images):
+Sizes, as printed by `infra/scripts/image-sizes.sh` on 26 September 2026 for linux/amd64 images built from commit `4725a2e` (Docker Engine 29.8.0 in Docker Desktop on Windows 11). MB means 10^6 bytes; the application files column is the disk usage of `/app` (`du -sk`).
 
-| Image | Image size | Application files (`/app`) |
-| --- | --- | --- |
-| `topflow-hub-api` | 277 MB | 29.2 MB |
-| `topflow-hub-web` | 328 MB | 64.1 MB |
-| `topflow-hub-migrate` | 624 MB | 291.1 MB |
-| base `node:24.21.0-alpine3.24`, for comparison | 241 MB | — |
+| Image | Image size (MB) | Application files in /app (MB, disk usage) |
+| --- | ---: | ---: |
+| `topflow-hub-api` | 276.9 | 30.4 |
+| `topflow-hub-web` | 328.4 | 67.2 |
+| `topflow-hub-migrate` | 623.5 | 305.0 |
+| base `public.ecr.aws/docker/library/node:24.21.0-alpine3.24`, for comparison | 241.5 | — |
 
-The same day, `trivy image --scanners vuln --severity HIGH,CRITICAL` (Trivy 0.74.0) found no critical vulnerabilities in any of the three, and no high ones in `topflow-hub-api` or `topflow-hub-web`. `topflow-hub-migrate` has two high-severity advisories in packages the Prisma CLI 7.9.1 pins: `deepmerge-ts` 7.1.5 (CVE-2026-40345, fixed in 8.0.0, through `@prisma/config`) and `mysql2` 3.15.3 (GHSA-3f6p-5ww8-9rcr, fixed in 3.22.0, used only for MySQL databases). They clear when Prisma updates them; the image runs once per release, takes no network input and serves no traffic. CI repeats the scan on every change, fails on critical findings and lists high ones in the job summary.
+The same day, on the same images, `trivy image --scanners vuln --severity HIGH,CRITICAL` (Trivy 0.74.0) found no critical vulnerabilities in any of the three, and no high ones in `topflow-hub-api` or `topflow-hub-web`. `topflow-hub-migrate` has two high-severity advisories in packages the Prisma CLI 7.9.1 pins: `deepmerge-ts` 7.1.5 (CVE-2026-40345, fixed in 8.0.0, through `@prisma/config`) and `mysql2` 3.15.3 (GHSA-3f6p-5ww8-9rcr, fixed in 3.22.0, used only for MySQL databases). They clear when Prisma updates them; the image runs once per release, takes no network input and serves no traffic. CI repeats the scan on every change, fails on critical findings and lists high ones in the job summary.
 
 ## Production-like stack (Docker Compose)
 
@@ -113,7 +114,11 @@ Why ECS Fargate behind an ALB rather than App Runner: ECS can run the release st
 
 Deliberate trade-offs, each noted next to its resource: tasks in public subnets with public IP addresses instead of NAT gateways (inbound traffic is still limited to the load balancer); no WAF; Container Insights on in production only; the web task keeps a writable root file system because Next.js writes its cache under `.next/cache`, which the image makes the only directory its user may change.
 
+Access from GitHub Actions uses OIDC roles only, no stored keys. The plan role is read-only and trusts pull requests and `develop`. The apply role is powerful by design (PowerUserAccess), so the approval of the `aws-*-infra` environments is its main control; its IAM rights stop at the environments' roles, which it may create or change only with the workload boundary attached, and it cannot touch its own role, the plan role or the boundary. Each environment's deploy role trusts only its `aws-<environment>` GitHub environment and can register task definitions, update the two services, run the release step and read and write the release tags.
+
 ### First-time setup
+
+The order matters: ECS services are created without tasks, so nothing starts before the secrets exist and the first release step has migrated the database.
 
 1. **Bootstrap the account** (local state; it creates the bucket the environments use):
    ```bash
@@ -121,37 +126,43 @@ Deliberate trade-offs, each noted next to its resource: tasks in public subnets 
    cp terraform.tfvars.example terraform.tfvars   # budget_emails, monthly_budget_usd
    terraform init && terraform apply
    ```
-   Outputs: `state_bucket`, `terraform_plan_role_arn`, `terraform_apply_role_arn`.
+   Outputs: `state_bucket`, `terraform_plan_role_arn`, `terraform_apply_role_arn` and `workload_boundary_arn`, the permissions boundary every role of the environments carries.
 2. **Request an ACM certificate** in `ap-south-1` for the web and API host names and validate it through DNS.
-3. **Fill in each environment's `terraform.tfvars`** from `terraform.tfvars.example` (no secrets) and commit it.
-4. **Apply the environment**, from the Infrastructure workflow (manual, `apply: staging`) or locally:
+3. **Configure GitHub** (Settings → Environments and Variables):
+   - environments `aws-staging` and `aws-production` for the Deploy workflow, and `aws-staging-infra` and `aws-production-infra` for Terraform applies. Give each required reviewers and limit it to the `develop` branch. Use exactly these names: the roles trust them, and GitHub matches environment names without regard to case, so a plain `production` would be the `Production` environment Vercel created, which has no protection rules;
+   - repository variables `AWS_TERRAFORM_PLAN_ROLE_ARN`, `AWS_TERRAFORM_APPLY_ROLE_ARN`, `TF_STATE_BUCKET`, optionally `AWS_REGION`;
+   - make the three GHCR packages public once the Containers workflow has published them (ECS pulls them without credentials).
+4. **Fill in each environment's `terraform.tfvars`** from `terraform.tfvars.example` (no secrets) and commit it.
+5. **Apply the environment**: the Infrastructure workflow, run manually on `develop` with `apply: staging`, plans both environments and, after a reviewer of `aws-staging-infra` approves, applies the staging plan it showed. Locally:
    ```bash
    cd infra/terraform/environments/staging
    terraform init -backend-config="bucket=<state_bucket>" && terraform apply
    ```
-5. **Create the secret parameters** listed by the `secret_parameter_names` output, with the environment's KMS key:
+6. **Create the secret parameters** listed by the `secret_parameter_names` output, with the environment's KMS key:
    ```bash
    aws ssm put-parameter --type SecureString --key-id alias/topflow-hub-staging \
      --name /topflow-hub/staging/api/DATABASE_URL --value 'postgresql://...'
    ```
    `DATABASE_URL` is Supabase's transaction pooler (port 6543), `DIRECT_URL` its session pooler (5432), `INTERNAL_API_SECRET` 32+ random characters, `SUPABASE_SECRET_KEY` the project's secret key, `RESEND_API_KEY` the email key.
-6. **Point DNS** for both host names at the `load_balancer_dns_name` output.
-7. **Configure GitHub**:
-   - environments `staging` and `production` with required reviewers, limited to the `develop` branch, each with the variables `AWS_DEPLOY_ROLE_ARN` (the `deploy_role_arn` output), `WEB_URL` and `API_URL`;
-   - repository variables `AWS_TERRAFORM_PLAN_ROLE_ARN`, `AWS_TERRAFORM_APPLY_ROLE_ARN`, `TF_STATE_BUCKET`, optionally `AWS_REGION`, and for the uptime check `UPTIME_WEB_URL` and `UPTIME_API_URL`;
-   - make the three GHCR packages public (ECS pulls them without credentials).
+7. **Point DNS** for both host names at the `load_balancer_dns_name` output, and set the `aws-staging` environment's variables: `AWS_DEPLOY_ROLE_ARN` (the `deploy_role_arn` output), `WEB_URL` and `API_URL`.
+8. **Run the first release**: the Deploy workflow with `staging`, `deploy` and a `sha-<commit>` tag from the Containers workflow. It migrates the database, then starts each service at its auto scaling minimum.
+9. For the uptime check, set the repository variables `UPTIME_WEB_URL` and `UPTIME_API_URL`.
 
-### Releasing and rolling back
+### Releasing, rolling back and restarting
 
-The Containers workflow publishes `ghcr.io/fasharif/topflow-hub-{api,migrate,web}:sha-<commit>` for every push to `develop`. Run the **Deploy** workflow with the environment, `deploy` and that tag. After a reviewer approves, `deploy-ecs.sh`:
+The Containers workflow publishes `ghcr.io/fasharif/topflow-hub-{api,migrate,web}:sha-<commit>` for every push to `develop`: the very images it scanned and smoke-tested (it checks their image IDs), each with a signed build provenance attestation and an SBOM attestation. Run the **Deploy** workflow with the environment, `deploy` and that tag. After a reviewer approves, the workflow resolves each tag to its digest and runs `gh attestation verify`, which must find a provenance attestation for that digest from this repository's Containers workflow on `develop`. Then `deploy-ecs.sh`:
 
-1. registers task definitions with the new tag;
+1. registers task definitions with the new images, pinned to the verified digests;
 2. runs the release step as a one-off task and stops if it fails; nothing else changes;
 3. updates the API and waits until the new revision serves (the circuit breaker restores the old one otherwise);
-4. does the same for the web app;
+4. does the same for the web app; if the web app fails, it puts the API back on the revision it served before, so both run the same release again;
 5. records the tags in `/topflow-hub/<environment>/release/current` and `previous`.
 
-The workflow then smoke-tests the public URLs and the version they report. **Rollback** is the same workflow with `rollback`: the previous images go back on both services in one step, without migrations, and the tags swap.
+The workflow then smoke-tests the public URLs and the version they report.
+
+- **Rollback** (same workflow, `rollback`): the previous release goes back on both services in one step, without migrations, and the tags swap. If the services do not both run the recorded current release (a deploy that stopped half-way, such as a cancelled run), it puts the current release back on both instead. With a tag, it returns both services to that release.
+- **Restart** (`restart`): new tasks of the running release, for example after a secret changed in SSM, since tasks read their secrets when they start.
+- `infra/scripts/deploy-ecs.sh status --environment staging` prints the recorded releases, what each service runs and what a rollback would restore.
 
 ### Monitoring
 
@@ -205,8 +216,10 @@ It was run on 26 September 2026 against a dump made with the project's Supabase 
 | What | Why | How to run it |
 | --- | --- | --- |
 | `terraform plan` / `apply` for any environment | needs an AWS account (and money) | First-time setup above |
-| The Deploy workflow and `deploy-ecs.sh` against ECS | needs the applied environments | tested only against a fake AWS CLI (`tests/deploy-ecs.test.sh`) |
-| GHCR publishing | runs on the first push to `develop` | Containers workflow |
+| The Deploy workflow and `deploy-ecs.sh` against ECS | needs the applied environments | tested only against a fake AWS CLI (`tests/deploy-ecs.test.sh`: 18 tests, including a web rollout that fails and a deploy that stopped half-way) |
+| The cost estimate against a bill | nothing runs on AWS | compare the first month's bill with `node infra/scripts/cost-estimate.mts` |
+| GHCR publishing, provenance and SBOM attestations | run on the first push to `develop` | Containers workflow; the Deploy workflow's `gh attestation verify` checks them |
+| Dependabot updates of the base images | Dependabot has not run on this branch; whether it resolves tags on `public.ecr.aws` is unconfirmed | watch for its pull requests after the merge; Trivy's critical-vulnerability gate is the backstop |
 | The Uptime workflow | needs public URLs | set `UPTIME_WEB_URL` and `UPTIME_API_URL` |
 | The restore drill on a real nightly backup | no hosted database yet (the backup workflow skips) | download a backup artifact and run the drill with the offline key |
 | Sentry event delivery | needs a Sentry project | set `SENTRY_DSN`; the SDK start-up is covered by unit tests and the Compose smoke test |

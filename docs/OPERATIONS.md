@@ -35,7 +35,7 @@ Secrets live only in the Vercel project settings, GitHub Actions secrets and Sup
 | `APP_VERSION` | API and web (set by the container images) | Reported by `/health`, so a deployment can be checked |
 | `SUPABASE_DB_URL` (secret), `BACKUP_AGE_RECIPIENT`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `API_HEALTH_URL` (variables) | GitHub Actions | Nightly backup and keep-alive |
 | `UPTIME_WEB_URL`, `UPTIME_API_URL` (variables) | GitHub Actions | Uptime check every 15 minutes ([section 7](#7-monitoring-and-incidents)) |
-| `AWS_DEPLOY_ROLE_ARN`, `WEB_URL`, `API_URL` (environment variables); `AWS_TERRAFORM_PLAN_ROLE_ARN`, `AWS_TERRAFORM_APPLY_ROLE_ARN`, `TF_STATE_BUCKET` (repository variables) | GitHub Actions | AWS deployments ([section 11](#11-aws-prepared-not-applied)); workflows skip with a notice without them |
+| `AWS_DEPLOY_ROLE_ARN`, `WEB_URL`, `API_URL` (variables of the `aws-staging` and `aws-production` environments); `AWS_TERRAFORM_PLAN_ROLE_ARN`, `AWS_TERRAFORM_APPLY_ROLE_ARN`, `TF_STATE_BUCKET` (repository variables) | GitHub Actions | AWS deployments ([section 11](#11-aws-prepared-not-applied)); workflows skip with a notice without them |
 
 Supabase Auth settings (site URL, redirect allow-list, password policy, MFA, email templates) are versioned in `supabase/config.toml` and applied with `npx supabase config push --project-ref <ref>` after `npx supabase login`.
 
@@ -119,6 +119,8 @@ Every API response and error carries `x-request-id`; search the logs for it (Ver
 | Database password | Reset it in Supabase *Database settings*, update `DATABASE_URL`, `DIRECT_URL` and the backup secret `SUPABASE_DB_URL` |
 | JWT signing keys | Rotate in Supabase *JWT Keys*; the API picks up the new key from the JWKS automatically and existing sessions keep working |
 
+On AWS ([section 11](#11-aws-prepared-not-applied)) the same secrets are SSM parameters: overwrite the parameter, then run the Deploy workflow with `restart`. For `INTERNAL_API_SECRET`, which both applications read, the restart replaces the API's tasks before the web app's, so web requests are briefly not trusted with the shopper's address and share the web server's rate limit until both run with the new value.
+
 ## 9. Local development
 
 ```bash
@@ -149,8 +151,9 @@ The web app is at https://localhost:8443, the API at https://api.localhost:8443 
 
 | Task | How |
 | --- | --- |
-| Release | **Deploy** workflow: environment, `deploy`, the image tag `sha-<commit>` published by the Containers workflow. After a reviewer approves: release step, then API, then web, each checked healthy; then a smoke test of the public URLs |
-| Roll back | **Deploy** workflow with `rollback`: the previous images return on both services in one step, without migrations (keep them additive, [section 3](#3-releasing)); running it again returns to the newer release |
-| Set or rotate a secret | `aws ssm put-parameter --overwrite --type SecureString --key-id alias/topflow-hub-<environment> --name /topflow-hub/<environment>/api/<NAME> --value ...`, then release again (tasks read secrets when they start) |
-| Change infrastructure | Pull request: the Infrastructure workflow checks it and, once configured, plans both environments; apply with the workflow's manual `apply` input |
+| Release | **Deploy** workflow: environment, `deploy`, the image tag `sha-<commit>` published by the Containers workflow. After a reviewer of `aws-<environment>` approves: the images' provenance is verified and their digests pinned, then the release step, the API and the web app, each checked healthy (if the web app fails, the API goes back too); then a smoke test of the public URLs |
+| Roll back | **Deploy** workflow with `rollback`: the previous images return on both services in one step, without migrations (keep them additive, [section 3](#3-releasing)); running it again returns to the newer release. After a deploy that stopped half-way it restores the current release on both instead. With a tag, it returns to that release |
+| Set or rotate a secret | `aws ssm put-parameter --overwrite --type SecureString --key-id alias/topflow-hub-<environment> --name /topflow-hub/<environment>/api/<NAME> --value ...`, then the **Deploy** workflow with `restart`: tasks read their secrets when they start, and deploying the running tag again changes nothing |
+| See what runs | `infra/scripts/deploy-ecs.sh status --environment <environment>` (with the deploy role): recorded releases, the release each service runs, the rollback target |
+| Change infrastructure | Pull request: the Infrastructure workflow checks it and, once configured, plans both environments. Apply by running the workflow on `develop` with the `apply` input; after a reviewer of `aws-<environment>-infra` approves, it applies the plan shown in that run's summary |
 | Watch costs | `node infra/scripts/cost-estimate.mts` prices both environments from AWS's price list (182.94 US dollars a month on 26 September 2026, [infra/README.md](../infra/README.md#cost-estimate-nothing-is-running)); the account budget (bootstrap, 200 by default) emails at 50%, 80% and 100% of its limit and on the forecast |

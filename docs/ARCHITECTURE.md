@@ -59,7 +59,7 @@ flowchart LR
 
 ### Container images (ADR-023)
 
-The same code also runs as three images: `topflow-hub-api` (the compiled API and only the files it loads), `topflow-hub-migrate` (the release step: environment preflight, then `prisma migrate deploy`) and `topflow-hub-web` (the Next.js standalone server). One web image serves every environment: `NEXT_PUBLIC_*` values are read at runtime on the server, and behind a proxy the app takes its public origin from `NEXT_PUBLIC_SITE_URL`. `docker-compose.prod.yml` runs them as below, with Supabase Auth's own server standing in for a Supabase project:
+The same code also runs as three images: `topflow-hub-api` (the compiled API and only the files it loads), `topflow-hub-migrate` (the release step: environment preflight, then `prisma migrate deploy`) and `topflow-hub-web` (the Next.js standalone server). One web image serves every environment: `NEXT_PUBLIC_*` values are read at runtime on the server (except `NEXT_PUBLIC_DEMO_MODE`, fixed at build time), and behind a proxy the app takes its public origin from `NEXT_PUBLIC_SITE_URL`. Every page says the site is a portfolio project and asks search engines not to index it. `docker-compose.prod.yml` runs them as below, with Supabase Auth's own server standing in for a Supabase project:
 
 ```mermaid
 flowchart LR
@@ -233,7 +233,7 @@ sequenceDiagram
 - **Releases.** Vercel builds the API from the repository root; on production deployments `apps/api/scripts/release.mjs` runs the environment preflight and `prisma migrate deploy` before the new version receives traffic. A failed release leaves the previous deployment serving.
 - **Health:** `GET /health` (liveness) and `GET /health/ready` (database) on the API; `GET /health` on the web app. Both report `version` (`APP_VERSION`, the image tag in containers), so a deployment can be verified.
 - **Error reporting:** optional Sentry for the API's 5xx and the web server's errors (`SENTRY_DSN`); a no-op without it. Cookies, secret headers, client addresses, request bodies and query strings (also in breadcrumbs of outgoing calls) are removed and console output is not sent; error messages go as written.
-- **Container releases:** the `topflow-hub-migrate` image runs the same preflight and migrations before new code serves traffic; on AWS the Deploy workflow runs it first and rolls back in one step (OPERATIONS.md section 11).
+- **Container releases:** CI publishes exactly the images it scanned and smoke-tested, with signed provenance. The `topflow-hub-migrate` image runs the same preflight and migrations before new code serves traffic; on AWS the Deploy workflow verifies each image's provenance, pins its digest, runs the release step first, keeps both services on one release if a rollout fails and rolls back in one step (OPERATIONS.md section 11).
 - **Tracing:** every response carries `x-request-id`, also included in error bodies and server logs.
 - **Rate limiting:** per-client limits, stricter on public forms. The web app's server forwards the shopper's IP with a shared secret (`INTERNAL_API_SECRET`); server-rendered catalogue fetches carry the secret without an IP and are not limited. The store is in memory per instance — move it to a shared store if abuse patterns require global limits.
 - **Backups:** a nightly GitHub Actions job dumps roles, schema and data with the Supabase CLI and uploads an age-encrypted archive. Restore steps are in [OPERATIONS.md](OPERATIONS.md); `infra/scripts/restore-drill.sh` rehearses them against a disposable container and checks every row count.
