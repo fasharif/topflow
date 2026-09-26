@@ -138,7 +138,7 @@ npm run supabase:stop       # when finished (data is kept in Docker volumes)
 ```bash
 node infra/compose/generate-env.mts            # secrets and Supabase keys → infra/compose/.env
 docker compose -f docker-compose.prod.yml --env-file infra/compose/.env up -d --build --wait
-docker compose -f docker-compose.prod.yml --env-file infra/compose/.env --profile demo run --rm seed
+docker compose -f docker-compose.prod.yml --env-file infra/compose/.env --profile demo run --rm --build seed
 docker compose -f docker-compose.prod.yml --env-file infra/compose/.env logs -f api web
 docker compose -f docker-compose.prod.yml --env-file infra/compose/.env --profile demo down -v
 ```

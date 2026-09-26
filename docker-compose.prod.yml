@@ -15,7 +15,7 @@
 # Usage (docs/OPERATIONS.md, section 10):
 #   node infra/compose/generate-env.mts
 #   docker compose -f docker-compose.prod.yml --env-file infra/compose/.env up -d --build --wait
-#   docker compose -f docker-compose.prod.yml --env-file infra/compose/.env --profile demo run --rm seed
+#   docker compose -f docker-compose.prod.yml --env-file infra/compose/.env --profile demo run --rm --build seed
 #
 # Nothing here is exposed beyond this machine: the proxy's HTTPS and HTTP (redirect) ports, Mailpit
 # and PostgreSQL listen on 127.0.0.1 only.

@@ -1,38 +1,40 @@
 # TopFlow Hub — B2B/B2C commerce platform for Top Flow
 
+A monorepo with a storefront, a trade portal, a back office, an API and a mobile app for a UAE irrigation supplier, shipped as container images with a production-like stack, Terraform for AWS and a tested release pipeline.
+
 [![CI](https://github.com/fasharif/topflow/actions/workflows/ci.yml/badge.svg)](https://github.com/fasharif/topflow/actions/workflows/ci.yml)
 [![Containers](https://github.com/fasharif/topflow/actions/workflows/containers.yml/badge.svg)](https://github.com/fasharif/topflow/actions/workflows/containers.yml)
 
-> **Portfolio project.** Built independently by Farah Sharif, with Top Flow's permission to use its name and product catalogue. This is not Top Flow's official online store.
+> **Portfolio project.** Built independently by Farah Sharif, with Top Flow's permission to use its name and product catalogue. This is not Top Flow's official online store, and nothing is hosted yet. Every page of the web app says so.
 
-> **Top Flow — Irrigation & Flow Control Supplies, UAE** supplies electrofusion and HDPE fittings, sprinklers and rotors, drip irrigation, pipes and fittings, valves, filtration and landscaping products to two very different audiences:
+![The storefront's home page in the production-like Compose stack, with the portfolio notice across the top.](docs/images/storefront-compose-stack.png)
+
+*The storefront served by the production-like Compose stack (`docker-compose.prod.yml`, images built from commit `4725a2e`), captured with headless Chrome for Testing 153 at 1280 × 800 on 26 September 2026. It is a local stack, not a hosted site.*
+
+## The problem
+
+**Top Flow — Irrigation & Flow Control Supplies, UAE** sells electrofusion and HDPE fittings, sprinklers and rotors, drip irrigation, pipes and fittings, valves, filtration and landscaping products to two very different audiences:
 
 - **Consumers** who want to buy a few rotors for a villa garden online, at VAT-inclusive prices, paying on delivery.
 - **Businesses** — landscapers, MEP contractors, facility managers, developers — who buy for projects through **quotations**, negotiated prices, **purchase approvals** and **credit terms**.
 
-**TopFlow Hub** serves both: a storefront with approximate prices and quote requests, a trade portal, a back office for Top Flow's teams and a mobile app. This monorepo contains all of them and the shared domain contracts that keep them consistent.
+A plain web shop serves the first group only. **TopFlow Hub** serves both: a storefront with approximate prices and quote requests, a trade portal, a back office for Top Flow's teams and a mobile app, all built on one set of shared domain contracts so prices, VAT and workflow rules agree everywhere. Because hosting is deferred until an officially free option fits (ADR-019), the platform also has to be ready to deploy anywhere without spending money on it now.
 
-| Environment | Web app | API |
-| --- | --- | --- |
-| Local | http://localhost:3002 | http://localhost:3000 (`/docs`) |
-
-> Nothing is hosted yet: the platform runs locally. The hosting options and their trade-offs are recorded in [ADR-019](docs/DECISIONS.md).
-
----
-
-## Highlights
+## Features
 
 | Capability | What it does |
 | --- | --- |
-| **Catalogue** | Top Flow's range of 323 products in 9 categories and 41 product lines, with photos and specifications. Each product shows an approximate price range (**≈ AED min – max**, VAT included), and search covers names, codes and tags. See [packages/database/prisma/data](packages/database/prisma/data/README.md). |
+| **Catalogue** | 346 products in 11 categories and 61 product lines, with photos or drawn illustrations and specifications. Each product shows an approximate price range (**≈ AED min – max**, VAT included), and search covers names, codes and tags. Counted from `packages/database/prisma/data/topflow-catalogue.json`; sources and licensing in [its README](packages/database/prisma/data/README.md). |
 | **Quote requests** | Anyone can send their basket for a quotation — or describe a project without choosing products — with a preferred contact channel and a required-by date. Requests land in the sales inbox next to trade RFQs, and the visitor gets an acknowledgement. |
 | **Retail (B2C)** | VAT-inclusive prices, a guest basket, server-priced checkout (cash or card on delivery), and order tracking with a full status timeline. |
 | **Procurement (B2B)** | Organizations with Owner / Approver / Buyer roles, RFQs, **versioned quotations** with **PDF** generation, accept / reject / request-revision, **spending-limit approvals** (segregation of duties), and sales orders released on the organization's **credit terms**. |
 | **Multi-tenancy** | Every B2B request runs inside a verified organization context (`x-organization-id`). Users can belong to several organizations, and Top Flow staff verify each company (KYC). |
 | **Operations** | Role-based back office for Sales, Warehouse and Admin: KYC queue, quotation builder, fulfilment state machine, stock deduction at dispatch, low-stock alerts, dashboard KPIs, staff invitations and an immutable audit trail. |
 | **Identity & security** | **Supabase Auth** with email confirmation, password recovery and **two-factor authentication required for staff**. Web sessions live in httpOnly cookies behind a backend-for-frontend; the API verifies Supabase tokens (JWKS) and enforces RBAC and tenant isolation. Platform tables are locked away from Supabase's public Data API, rate limits apply per client, and prices are never trusted from clients. |
-| **Engineering** | Turborepo monorepo, shared **Zod contracts + workflow state machines + integer money/VAT maths** used by API, web and mobile, compile-time enum parity with Prisma, data-preserving migrations, unit and end-to-end tests, CI, and nightly **encrypted off-site database backups** with a timed restore drill. |
-| **Delivery** | Non-root **container images** scanned with Trivy, a **production-like Compose stack** (HTTPS, Supabase Auth, release step before the API) smoke-tested in CI with a real sign-in, **Terraform for AWS** (ECS Fargate, tested with a mocked provider, not applied), a manual deploy with migrations first and **one-step rollback**, optional **Sentry**, and an uptime check. See [infra/README.md](infra/README.md). |
+| **Containers** | Non-root images for the API, its release step (migrations) and the web app, scanned with Trivy (critical findings fail the build). A **production-like Compose stack** runs them with HTTPS, Supabase Auth and the release step before the API; CI starts it on every change and signs in through Supabase Auth. On `develop`, CI publishes exactly the images it tested, with signed provenance and SBOM attestations. |
+| **AWS, prepared** | **Terraform** for staging and production on ECS Fargate behind a load balancer, with secrets in SSM, CloudWatch alarms, a budget alert, S3 state with locking and GitHub OIDC roles under a permissions boundary. Checked with `terraform test` against a mocked provider, tflint and Trivy; **never applied**. |
+| **Releases** | A manual deploy that verifies each image's provenance, pins digests, runs migrations before new code, keeps both services on one release if a rollout fails, and **rolls back in one step**; a restart for rotated secrets; a smoke test and an uptime check. |
+| **Operations tooling** | Optional **Sentry** for server errors (a no-op without `SENTRY_DSN`), nightly **encrypted off-site database backups**, and a **timed restore drill** that CI proves with a synthetic backup and a throwaway key. |
 
 ## Architecture
 
@@ -42,11 +44,11 @@ flowchart LR
     BROWSER["Browser"]
     MOB["apps/mobile<br/>Expo SDK 57"]
   end
-  subgraph Vercel["Vercel (region bom1)"]
+  subgraph Host["Web and API host (planned: Vercel, ADR-014, on hold by ADR-019;<br/>or the container images, ADR-023)"]
     WEB["apps/web — Next.js 16<br/>pages · Server Actions · /api BFF"]
-    API["apps/api — NestJS 11<br/>Vercel Functions"]
+    API["apps/api — NestJS 11"]
   end
-  subgraph Supabase["Supabase (ap-south-1)"]
+  subgraph Supabase["Supabase (planned project, ap-south-1)"]
     AUTH["Supabase Auth<br/>passwords · email links · TOTP MFA"]
     DB[("PostgreSQL<br/>Prisma 7")]
   end
@@ -66,72 +68,52 @@ flowchart LR
   SHARED -. imported by .-> API
 ```
 
-Read more in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (data model, workflows, authentication, tenancy), the [design decisions](docs/DECISIONS.md) and the [operations runbook](docs/OPERATIONS.md).
+The browser never holds a token: the web app's server keeps the Supabase session in httpOnly cookies and forwards API calls with the access token (ADR-013). The API authorises every request itself, with roles, organisation permissions and tenant checks.
 
-## Repository layout
-
-```
-apps/
-  api/        NestJS REST API (Swagger at /docs outside production), deployed as a Vercel Function
-  web/        Next.js storefront, trade portal (/business) and back office (/admin), deployed to Vercel
-  mobile/     Expo React Native app
-packages/
-  shared/     @topflow/shared — enums, permissions, workflows, money/VAT, Zod schemas, DTO types
-  database/   @topflow/database — Prisma schema, migrations, seed, generated client
-supabase/     Supabase configuration: auth policy, branded email templates, storage buckets
-infra/        Compose stack support, Terraform for AWS, deploy, smoke-test and restore-drill scripts
-docs/         Architecture, decisions, operations runbook, academic evolution
-docker-compose.prod.yml   production-like stack of the container images
-```
+**Delivery.** Three images carry the code: `topflow-hub-api`, `topflow-hub-migrate` (the release step: environment check, then database migrations) and `topflow-hub-web`. The same images run in the Compose stack and in the AWS layout: ECS Fargate services behind an Application Load Balancer, the release step as a one-off task before either service changes, and Supabase unchanged for data and identity. Diagrams and details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (data model, workflows, authentication, tenancy, containers) and [infra/README.md](infra/README.md) (images, stack, AWS, cost, releases).
 
 ## Tech stack
 
-| Layer | Technology |
-| --- | --- |
-| Language | TypeScript everywhere (strict) |
-| API | NestJS 11, Zod (`nestjs-zod`), Swagger/OpenAPI, `jose`, `@nestjs/throttler`, Helmet, PDFKit |
-| Identity | Supabase Auth (`@supabase/ssr` on the web, `@supabase/supabase-js` on mobile and for administration) |
-| Data | Supabase PostgreSQL, Prisma 7 with the `pg` driver adapter |
-| Web | Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Lucide icons |
-| Mobile | Expo SDK 57, Expo Router, SecureStore |
-| Hosting | Not hosted yet (ADR-019). Prepared: Vercel (ADR-014), or the container images on AWS ECS Fargate (ADR-023); Supabase for data and identity |
-| Delivery | Docker (multi-stage, traced runtimes), Docker Compose, Caddy, Trivy, Terraform with tflint, GitHub Actions with OIDC to AWS, Sentry |
-| Tooling | npm workspaces, Turborepo, ESLint, Prettier, Jest, Supertest, Node's test runner, ShellCheck, actionlint |
+| Layer | Technology | Why |
+| --- | --- | --- |
+| Language | TypeScript everywhere (strict) | One language across API, web, mobile and the infrastructure scripts, so the shared contracts are checked by the compiler in every app. |
+| API | NestJS 11, Zod (`nestjs-zod`), Swagger/OpenAPI, `jose`, `@nestjs/throttler`, Helmet, PDFKit | Modules, guards and dependency injection suit a modular monolith with RBAC and tenancy (ADR-001); Zod schemas are shared with the clients. |
+| Identity | Supabase Auth (`@supabase/ssr` on the web, `@supabase/supabase-js` on mobile and for administration) | Email links, TOTP and session handling without running an identity service; the API keeps authorisation (ADR-012). |
+| Data | Supabase PostgreSQL, Prisma 7 with the `pg` driver adapter | Transactions for money, stock and approvals; a typed client and reviewed SQL migrations (ADR-003). |
+| Web | Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Lucide icons | Server-rendered catalogue pages, and Server Actions that keep authentication on the server. |
+| Mobile | Expo SDK 57, Expo Router, SecureStore | One React Native codebase for Android and iOS that reuses the shared package. |
+| Containers | Docker multi-stage builds, traced runtimes, Docker Compose, Caddy, GoTrue, Trivy | Small non-root images that run on any container host; a stack that exercises the real release order, HTTPS and Supabase Auth on one machine (ADR-023). |
+| Cloud (prepared) | Terraform 1.16 with the AWS provider, ECS Fargate, ALB, SSM, CloudWatch, tflint, `terraform test` | Fargate runs the release step as a one-off task, which App Runner cannot; everything is testable without an account (ADR-023). |
+| Delivery | GitHub Actions with OIDC to AWS, artifact attestations (Sigstore), Dependabot, Sentry | No stored cloud keys; deploys verify that an image came from this repository's CI; errors reported only when configured. |
+| Tooling | npm workspaces, Turborepo, ESLint, Prettier, Jest, Supertest, `node:test`, ShellCheck, actionlint | Builds in dependency order with caching; every script and workflow is linted and tested in CI. |
 
-## Getting started
+## Quick start
 
-**Prerequisites:** Node.js 22+ (24 recommended), npm 11 and Docker Desktop (for the local Supabase stack).
+**Prerequisites:** Docker (with Compose) and Node.js 22.18 or later. The production-like stack runs everything, including Supabase Auth, in containers:
+
+```bash
+git clone https://github.com/fasharif/topflow.git && cd topflow
+node infra/compose/generate-env.mts     # secrets, Supabase keys and URLs → infra/compose/.env
+docker compose -f docker-compose.prod.yml --env-file infra/compose/.env up -d --build --wait
+docker compose -f docker-compose.prod.yml --env-file infra/compose/.env --profile demo run --rm --build seed
+```
+
+Then open https://localhost:8443 (a local certificate authority: accept the warning, or trust its root certificate as [infra/README.md](infra/README.md#production-like-stack-docker-compose) explains). The API is at https://api.localhost:8443, and the emails Supabase Auth sends appear at http://127.0.0.1:8025. `docker compose -f docker-compose.prod.yml --env-file infra/compose/.env --profile demo down -v` stops everything and deletes the data.
+
+**For development** with hot reload, against the Supabase CLI stack (Node.js 22+, npm 11):
 
 ```bash
 npm install
-
-# 1. Start Supabase locally: PostgreSQL, Auth, Storage, Studio and a mail catcher
-npm run supabase:start
-npx supabase status             # URLs and keys for the next step
-
-# 2. Configure the apps (see the comments in each example file)
-cp apps/api/.env.example apps/api/.env
-cp apps/web/.env.example apps/web/.env.local
-#    packages/database/.env needs DATABASE_URL, SUPABASE_URL and SUPABASE_SECRET_KEY
-
-# 3. Create the schema and load demo data (this also creates the demo sign-ins)
-npm run db:deploy
-npm run db:seed
-
-# 4. Run everything (API :3000, web :3002)
-npm run dev
+npm run supabase:start          # local PostgreSQL, Auth, Storage, Studio (54323) and a mail catcher (54324)
+# copy apps/api/.env.example → apps/api/.env and apps/web/.env.example → apps/web/.env.local,
+# fill in the keys from `npx supabase status`; packages/database/.env needs DATABASE_URL, SUPABASE_URL, SUPABASE_SECRET_KEY
+npm run db:deploy && npm run db:seed
+npm run dev                     # API on :3000 (Swagger at /docs), web app on :3002
 ```
-
-| Local service | URL |
-| --- | --- |
-| Web app | http://localhost:3002 |
-| API docs | http://localhost:3000/docs |
-| Supabase Studio | http://127.0.0.1:54323 |
-| Emails sent by the stack | http://127.0.0.1:54324 |
 
 ### Demo accounts
 
-Locally, every seeded account uses the password `TopFlow2026!`. Because that password is public, a shared or production environment must be seeded with its own `SEED_DEMO_PASSWORD` (see `.env.example`). With `STAFF_MFA_REQUIRED=true`, staff accounts are asked to set up an authenticator app the first time they open the back office.
+Every seeded account uses the password `TopFlow2026!` unless `SEED_DEMO_PASSWORD` is set. Because that password is public, a shared or production environment must be seeded with its own. With `STAFF_MFA_REQUIRED=true` (always on in the Compose stack), staff accounts are asked to set up an authenticator app the first time they open the back office.
 
 | Email | Role | Try |
 | --- | --- | --- |
@@ -143,46 +125,90 @@ Locally, every seeded account uses the password `TopFlow2026!`. Because that pas
 | `warehouse@topflow.ae` | Top Flow warehouse | Fulfilment, stock |
 | `admin@topflow.ae` | Administrator | Everything, including staff invitations and the audit trail |
 
-## Quality
+## Configuration
+
+Each app reads its own environment file, and every variable is described in the example next to it. Nothing secret is committed: only `.env.example` and `terraform.tfvars.example` files.
+
+| File | Created from | Holds |
+| --- | --- | --- |
+| `apps/api/.env` | `apps/api/.env.example` | Database, Supabase URL and secret key, internal secret, rate limits, mail, company details, optional Sentry |
+| `apps/web/.env.local` | `apps/web/.env.example` | Supabase URL and publishable key, API origin, internal secret, site URL, optional Sentry |
+| `packages/database/.env` | the root `.env.example` explains it | Database, plus Supabase keys so the seed creates sign-ins |
+| `apps/mobile/.env` | `apps/mobile/.env.example` | API, web and Supabase URLs, publishable key |
+| `infra/compose/.env` | `node infra/compose/generate-env.mts` | Ports, random database passwords and secrets, Supabase Auth keys for the Compose stack (written owner-only) |
+| `infra/terraform/*/terraform.tfvars` | `terraform.tfvars.example` next to each | Host names, certificate, Supabase URL and publishable key, alarm and budget addresses; secrets go to SSM, not here |
+
+The API validates its environment at start-up and stops with a readable report when something is missing or inconsistent; the release step runs the same check before migrations. The web image reads its `NEXT_PUBLIC_*` values at runtime, except `NEXT_PUBLIC_DEMO_MODE`, which is fixed when it is built. Production settings, secrets, backups and secret rotation are in the [operations runbook](docs/OPERATIONS.md).
+
+## Tests
 
 ```bash
-npm run check-types                     # all workspaces
-npm run lint
-npm test                                # unit tests (shared contracts + API)
-npm run test:e2e -w @topflow/api        # end-to-end suite against a real database
+npm run check-types && npm run lint     # all workspaces
+npm test                                # unit tests
+npm run test:e2e -w @topflow/api        # end-to-end suite against a real database (DATABASE_URL)
+npx tsc -p infra/tsconfig.json && node --test "infra/**/*.test.mts"   # env generator, smoke test, cost estimate
+infra/scripts/tests/deploy-ecs.test.sh  # deploy script against a fake AWS CLI (bash, jq)
+infra/scripts/check-terraform.sh        # fmt, validate, terraform test, tflint, Trivy, all in containers
 ```
 
-- **Unit tests** cover money/VAT maths, workflow state machines, the permission matrix, request schemas, Supabase token verification, guards, error mapping and configuration.
+- **Unit tests** cover money/VAT maths, workflow state machines, the permission matrix, request schemas, Supabase token verification, guards, error mapping, configuration and error reporting (Sentry off without a DSN, request details and breadcrumbs scrubbed), and in the web app the health endpoint, the public origin and the portfolio notice.
 - **End-to-end tests** boot the real application (the production middleware stack) against PostgreSQL. They simulate Supabase Auth with locally signed tokens and exercise account provisioning, token rejection, staff MFA, staff invitations and suspension, team invitations, RBAC, tenant isolation, the full RFQ → quotation → approval → order flow, website quote requests and retail fulfilment. A test also asserts that every table has Row Level Security enabled.
-- **CI** (`.github/workflows/ci.yml`) runs lint, type checks, unit tests and builds for every workspace, plus the end-to-end suite against a PostgreSQL service container, the infrastructure scripts' tests and the backup restore drill.
-- **Containers** (`.github/workflows/containers.yml`) builds and scans the images, then starts the production-like stack and signs in through Supabase Auth; **Infrastructure** (`.github/workflows/infra.yml`) checks the Terraform code with `terraform test`, tflint and Trivy.
+- **Infrastructure tests** cover the deploy script (18 cases against a fake AWS CLI, including a web rollout that fails and a deploy that stopped half-way), the Terraform module and bootstrap (`terraform test`, mocked provider), the smoke test, the env generator, the cost estimate and the backup restore drill.
+- **CI** (`.github/workflows/ci.yml`) runs all of the above except the Terraform checks, which run in `infra.yml`, plus the restore drill end to end. **Containers** (`containers.yml`) builds and scans the images, starts the production-like stack and runs the smoke test.
 
-## Deployment
+The smoke test against the Compose stack, on 26 September 2026 (images from commit `4725a2e`, Docker Desktop on Windows 11), passed all 11 checks:
 
-The platform is deployment-ready but not hosted yet. [ADR-019](docs/DECISIONS.md) records the trade-offs: Vercel's free plan allows non-commercial use only, few free plans fit a server-rendered app with its own API, and Netlify's free plan is the default if the platform is published as a business site.
+| Result | Check | Detail |
+| --- | --- | --- |
+| pass | web: liveness (/health) | ok, version sha-4725a2e |
+| pass | api: liveness (/health) | ok, version sha-4725a2e |
+| pass | api: database readiness (/health/ready) | database up |
+| pass | auth: Supabase Auth health | ok, v2.196.0 |
+| pass | web: robots.txt uses the runtime site URL | Sitemap: https://localhost:55843/sitemap.xml |
+| pass | web: home page renders | 273583 bytes of HTML |
+| pass | web: marked as a portfolio project, not indexed | portfolio notice shown, X-Robots-Tag noindex |
+| pass | auth: password sign-in | session for buyer@desertbloom.ae |
+| pass | api: GET /auth/me with the Supabase token | role CUSTOMER, 1 organization(s) |
+| pass | api: organization quotations | 3 quotation(s) |
+| pass | api: quotation PDF renders | 3912 bytes |
 
-| Piece | Intended home |
-| --- | --- |
-| Web and API | one host with serverless functions — Netlify's free plan, or Vercel Pro / Google Cloud Run where a card and a small bill are acceptable; or the container images on any container host |
-| Database, authentication and storage | Supabase, whose free plan places no restriction on business use |
-| Backups | GitHub Actions: a nightly `supabase db dump`, encrypted with age and kept for 30 days; `infra/scripts/restore-drill.sh` rehearses the restore |
+## Folder structure
 
-Nothing in the code depends on a particular host: the environment is validated at boot, and `npm run release` applies migrations before a new version serves traffic.
-
-**Containers ([ADR-023](docs/DECISIONS.md)).** The API, its release step and the web app ship as images that run as a non-root user, and CI publishes them to GHCR from `develop`. The production-like stack runs them with HTTPS, Supabase Auth and demo data in five commands (Docker required):
-
-```bash
-node infra/compose/generate-env.mts
-docker compose -f docker-compose.prod.yml --env-file infra/compose/.env up -d --build --wait
-docker compose -f docker-compose.prod.yml --env-file infra/compose/.env --profile demo run --rm seed
-# open https://localhost:8443 (a local certificate: accept the warning, or trust it as infra/README.md explains)
-docker compose -f docker-compose.prod.yml --env-file infra/compose/.env --profile demo down -v
+```
+apps/
+  api/        NestJS REST API (Swagger at /docs outside production), its Dockerfile and release entry point
+  web/        Next.js storefront, trade portal (/business) and back office (/admin), and its Dockerfile
+  mobile/     Expo React Native app
+packages/
+  shared/     @topflow/shared — enums, permissions, workflows, money/VAT, Zod schemas, DTO types
+  database/   @topflow/database — Prisma schema, migrations, seed, generated client
+infra/
+  compose/    Caddyfile, database init script and the env generator of docker-compose.prod.yml
+  scripts/    smoke test, deploy and rollback, restore drill, cost estimate, Terraform checks, and their tests
+  terraform/  bootstrap (state, OIDC, CI roles, budget), staging and production, the environment module
+supabase/     Supabase configuration: auth policy, branded email templates, storage buckets
+docs/         Architecture, decisions, operations runbook, academic evolution
+.github/      CI, Containers, Infrastructure, Deploy and Uptime workflows; Dependabot
+docker-compose.prod.yml   the production-like stack of the container images
 ```
 
-`infra/terraform` describes staging and production on AWS ECS Fargate behind a load balancer, with secrets in SSM, CloudWatch alarms, a budget alert and a GitHub OIDC deploy role. It is checked in CI but has never been applied, and the deploy workflow skips until an AWS role is configured; [infra/README.md](infra/README.md) lists what has not been run yet and how to run it.
+## Design decisions
 
-Configuration, releases, backups, restores and secret rotation are described in [docs/OPERATIONS.md](docs/OPERATIONS.md).
-
-## From academic prototype to production
+The reasoning behind the main choices is recorded as short decision records in [docs/DECISIONS.md](docs/DECISIONS.md): among them the modular monolith (ADR-001), shared contracts (ADR-002), integer money and per-line VAT (ADR-006), immutable quotation revisions (ADR-007), Supabase Auth with authorisation kept in the API (ADR-012), httpOnly sessions behind a backend-for-frontend (ADR-013), deferred hosting (ADR-019) and the container images, production-like stack and switched-off AWS layout (ADR-023).
 
 The original coursework was a Kotlin/Firebase Android app for a bicycle shop. [docs/ACADEMIC-EVOLUTION.md](docs/ACADEMIC-EVOLUTION.md) maps each prototype feature — and each of its engineering shortcuts, such as a hard-coded `admin/admin` login, card numbers typed into the app and totals computed on the device — to the production design used here.
+
+## Limitations and roadmap
+
+- **Nothing is hosted.** The platform runs locally or as the Compose stack. [ADR-019](docs/DECISIONS.md) records why: only officially free hosting qualifies, and Netlify's free plan is the default if the platform is published as a business site.
+- **The AWS layout has never been applied.** It would cost about 183 US dollars a month for staging and production together (`node infra/scripts/cost-estimate.mts`, on-demand list prices of 26 September 2026, [infra/README.md](infra/README.md#cost-estimate-nothing-is-running)). No `terraform plan` has run against an account, and the deploy script has run only against a fake AWS CLI.
+- **Publishing has not run.** GHCR publishing and the provenance and SBOM attestations run on the first push to `develop`; the Deploy workflow's verification of them has not run either.
+- **The Compose stack is not a Supabase project.** It runs Supabase Auth (GoTrue) with a shared signing secret, while hosted projects use asymmetric keys; both are covered by unit tests.
+- **Errors in the browser are not reported.** Sentry covers the API and the web server only.
+- **Restore timings are pending** a measured run on a quiet machine; the drill itself passes in CI.
+- **The release step's image has two high-severity advisories** in packages the Prisma CLI pins (listed in [infra/README.md](infra/README.md#container-images)); they clear when Prisma updates them.
+- **Roadmap:** choose a host under ADR-019; then the first real plan, apply and deploy, a restore drill against a real nightly backup, and a Sentry project.
+
+## Licence
+
+The code is released under the [MIT licence](LICENSE), © 2026 Farah Sharif. Top Flow's name, logo, product data and product photos are used with Top Flow's permission and are not covered by that licence.

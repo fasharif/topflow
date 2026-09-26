@@ -56,7 +56,7 @@ The same day, on the same images, `trivy image --scanners vuln --severity HIGH,C
 ```bash
 node infra/compose/generate-env.mts            # secrets, Supabase keys and URLs → infra/compose/.env
 docker compose -f docker-compose.prod.yml --env-file infra/compose/.env up -d --build --wait
-docker compose -f docker-compose.prod.yml --env-file infra/compose/.env --profile demo run --rm seed
+docker compose -f docker-compose.prod.yml --env-file infra/compose/.env --profile demo run --rm --build seed
 docker compose -f docker-compose.prod.yml --env-file infra/compose/.env cp proxy:/data/caddy/pki/authorities/local/root.crt caddy-root.crt
 SMOKE_PASSWORD='TopFlow2026!' node infra/scripts/smoke-test.mts --web https://localhost:8443 --api https://api.localhost:8443 --auth https://auth.localhost:8443 --ca caddy-root.crt --sign-in buyer@desertbloom.ae
 ```
