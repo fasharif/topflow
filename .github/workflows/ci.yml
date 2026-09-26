@@ -130,6 +130,11 @@ jobs:
         env:
           DEMO_MODE: "true"
 
+      # The hosted demo's reset with its Supabase steps: a throw-away database with an auth.users table,
+      # and a stand-in for the Supabase Auth admin API backed by it (packages/database/scripts/auth-standin.ts).
+      - name: Rehearse the hosted demo's reset against a stand-in for Supabase Auth
+        run: npm run demo:rehearse -w @topflow/database
+
       # Supabase Auth is simulated inside the suite (locally signed test tokens), so no network is needed.
       - name: Run end-to-end suite
         run: npm run test:e2e -w @topflow/api

@@ -193,7 +193,14 @@ The seed also creates `owner@alwaha.example`, the owner of a company waiting in 
 5. deletes those Supabase Auth users, taking changed passwords, enrolled authenticators and visitors' own sign-ins with them;
 6. runs the demo seed with the published password, which creates the demo accounts and sample documents again.
 
-While the three GitHub settings are unset, the workflow skips itself with a notice, as the backup workflow does. With only some of them set, it fails. CI runs the same script against its PostgreSQL service before the end-to-end suites, so every pipeline exercises steps 1, 2, 4 and 6 for real. Steps 3 and 5 are covered by unit tests with an in-memory Supabase directory (`packages/database/scripts/demo-reset.spec.ts`). On 26 September 2026 they were also run by hand against a stand-in for the Auth admin API backed by an `auth.users` table: two resets in a row replaced the 8 demo sign-ins, and a stand-in for an unrelated project was refused with no deletion. They have not yet run against a real Supabase project.
+While the three GitHub settings are unset, the workflow skips itself with a notice, as the backup workflow does. With only some of them set, it fails.
+
+**How the reset is tested.** The safety checks have unit tests with in-memory fakes (`packages/database/scripts/demo-reset.spec.ts`). CI's end-to-end job also runs the real script before its suites, in two ways:
+
+- `npm run demo:reset -- --confirm` against its PostgreSQL service, without Supabase settings (steps 1, 2, 4 and 6);
+- `npm run demo:rehearse -w @topflow/database`, which creates a throw-away database with an `auth.users` table and runs the real reset against it five times, with `SUPABASE_URL` pointing at a stand-in for the Supabase Auth admin API backed by that table (`packages/database/scripts/auth-standin.ts`). In order: an empty database gets the 8 seeded accounts and their sign-ins; a second reset replaces every sign-in, including a visitor's own, and restores the published password; a key for another project is refused before anything changes; a simulated Auth outage at the second account stops the seed part-way; and the next reset recovers. Every step runs, including 3 and 5.
+
+The rehearsal also passed on 26 September 2026 in a `node:24` container against `postgres:17`, and it failed as expected with the project comparison switched off or with the seed's old account order. The stand-in is a test double, not Supabase Auth, so the reset has still not run against a real Supabase project.
 
 ### What demo mode does not prevent
 

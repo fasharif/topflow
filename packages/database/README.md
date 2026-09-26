@@ -20,6 +20,7 @@ All commands read `DATABASE_URL` from the environment or `packages/database/.env
 | `npm run db:seed -w @topflow/database` | Load demo catalog, staff and a verified trade account (refuses to run in production) |
 | `npm run db:studio -w @topflow/database` | Browse data with Prisma Studio |
 | `npm run demo:reset -w @topflow/database -- --confirm` | Empty and reseed the public demo (needs `DEMO_MODE=true`; see below) |
+| `npm run demo:rehearse -w @topflow/database` | Run the real demo reset against a throw-away database and a stand-in for Supabase Auth (see below) |
 | `npm test -w @topflow/database` | Unit tests of the demo reset's safety checks |
 
 ## Resetting the public demo
@@ -33,7 +34,7 @@ All commands read `DATABASE_URL` from the environment or `packages/database/.env
 5. deletes those Supabase Auth users, so changed passwords, enrolled authenticators and visitors' own accounts disappear;
 6. runs `prisma/seed.ts` with the demo profile and the published password, which creates the demo accounts again.
 
-The decisions live in `scripts/demo-reset-core.ts` and are unit-tested with in-memory fakes; the CI end-to-end job also runs the real script against PostgreSQL (without Supabase settings) before its tests. The Supabase steps have been run only against a stand-in for the Auth admin API backed by an `auth.users` table (26 September 2026), not against a real Supabase project.
+The decisions live in `scripts/demo-reset-core.ts` and are unit-tested with in-memory fakes. The CI end-to-end job also runs the real script against PostgreSQL (without Supabase settings) before its tests, and runs `npm run demo:rehearse`. The rehearsal (`scripts/demo-reset-rehearsal.ts`) creates the database `topflow_demo_rehearsal` on the server in `DATABASE_URL`, adds an `auth.users` table and runs the real reset against it five times, with `SUPABASE_URL` pointing at `scripts/auth-standin.ts`, a stand-in for the Supabase Auth admin API backed by that table. In order: an empty database gets the 8 seeded accounts and their sign-ins; a second reset replaces every sign-in, including a visitor's own, and restores the published password; a key for another project is refused before anything changes; a simulated Auth outage at the second account stops the seed part-way; and the next reset recovers. It drops the database afterwards and refuses a hosted Supabase `DATABASE_URL`. The stand-in is a test double, so the Supabase steps have still not run against a real Supabase project.
 
 ## Migration workflow for data-changing releases
 

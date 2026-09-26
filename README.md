@@ -153,6 +153,7 @@ npm run lint
 npm test                                # unit tests of every workspace
 npm run test:e2e -w @topflow/api        # end-to-end suites against a real database (DATABASE_URL)
 npm run test:scripts                    # the local setup script
+npm run demo:rehearse -w @topflow/database   # the demo reset against a stand-in for Supabase Auth (DATABASE_URL of a disposable server)
 npm run build -w web && npm run test:demo -w web   # a build made with NEXT_PUBLIC_DEMO_MODE=true
 ```
 
@@ -185,7 +186,7 @@ The original coursework was a Kotlin/Firebase Android app for a bicycle shop. [d
 ## Limitations and roadmap
 
 - **Nothing is hosted.** The platform runs locally. [ADR-019](docs/DECISIONS.md) records the hosting trade-offs: Vercel's free plan allows non-commercial use only, few free plans fit a server-rendered app with its own API, and Netlify's free plan is the default if the platform is published as a business site. The planned layout: web and API on one host with serverless functions, Supabase for the database, authentication and storage, GitHub Actions for nightly encrypted backups, and a separate demo deployment with its own Supabase project.
-- **The demo has not run against Supabase.** The nightly reset's Supabase steps were tested with unit tests and by hand against a stand-in for the Auth admin API, and CI runs the rest of the reset against PostgreSQL. The first real run will be the demo project's setup ([runbook, section 10](docs/OPERATIONS.md#10-public-demo)).
+- **The demo has not run against Supabase.** CI runs the nightly reset against PostgreSQL, and `npm run demo:rehearse` runs it, Supabase steps included, against a stand-in for the Supabase Auth admin API backed by an `auth.users` table. The first run against a real Supabase project will be the demo project's setup ([runbook, section 10](docs/OPERATIONS.md#10-public-demo)).
 - **Direct Supabase Auth calls.** The web app does not change a shared account's password or two-factor settings, but someone who calls Supabase Auth directly with the published password can, until the nightly reset. The API still enforces every business rule.
 - **The mobile app has no demo mode.** Pointed at the demo, it is subject to the same API restrictions, but it shows no banner, and its sign-up and password reset go straight to Supabase, where the demo project has sign-ups switched off and emails only its own team.
 - **`npm run setup` and the Supabase CLI.** The script's key step reads `npx supabase status -o env`; it was tested with sample output, not with a running Supabase CLI, and says which keys to copy by hand if it cannot read them.

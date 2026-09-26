@@ -27,7 +27,8 @@
     "db:reset": "prisma migrate reset --force",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "demo:reset": "tsx scripts/demo-reset.ts"
+    "demo:reset": "tsx scripts/demo-reset.ts",
+    "demo:rehearse": "tsx scripts/demo-reset-rehearsal.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
