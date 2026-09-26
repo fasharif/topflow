@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import type { Prisma } from '@topflow/database';
 import {
+  DispatchEventOutcome,
   DocumentType,
   ORDER_STATUS_LABELS,
   ORDER_STATUS_PERMISSION,
@@ -21,6 +22,7 @@ import {
   assertTransition,
   bpsToPercent,
   calculateTotals,
+  dispatchEventSchema,
   fromFils,
   hasPermission,
   isCustomerCancellable,
@@ -56,6 +58,10 @@ import {
   addressSnapshot,
   formatAddress,
 } from '../users/address-book.service';
+import {
+  dispatchDeliveryFrom,
+  type DispatchDelivery,
+} from './dispatch-delivery';
 import { OrderWriter } from './order-writer.service';
 import {
   orderInclude,
@@ -351,7 +357,7 @@ export class OrdersService {
     }
 
     const now = new Date();
-    await this.prisma.$transaction(async (tx) => {
+    const deliveredAtDispatch = await this.prisma.$transaction(async (tx) => {
       const data: Prisma.OrderUpdateInput = { status: input.status };
       let note = input.note ?? null;
 
@@ -393,15 +399,24 @@ export class OrdersService {
         },
         tx,
       );
+      // The dispatch service may have reported the delivery before the warehouse got here.
+      return input.status === OrderStatus.DISPATCHED
+        ? this.applyWaitingDelivery(tx, id, now)
+        : null;
     });
 
-    this.notifyCustomer(
-      order,
-      ORDER_STATUS_LABELS[input.status],
-      input.trackingReference
-        ? `Tracking reference: ${input.trackingReference}`
-        : input.note,
-    );
+    if (deliveredAtDispatch) {
+      // The customer already has the goods: one "Delivered" email rather than two.
+      this.notifyDelivered(deliveredAtDispatch);
+    } else {
+      this.notifyCustomer(
+        order,
+        ORDER_STATUS_LABELS[input.status],
+        input.trackingReference
+          ? `Tracking reference: ${input.trackingReference}`
+          : input.note,
+      );
+    }
     return this.adminGet(user, id);
   }
 
@@ -531,12 +546,17 @@ export class OrdersService {
    * inside the caller's transaction. The rules are those of a warehouse user marking it delivered:
    * only a dispatched order can be delivered, cash on delivery counts as collected, and the change
    * goes on the order timeline and into the audit trail, attributed to the integration rather
-   * than to a person. An order that is already delivered is left as it is.
+   * than to a person. An order that is already delivered is left as it is. An order the warehouse
+   * has not marked dispatched yet is left as it is too (`waiting`): the caller keeps the event and
+   * the delivery is applied when the order is dispatched (applyWaitingDelivery).
    */
   async deliverFromDispatch(
     tx: Prisma.TransactionClient,
     input: DispatchDelivery,
-  ): Promise<{ applied: boolean; order: OrderRecord }> {
+  ): Promise<{
+    outcome: 'applied' | 'already-delivered' | 'waiting';
+    order: OrderRecord;
+  }> {
     const order = await tx.order.findUnique({
       where: { orderNumber: input.orderNumber },
       include: orderInclude,
@@ -547,17 +567,15 @@ export class OrdersService {
       );
     }
     if (order.status === OrderStatus.DELIVERED)
-      return { applied: false, order };
+      return { outcome: 'already-delivered', order };
     if (order.status === OrderStatus.CANCELLED) {
       throw new UnprocessableEntityException(
         `Order ${order.orderNumber} is cancelled and cannot be delivered`,
       );
     }
     if (order.status !== OrderStatus.DISPATCHED) {
-      // Worth retrying: the warehouse may still mark the goods as dispatched.
-      throw new ConflictException(
-        `Order ${order.orderNumber} is ${ORDER_STATUS_LABELS[order.status].toLowerCase()}: it must be dispatched before it can be delivered`,
-      );
+      // The driver took the goods before the warehouse recorded it: wait for the warehouse.
+      return { outcome: 'waiting', order };
     }
     assertTransition(
       ORDER_TRANSITIONS,
@@ -608,7 +626,48 @@ export class OrdersService {
       },
       tx,
     );
-    return { applied: true, order };
+    return { outcome: 'applied', order };
+  }
+
+  /**
+   * Applies a completed delivery that arrived from the dispatch service before the order was
+   * dispatched (outcome PENDING), in the transaction that dispatches it. Both paths lock the order
+   * row first (this one by updating it), so an event arriving at the same moment is either seen
+   * here or sees the order dispatched.
+   */
+  private async applyWaitingDelivery(
+    tx: Prisma.TransactionClient,
+    orderId: string,
+    dispatchedAt: Date,
+  ): Promise<OrderRecord | null> {
+    const waiting = await tx.dispatchEvent.findFirst({
+      where: {
+        orderId,
+        type: 'delivery.completed',
+        outcome: DispatchEventOutcome.PENDING,
+      },
+      orderBy: { receivedAt: 'asc' },
+    });
+    if (!waiting) return null;
+    const event = dispatchEventSchema.parse(waiting.payload);
+    const result = await this.deliverFromDispatch(
+      tx,
+      dispatchDeliveryFrom(event, { ipAddress: null, notBefore: dispatchedAt }),
+    );
+    await tx.dispatchEvent.updateMany({
+      where: { orderId, outcome: DispatchEventOutcome.PENDING },
+      data: { outcome: DispatchEventOutcome.IGNORED },
+    });
+    await tx.dispatchEvent.update({
+      where: { id: waiting.id },
+      data: {
+        outcome:
+          result.outcome === 'applied'
+            ? DispatchEventOutcome.APPLIED
+            : DispatchEventOutcome.IGNORED,
+      },
+    });
+    return result.outcome === 'applied' ? result.order : null;
   }
 
   /** Emails the customer that the order was delivered (after the transaction has committed). */
@@ -826,16 +885,6 @@ export class OrdersService {
 /** Within an organization, cancelling a committed purchase is reserved for approvers and owners. */
 function hasOrgApprovalRights(ctx: OrganizationContext): boolean {
   return ctx.role === 'OWNER' || ctx.role === 'APPROVER';
-}
-
-/** A delivery the dispatch service reports as completed. */
-export interface DispatchDelivery {
-  orderNumber: string;
-  deliveredAt: Date;
-  /** Shown on the order timeline. */
-  note: string;
-  ipAddress: string | null;
-  auditDetails: Prisma.InputJsonObject;
 }
 
 /**

@@ -1,12 +1,13 @@
 -- ════════════════════════════════════════════════════════════════════════════
 -- Webhooks from the dispatch delivery service (ADR-024)
 --   • dispatch_events: every event received, keyed by the sender's event id, so a
---     repeated delivery of the same event is recognised and never applied twice
+--     repeated delivery of the same event is recognised and never applied twice.
+--     A completed delivery for an order not yet dispatched waits here as PENDING.
 -- Additive only: a new enum and a new table.
 -- ════════════════════════════════════════════════════════════════════════════
 
 -- CreateEnum
-CREATE TYPE "DispatchEventOutcome" AS ENUM ('APPLIED', 'IGNORED');
+CREATE TYPE "DispatchEventOutcome" AS ENUM ('APPLIED', 'IGNORED', 'PENDING');
 
 -- CreateTable
 CREATE TABLE "dispatch_events" (

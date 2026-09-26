@@ -22,6 +22,27 @@ export type DispatchEventType = (typeof DISPATCH_EVENT_TYPES)[number];
 
 const isoDateTime = z.iso.datetime({ offset: true, error: 'Expected an ISO 8601 date and time' });
 
+export function isKnownDispatchEventType(type: string): type is DispatchEventType {
+  return (DISPATCH_EVENT_TYPES as readonly string[]).includes(type);
+}
+
+/**
+ * What every dispatch event carries, whatever its type. An event of a type TopFlow does not know
+ * yet (dispatch may add some) is checked against this only, then recorded and acknowledged.
+ */
+export const dispatchEventEnvelopeSchema = z.object({
+  id: z.uuid({ error: 'Invalid event id' }),
+  type: z.string().trim().min(1).max(100),
+  createdAt: isoDateTime,
+  data: z.looseObject({
+    deliveryId: z.uuid({ error: 'Invalid delivery id' }),
+    orderReference: z.string().trim().min(1).max(64),
+    occurredAt: isoDateTime,
+  }),
+});
+export type DispatchEventEnvelope = z.infer<typeof dispatchEventEnvelopeSchema>;
+
+/** The events TopFlow knows, checked in full. */
 export const dispatchEventSchema = z.object({
   id: z.uuid({ error: 'Invalid event id' }),
   type: z.enum(DISPATCH_EVENT_TYPES),
@@ -51,7 +72,7 @@ export type DispatchEvent = z.infer<typeof dispatchEventSchema>;
 
 /**
  * The answer to a received event: what it did (see DispatchEventOutcome), or DUPLICATE when this
- * event id was received before and nothing was done again.
+ * event id was received before and nothing was done again. Every one of them is a 200.
  */
 export interface DispatchEventReceiptDto {
   eventId: string;

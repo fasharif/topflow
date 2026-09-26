@@ -585,6 +585,9 @@ enum DispatchEventOutcome {
   APPLIED
   /// Nothing to change: an event type TopFlow does not act on, or an order already delivered.
   IGNORED
+  /// delivery.completed for an order the warehouse has not marked DISPATCHED yet; it is applied
+  /// in the same transaction as that change.
+  PENDING
 }
 
 /// Every webhook event received from the dispatch delivery service, keyed by the sender's event
