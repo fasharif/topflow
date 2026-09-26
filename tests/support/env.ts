@@ -1,3 +1,5 @@
+import { DEMO_ACCOUNT_PASSWORD } from '@topflow/shared';
+
 /**
  * Where the stack under test runs. The defaults match the local stack described in
  * docs/OPERATIONS.md (section 9): `npm run supabase:start`, the API on :3000 and the web app on
@@ -21,8 +23,8 @@ export const stack = {
   apiUrl: origin('E2E_API_URL', 'http://localhost:3000'),
   /** Mailpit, which catches every email the local Supabase stack sends. */
   mailpitUrl: origin('E2E_MAILPIT_URL', 'http://127.0.0.1:54324'),
-  /** Password of the seeded demo accounts (`SEED_DEMO_PASSWORD`, public default `TopFlow2026!`). */
-  demoPassword: process.env.E2E_DEMO_PASSWORD?.trim() || process.env.SEED_DEMO_PASSWORD?.trim() || 'TopFlow2026!',
+  /** Password of the seeded demo accounts (`SEED_DEMO_PASSWORD`, else the published demo password). */
+  demoPassword: process.env.E2E_DEMO_PASSWORD?.trim() || process.env.SEED_DEMO_PASSWORD?.trim() || DEMO_ACCOUNT_PASSWORD,
 } as const;
 
 /** Short, unique suffix for data a test run creates (emails, project references). */

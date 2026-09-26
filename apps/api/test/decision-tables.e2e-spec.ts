@@ -1,8 +1,9 @@
-import type {
-  MemberDto,
-  OrderDto,
-  OrganizationDto,
-  QuotationDto,
+import {
+  DEMO_ACCOUNTS,
+  type MemberDto,
+  type OrderDto,
+  type OrganizationDto,
+  type QuotationDto,
 } from '@topflow/shared';
 import { randomUUID } from 'node:crypto';
 import { E2eHarness, uniqueEmail, type TestSession } from './support/harness';
@@ -17,7 +18,12 @@ let productId: string;
 
 beforeAll(async () => {
   await harness.start();
-  sales = await harness.sessionFor('sales@topflow.ae');
+  // The seeded sales account, as published in @topflow/shared.
+  const salesEmail = DEMO_ACCOUNTS.find(({ email }) =>
+    email.startsWith('sales@'),
+  )?.email;
+  if (!salesEmail) throw new Error('No sales demo account in @topflow/shared');
+  sales = await harness.sessionFor(salesEmail);
   productId = (await harness.product('AX-EFS-002')).id;
 });
 
