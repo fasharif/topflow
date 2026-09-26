@@ -12,15 +12,17 @@
 # Runs as the unprivileged `node` user without npm, from the ECR Public mirror of the Docker
 # Official Node.js image (no Docker Hub pull limits), pinned by digest.
 
-ARG NODE_IMAGE=public.ecr.aws/docker/library/node:24.21.0-alpine3.24@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1
+# The base image, pinned by tag and digest, on a literal FROM line so Dependabot can update both
+# (it does not read images from build arguments). Every other stage starts from this one.
+FROM public.ecr.aws/docker/library/node:24.21.0-alpine3.24@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS node-base
 
-FROM ${NODE_IMAGE} AS prune
+FROM node-base AS prune
 ARG TURBO_VERSION=2.10.12
 WORKDIR /repo
 COPY . .
 RUN npx --yes "turbo@${TURBO_VERSION}" prune web --docker
 
-FROM ${NODE_IMAGE} AS build
+FROM node-base AS build
 ENV TURBO_TELEMETRY_DISABLED=1 \
     NEXT_TELEMETRY_DISABLED=1 \
     NEXT_OUTPUT=standalone
@@ -31,7 +33,7 @@ RUN --mount=type=cache,target=/root/.npm,sharing=locked \
 COPY --from=prune /repo/out/full/ ./
 RUN npx turbo run build --filter=web
 
-FROM ${NODE_IMAGE} AS runtime
+FROM node-base AS runtime
 ARG APP_VERSION=dev
 LABEL org.opencontainers.image.title="topflow-hub-web" \
       org.opencontainers.image.description="TopFlow Hub storefront, trade portal and back office, Next.js (portfolio project, not Top Flow's official system)" \

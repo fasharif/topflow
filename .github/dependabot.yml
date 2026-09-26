@@ -15,7 +15,8 @@ updates:
     schedule:
       interval: weekly
 
-  # Base images of apps/api/Dockerfile and apps/web/Dockerfile (tag and digest).
+  # Base images of apps/api/Dockerfile and apps/web/Dockerfile (tag and digest). Dependabot reads
+  # literal FROM lines only, so each Dockerfile names its base once, in the node-base stage.
   - package-ecosystem: docker
     directories: [/apps/api, /apps/web]
     schedule:
