@@ -107,7 +107,7 @@ It restores into the Supabase Postgres image by default, because Supabase dumps 
 
 Every API response and error carries `x-request-id`; search the logs for it (Vercel, CloudWatch or `docker compose logs`).
 
-- **Error reporting.** With `SENTRY_DSN` set, the API reports every 5xx (with its request id) and the web server reports errors in Server Components, Route Handlers, Server Actions and the proxy. Cookies, authorisation headers, the internal secret, client addresses and query strings are never sent. Without the variable the SDK is never started. Browser-side errors are not reported (ADR-023).
+- **Error reporting.** With `SENTRY_DSN` set, the API reports every 5xx (with its request id) and the web server reports errors in Server Components, Route Handlers, Server Actions and the proxy. Every event loses the request's cookies, authorisation and internal headers, client addresses, body and query string; breadcrumbs of outgoing calls keep only the URL's origin and path, and console output is not sent. Error messages and stack traces are sent as written, so code must not put personal data into them. Without the variable the SDK is never started. Browser-side errors are not reported (ADR-023).
 - **Uptime.** `.github/workflows/uptime.yml` checks both health endpoints, database readiness and the home page every 15 minutes, with retries; a failed run emails whoever last changed the schedule.
 
 ## 8. Rotating secrets

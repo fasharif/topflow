@@ -18,11 +18,19 @@ export interface WebSentryOptions {
   /** Never send cookies, IP addresses or user details to Sentry. */
   sendDefaultPii: false;
   beforeSend: typeof scrubEvent;
+  beforeBreadcrumb: typeof scrubBreadcrumb;
 }
 
 /** The part of a Sentry event that can carry request details. */
 export interface ScrubbableEvent {
   request?: { url?: string; headers?: Record<string, string>; cookies?: unknown; query_string?: unknown; data?: unknown };
+}
+
+/** The part of a Sentry breadcrumb that can carry personal data. */
+export interface ScrubbableBreadcrumb {
+  category?: string;
+  message?: string;
+  data?: Record<string, unknown>;
 }
 
 type Env = Record<string, string | undefined>;
@@ -46,6 +54,23 @@ export function scrubEvent<T extends ScrubbableEvent>(event: T): T {
     if (request.url) request.url = request.url.split('?')[0];
   }
   return event;
+}
+
+/**
+ * Filter for the breadcrumbs sent with an event. The SDK records the server's outgoing fetch and
+ * HTTP calls (to the API and Supabase, for example) with their URL and query string, and console
+ * output, which can quote anything the server logged. URLs keep only their origin and path;
+ * console breadcrumbs are dropped.
+ */
+export function scrubBreadcrumb<T extends ScrubbableBreadcrumb>(breadcrumb: T): T | null {
+  if (breadcrumb.category === 'console') return null;
+  const data = breadcrumb.data;
+  if (data) {
+    if (typeof data.url === 'string') data.url = data.url.split(/[?#]/)[0];
+    delete data['http.query'];
+    delete data['http.fragment'];
+  }
+  return breadcrumb;
 }
 
 /**
@@ -75,6 +100,7 @@ export function sentryOptions(env: Env = process.env): WebSentryOptions | null {
     tracesSampleRate: rate,
     sendDefaultPii: false,
     beforeSend: scrubEvent,
+    beforeBreadcrumb: scrubBreadcrumb,
   };
 }
 

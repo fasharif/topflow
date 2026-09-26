@@ -66,6 +66,32 @@ export function scrubEvent<T extends ScrubbableEvent>(event: T): T {
   return event;
 }
 
+/** The part of a Sentry breadcrumb that can carry personal data. */
+export interface ScrubbableBreadcrumb {
+  category?: string;
+  message?: string;
+  data?: Record<string, unknown>;
+}
+
+/**
+ * Filter for the breadcrumbs sent with an event. The SDK records outgoing HTTP and fetch calls
+ * (to Supabase, for example) with their URL and query string, and console output, which can quote
+ * anything the application logged. URLs keep only their origin and path; console breadcrumbs are
+ * dropped.
+ */
+export function scrubBreadcrumb<T extends ScrubbableBreadcrumb>(
+  breadcrumb: T,
+): T | null {
+  if (breadcrumb.category === 'console') return null;
+  const data = breadcrumb.data;
+  if (data) {
+    if (typeof data.url === 'string') data.url = data.url.split(/[?#]/)[0];
+    delete data['http.query'];
+    delete data['http.fragment'];
+  }
+  return breadcrumb;
+}
+
 export interface SentryOptions {
   dsn: string;
   environment: string;
@@ -74,6 +100,7 @@ export interface SentryOptions {
   /** Never send cookies, IP addresses or user details to Sentry. */
   sendDefaultPii: false;
   beforeSend: typeof scrubEvent;
+  beforeBreadcrumb: typeof scrubBreadcrumb;
 }
 
 /** Sentry options from the environment, or null when error reporting is not configured. */
@@ -95,5 +122,6 @@ export function sentryOptions(
     tracesSampleRate: env.SENTRY_TRACES_SAMPLE_RATE ?? 0,
     sendDefaultPii: false,
     beforeSend: scrubEvent,
+    beforeBreadcrumb: scrubBreadcrumb,
   };
 }

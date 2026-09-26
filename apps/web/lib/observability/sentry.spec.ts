@@ -1,4 +1,4 @@
-import { redactRequest, reportRequestError, scrubEvent, sentryOptions, startErrorReporting, type ErrorContext, type ErrorReportingSdk, type ErrorRequest } from './sentry';
+import { redactRequest, reportRequestError, scrubBreadcrumb, scrubEvent, sentryOptions, startErrorReporting, type ErrorContext, type ErrorReportingSdk, type ErrorRequest } from './sentry';
 
 const DSN = 'https://public-key@o123456.ingest.sentry.io/7654321';
 
@@ -53,7 +53,18 @@ describe('web error reporting (Sentry)', () => {
       tracesSampleRate: 0,
       sendDefaultPii: false,
       beforeSend: scrubEvent,
+      beforeBreadcrumb: scrubBreadcrumb,
     });
+  });
+
+  it('keeps query strings of outgoing calls and console output out of breadcrumbs', () => {
+    expect(
+      scrubBreadcrumb({
+        category: 'fetch',
+        data: { url: 'http://api:3000/catalog/products?search=rotor&page=2', method: 'GET', 'http.query': 'search=rotor&page=2' },
+      }),
+    ).toEqual({ category: 'fetch', data: { url: 'http://api:3000/catalog/products', method: 'GET' } });
+    expect(scrubBreadcrumb({ category: 'console', message: 'Sign-in failed for someone@example.com' })).toBeNull();
   });
 
   it('strips credentials, client addresses, query strings and bodies from any event', () => {

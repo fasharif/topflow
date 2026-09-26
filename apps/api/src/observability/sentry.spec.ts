@@ -4,7 +4,7 @@ import {
   sentryOptions,
   type ErrorReportingSdk,
 } from './sentry';
-import { scrubEvent } from './sentry-config';
+import { scrubBreadcrumb, scrubEvent } from './sentry-config';
 
 const DSN = 'https://public-key@o123456.ingest.sentry.io/7654321';
 
@@ -56,6 +56,7 @@ describe('error reporting (Sentry)', () => {
       tracesSampleRate: 0.2,
       sendDefaultPii: false,
       beforeSend: scrubEvent,
+      beforeBreadcrumb: scrubBreadcrumb,
     });
   });
 
@@ -80,6 +81,37 @@ describe('error reporting (Sentry)', () => {
       headers: { 'user-agent': 'Mozilla/5.0' },
     });
     expect(scrubEvent({})).toEqual({});
+  });
+
+  it('keeps query strings of outgoing calls and console output out of breadcrumbs', () => {
+    expect(
+      scrubBreadcrumb({
+        category: 'http',
+        data: {
+          url: 'https://project.supabase.co/auth/v1/admin/users?email=someone%40example.com#top',
+          method: 'GET',
+          status_code: 200,
+          'http.query': 'email=someone%40example.com',
+          'http.fragment': 'top',
+        },
+      }),
+    ).toEqual({
+      category: 'http',
+      data: {
+        url: 'https://project.supabase.co/auth/v1/admin/users',
+        method: 'GET',
+        status_code: 200,
+      },
+    });
+    expect(
+      scrubBreadcrumb({
+        category: 'console',
+        message: 'Quote request from someone@example.com',
+      }),
+    ).toBeNull();
+    expect(scrubBreadcrumb({ category: 'navigation' })).toEqual({
+      category: 'navigation',
+    });
   });
 
   it('prefers SENTRY_ENVIRONMENT and traces nothing by default', () => {

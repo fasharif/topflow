@@ -37,7 +37,7 @@ Configuration is documented in [`.env.example`](.env.example) and validated at s
 
 ## Testing
 
-- **Unit** (`src/**/*.spec.ts`): Supabase token verification (ES256 keys, legacy HS256, issuer/audience/expiry), guards including staff MFA, error mapping, configuration, pricing, and error reporting (Sentry stays off without `SENTRY_DSN`, reports only 5xx, strips personal data).
+- **Unit** (`src/**/*.spec.ts`): Supabase token verification (ES256 keys, legacy HS256, issuer/audience/expiry), guards including staff MFA, error mapping, configuration, pricing, and error reporting (Sentry stays off without `SENTRY_DSN`, reports only 5xx, removes request details and the query strings of outgoing calls, sends no console output).
 - **End-to-end** (`test/app.e2e-spec.ts`): boots `AppModule` with the production middleware stack (`configureApp`) against PostgreSQL. Supabase is simulated — tokens are signed locally (`test/support/supabase.ts`) and the admin API is an in-memory fake — so the suite needs no network. It covers provisioning, token rejection, MFA, staff invitations and suspension, team invitations, trade accounts, RBAC, tenant isolation, the RFQ → quotation → approval → order journey, website quote requests, retail checkout through delivery, trusted client-IP forwarding and the RLS lockdown.
 
 ## Deployment
