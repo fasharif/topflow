@@ -28,6 +28,7 @@ Secrets live only in the Vercel project settings, GitHub Actions secrets and Sup
 | `APP_PUBLIC_URL`, `CORS_ORIGINS`, `TRUST_PROXY=true`, `NODE_ENV=production` | API | Links in emails, allowed browser origins |
 | `MAIL_TRANSPORT`, `MAIL_FROM`, `RESEND_API_KEY` | API | Business emails (quotations, orders, team invitations) |
 | `COMPANY_*` | API | Printed on quotation PDFs |
+| `DISPATCH_WEBHOOK_SECRET` (and `_PREVIOUS` while rotating) | API | Shared with the dispatch delivery service, which signs its webhooks with it ([section 10](#10-delivery-tracking-dispatch), ADR-024). Unset: the webhook endpoint answers 503 |
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Web | Publishable key (`sb_publishable_…`) |
 | `NEXT_PUBLIC_SITE_URL` | Web (production only) | Public origin used in email redirects, metadata and the sitemap |
 | `API_INTERNAL_URL` | Web | API origin |
@@ -87,6 +88,7 @@ psql "$TARGET_DB_URL" --single-transaction --variable ON_ERROR_STOP=1 \
 | Staff get "two-factor authentication required" | Expected until they verify with their authenticator app (`/auth/mfa`) |
 | 429 Too Many Requests | Per-client limits (`THROTTLE_*`); confirm `INTERNAL_API_SECRET` matches in both projects, otherwise every shopper shares the web server's quota |
 | Supabase project paused | Restore it from the dashboard; check that the nightly backup job (which keeps it awake) is succeeding |
+| Orders stay *Dispatched* although dispatch shows them delivered | Look at dispatch's webhook list (console → Webhooks). 401 `INVALID_SIGNATURE`: the two secrets differ or a clock is off by more than the tolerance. 409: the order was not *Dispatched* when the event arrived; dispatch retries with backoff, then marks the event failed, and *Send again* in its console replays it. 422: the order number is unknown or the order was cancelled |
 
 Every API response and error carries `x-request-id`; search the Vercel logs for it.
 
@@ -98,6 +100,7 @@ Every API response and error carries `x-request-id`; search the Vercel logs for 
 | `SUPABASE_SECRET_KEY` | Create a new secret key in Supabase *Project Settings → API Keys*, update the API, redeploy, delete the old key |
 | Database password | Reset it in Supabase *Database settings*, update `DATABASE_URL`, `DIRECT_URL` and the backup secret `SUPABASE_DB_URL` |
 | JWT signing keys | Rotate in Supabase *JWT Keys*; the API picks up the new key from the JWKS automatically and existing sessions keep working |
+| `DISPATCH_WEBHOOK_SECRET` | Move the current value to `DISPATCH_WEBHOOK_SECRET_PREVIOUS`, set the new value, redeploy the API; then give dispatch the new value as its `WEBHOOK_SECRET`; once dispatch uses it, remove `DISPATCH_WEBHOOK_SECRET_PREVIOUS` |
 
 ## 9. Local development
 
@@ -108,3 +111,11 @@ npm run db:deploy && npm run db:seed
 npm run dev
 npm run supabase:stop       # when finished (data is kept in Docker volumes)
 ```
+
+## 10. Delivery tracking (dispatch)
+
+dispatch is a separate delivery-tracking service (ADR-024 in [DECISIONS.md](DECISIONS.md)). It sends signed webhooks to `POST /integrations/dispatch/events`; the API checks the HMAC signature and its timestamp, records the event id in `dispatch_events` and, for `delivery.completed`, moves a *Dispatched* order to *Delivered* through the order state machine, with a timeline entry and an audit record attributed to the integration.
+
+- **Connect them:** set `DISPATCH_WEBHOOK_SECRET` here and the same value as `WEBHOOK_SECRET` in dispatch, whose `WEBHOOK_URL` points at `<API origin>/integrations/dispatch/events`.
+- **What arrived:** every accepted event is a row in `dispatch_events` (id, type, order, outcome `APPLIED` or `IGNORED`, full payload). A repeated event id is answered `DUPLICATE` and changes nothing.
+- **Answers dispatch acts on:** 2xx done; 409 retry later (order not dispatched yet); 401, 400 and 422 are final and land in dispatch's failed list.

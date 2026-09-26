@@ -24,6 +24,7 @@ TopFlow Hub is a **modular monolith**: one NestJS API with strict module boundar
 | `procurement` | RFQs and website quote requests, quotation revisions, customer responses, purchase approvals, quotation PDFs |
 | `orders` | Retail checkout, order creation from quotations, fulfilment state machine, stock, payments |
 | `dashboard`, `audit` | Back-office KPIs, audit trail |
+| `integrations` | Webhooks from the dispatch delivery service: HMAC-verified, idempotent by event id, delivered orders through the order state machine (ADR-024) |
 | `common` | Error envelope, document numbering, serialization, request context, client-IP resolution, rate limiting |
 
 ## 2. Hosting topology
@@ -121,7 +122,7 @@ stateDiagram-v2
   PENDING_PAYMENT --> CONFIRMED: payment recorded (sales)
   CONFIRMED --> PROCESSING: picking (warehouse)
   PROCESSING --> DISPATCHED: stock deducted (warehouse)
-  DISPATCHED --> DELIVERED: COD marked paid (warehouse)
+  DISPATCHED --> DELIVERED: COD marked paid (warehouse or dispatch webhook)
   PENDING_PAYMENT --> CANCELLED
   CONFIRMED --> CANCELLED
   PROCESSING --> CANCELLED
