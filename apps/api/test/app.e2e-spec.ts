@@ -139,7 +139,10 @@ describe('TopFlow Hub API (e2e)', () => {
       const document = (await http().get('/docs-json').expect(200)).body as {
         paths: Record<
           string,
-          Record<string, { responses: Record<string, unknown> }>
+          Record<
+            string,
+            { responses: Record<string, unknown>; security?: unknown }
+          >
         >;
         components: {
           schemas: Record<
@@ -159,15 +162,38 @@ describe('TopFlow Hub API (e2e)', () => {
       expect(JSON.stringify(document)).not.toMatch(
         /"exclusive(Minimum|Maximum)":-?\d/,
       );
-      expect(document.paths['/me/orders'].post.responses.default).toEqual(
-        expect.objectContaining({
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/ApiError' },
-            },
+      const envelope = expect.objectContaining({
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/ApiError' },
           },
-        }),
+        },
+      });
+      // Each operation lists the error statuses it can answer, not a catch-all default (BUG-04).
+      const checkout = document.paths['/me/orders'].post.responses;
+      expect(Object.keys(checkout).sort()).toEqual([
+        '201',
+        '400',
+        '401',
+        '403',
+        '404',
+        '409',
+        '422',
+        '429',
+        '5XX',
+      ]);
+      expect(checkout['422']).toEqual(envelope);
+      const operations = Object.values(document.paths).flatMap((item) =>
+        Object.values(item),
       );
+      expect(operations.filter((o) => 'default' in o.responses)).toEqual([]);
+      // Public operations answer no 401 or 403 and need no token; the rest need the bearer token.
+      const quoteRequest = document.paths['/quote-requests'].post;
+      expect(quoteRequest.responses).not.toHaveProperty('401');
+      expect(quoteRequest).not.toHaveProperty('security');
+      expect(document.paths['/me/orders'].get).toMatchObject({
+        security: [{ bearer: [] }],
+      });
     });
 
     it('describes ids and the organization header as UUIDs in its OpenAPI description', async () => {
