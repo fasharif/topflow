@@ -1,15 +1,20 @@
 name: Deploy
 
 # Manual releases to the AWS environments of infra/terraform (not in use: hosting is deferred,
-# ADR-019). Each run waits for the GitHub environment's required reviewers, assumes that
-# environment's deploy role through OIDC and runs infra/scripts/deploy-ecs.sh:
+# ADR-019). Each run waits for the reviewers of the aws-staging or aws-production GitHub
+# environment, assumes that environment's deploy role through OIDC and runs
+# infra/scripts/deploy-ecs.sh:
 #
 #   deploy    the release step (preflight + migrations) as a one-off task, then the API, then the
-#             web app, each checked healthy; the images are the ones CI published for the tag
-#   rollback  the previous release's images back on both services in one step, no migrations
+#             web app, each checked healthy; if the web app fails, the API goes back as well
+#   rollback  the previous release on both services in one step, without migrations; after a
+#             deploy that stopped half-way, the current release on both; or a named release (tag)
+#   restart   new tasks of the running release, for example after a secret changed in SSM
 #
-# Then the smoke test checks the public URLs and the version they serve. Without the
-# AWS_DEPLOY_ROLE_ARN variable on the environment, the run skips with a notice.
+# Before a deploy or rollback, every image is resolved to its digest and must carry a provenance
+# attestation from the Containers workflow on develop in this repository; the task definitions
+# then pin those digests. Then the smoke test checks the public URLs and the version they serve.
+# Without the AWS_DEPLOY_ROLE_ARN variable on the environment, the run skips with a notice.
 
 on:
   workflow_dispatch:
@@ -20,12 +25,12 @@ on:
         options: [staging, production]
         required: true
       action:
-        description: deploy a tag, or roll back to the previous release
+        description: deploy a tag, roll back, or restart the running release
         type: choice
-        options: [deploy, rollback]
+        options: [deploy, rollback, restart]
         default: deploy
       tag:
-        description: Image tag for deploy (sha-<commit>, published by the Containers workflow)
+        description: "deploy: the image tag (sha-<commit>) the Containers workflow published. rollback: optional, a named earlier release"
         type: string
         required: false
 
@@ -42,11 +47,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     environment:
-      name: ${{ inputs.environment }}
+      name: aws-${{ inputs.environment }}
       url: ${{ vars.WEB_URL }}
     permissions:
       contents: read
       id-token: write
+      attestations: read
     env:
       ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
       AWS_REGION: ${{ vars.AWS_REGION || 'ap-south-1' }}
@@ -61,13 +67,19 @@ jobs:
         id: config
         run: |
           if [ -z "$ROLE_ARN" ]; then
-            echo "::notice::Deploy skipped: the $ENVIRONMENT environment has no AWS_DEPLOY_ROLE_ARN variable (hosting is deferred, ADR-019; see infra/README.md)."
+            echo "::notice::Deploy skipped: the aws-$ENVIRONMENT environment has no AWS_DEPLOY_ROLE_ARN variable (hosting is deferred, ADR-019; see infra/README.md)."
             echo "ready=false" >> "$GITHUB_OUTPUT"
           elif [ -z "$WEB_URL" ] || [ -z "$API_URL" ]; then
-            echo "::error::Set the WEB_URL and API_URL variables of the $ENVIRONMENT environment for the smoke test."
+            echo "::error::Set the WEB_URL and API_URL variables of the aws-$ENVIRONMENT environment for the smoke test."
             exit 1
           elif [ "$ACTION" = deploy ] && ! [[ "$TAG" =~ ^sha-[0-9a-f]{7,40}$ ]]; then
             echo "::error::A deploy needs the tag of an image CI published, such as sha-1a2b3c4."
+            exit 1
+          elif [ "$ACTION" = rollback ] && [ -n "$TAG" ] && ! [[ "$TAG" =~ ^sha-[0-9a-f]{7,40}$ ]]; then
+            echo "::error::A rollback tag must be a release tag, such as sha-1a2b3c4."
+            exit 1
+          elif [ "$ACTION" = restart ] && [ -n "$TAG" ]; then
+            echo "::error::A restart keeps the running release; leave the tag empty."
             exit 1
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
@@ -76,29 +88,75 @@ jobs:
       - uses: actions/checkout@v7
         if: steps.config.outputs.ready == 'true'
 
-      - name: Check that the images exist
-        if: steps.config.outputs.ready == 'true' && inputs.action == 'deploy'
-        run: |
-          for image in api migrate web; do
-            docker buildx imagetools inspect "$REGISTRY/topflow-hub-$image:$TAG" > /dev/null \
-              || { echo "::error::$REGISTRY/topflow-hub-$image:$TAG does not exist"; exit 1; }
-          done
-
       - uses: aws-actions/configure-aws-credentials@v6
         if: steps.config.outputs.ready == 'true'
         with:
           role-to-assume: ${{ env.ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Recorded and running releases
+        id: status
+        if: steps.config.outputs.ready == 'true'
+        run: infra/scripts/deploy-ecs.sh status --environment "$ENVIRONMENT"
+
+      - name: Release to put in place
+        id: target
+        if: steps.config.outputs.ready == 'true' && inputs.action != 'restart'
+        env:
+          ROLLBACK_TARGET: ${{ steps.status.outputs.rollback_target }}
+        run: |
+          if [ "$ACTION" = deploy ]; then target="$TAG"; else target="${TAG:-$ROLLBACK_TARGET}"; fi
+          if [ -z "$target" ] || [ "$target" = none ]; then
+            echo "::error::No release is recorded to roll back to."
+            exit 1
+          fi
+          echo "tag=$target" >> "$GITHUB_OUTPUT"
+
+      # Resolves each tag to a digest, then checks that this exact digest was built and attested by
+      # the Containers workflow on develop in this repository (not by a fork, another workflow or a
+      # self-hosted runner). The deploy then pins these digests.
+      - name: Verify provenance and pin digests
+        id: verify
+        if: steps.config.outputs.ready == 'true' && inputs.action != 'restart'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET: ${{ steps.target.outputs.tag }}
+        run: |
+          images="api web"
+          if [ "$ACTION" = deploy ]; then images="api migrate web"; fi
+          for image in $images; do
+            ref="$REGISTRY/topflow-hub-$image:$TARGET"
+            digest="$(docker buildx imagetools inspect "$ref" --format '{{json .Manifest}}' | jq -r '.digest // empty')"
+            if ! [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+              echo "::error::$ref does not exist"
+              exit 1
+            fi
+            gh attestation verify "oci://$REGISTRY/topflow-hub-$image@$digest" --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/containers.yml" --source-ref refs/heads/develop \
+              --deny-self-hosted-runners > /dev/null \
+              || { echo "::error::$ref ($digest) has no provenance attestation from this repository's Containers workflow on develop"; exit 1; }
+            echo "$image=$digest" >> "$GITHUB_OUTPUT"
+            echo "- \`$ref\` verified: \`$digest\`" >> "$GITHUB_STEP_SUMMARY"
+          done
+
       - name: ${{ inputs.action }}
         id: release
         if: steps.config.outputs.ready == 'true'
+        env:
+          TARGET: ${{ steps.target.outputs.tag }}
+          API_DIGEST: ${{ steps.verify.outputs.api }}
+          WEB_DIGEST: ${{ steps.verify.outputs.web }}
+          MIGRATE_DIGEST: ${{ steps.verify.outputs.migrate }}
         run: |
-          if [ "$ACTION" = deploy ]; then
-            infra/scripts/deploy-ecs.sh deploy --environment "$ENVIRONMENT" --tag "$TAG" --registry "$REGISTRY"
-          else
-            infra/scripts/deploy-ecs.sh rollback --environment "$ENVIRONMENT" --registry "$REGISTRY"
+          args=(--environment "$ENVIRONMENT")
+          if [ "$ACTION" != restart ]; then
+            args+=(--registry "$REGISTRY" --digest "api=$API_DIGEST" --digest "web=$WEB_DIGEST")
           fi
+          case "$ACTION" in
+            deploy) infra/scripts/deploy-ecs.sh deploy "${args[@]}" --tag "$TARGET" --digest "migrate=$MIGRATE_DIGEST" ;;
+            rollback) infra/scripts/deploy-ecs.sh rollback "${args[@]}" --tag "$TARGET" ;;
+            restart) infra/scripts/deploy-ecs.sh restart "${args[@]}" ;;
+          esac
 
       - uses: actions/setup-node@v7
         if: steps.config.outputs.ready == 'true'
