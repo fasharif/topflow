@@ -45,6 +45,14 @@ test.describe('money path 1: retail checkout', () => {
       await expect(page.getByText(formatMoney(expected.totalAmount)).first()).toBeVisible();
     });
 
+    await test.step('the tracker shows the order as confirmed, with delivery still to come (BUG-12)', async () => {
+      const progress = page.getByRole('list', { name: 'Order progress' });
+      await expect(progress.locator('[aria-current="step"]')).toHaveCount(1);
+      await expect(progress.locator('[aria-current="step"]')).toContainText('Current step: Confirmed');
+      await expect(progress.getByText('Upcoming: Delivered')).toHaveCount(1);
+      await expect(progress.getByText(/Completed:/)).toHaveCount(0);
+    });
+
     await test.step('the saved order carries the catalogue price, delivery and VAT', async () => {
       const order = await api.get<OrderDto>(`/me/orders/${orderId}`);
       expect(order).toMatchObject({
