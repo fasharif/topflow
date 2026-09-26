@@ -153,4 +153,4 @@ The web app is at https://localhost:8443, the API at https://api.localhost:8443 
 | Roll back | **Deploy** workflow with `rollback`: the previous images return on both services in one step, without migrations (keep them additive, [section 3](#3-releasing)); running it again returns to the newer release |
 | Set or rotate a secret | `aws ssm put-parameter --overwrite --type SecureString --key-id alias/topflow-hub-<environment> --name /topflow-hub/<environment>/api/<NAME> --value ...`, then release again (tasks read secrets when they start) |
 | Change infrastructure | Pull request: the Infrastructure workflow checks it and, once configured, plans both environments; apply with the workflow's manual `apply` input |
-| Watch costs | The account budget (bootstrap) emails at 50%, 80% and 100% of the monthly limit and on the forecast |
+| Watch costs | `node infra/scripts/cost-estimate.mts` prices both environments from AWS's price list (182.94 US dollars a month on 26 September 2026, [infra/README.md](../infra/README.md#cost-estimate-nothing-is-running)); the account budget (bootstrap, 200 by default) emails at 50%, 80% and 100% of its limit and on the forecast |

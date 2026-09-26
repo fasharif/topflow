@@ -47,6 +47,12 @@ module "hub" {
   alarm_email              = var.alarm_email
   api_environment          = var.api_environment
 
+  # Staging runs the smallest Fargate size. The Compose stack runs both servers within 384 MB
+  # (docker-compose.prod.yml), so 512 MB leaves room; infra/scripts/cost-estimate.mts prices it.
+  api_cpu                 = 256
+  api_memory              = 512
+  web_cpu                 = 256
+  web_memory              = 512
   api_min_count           = 1
   api_max_count           = 2
   web_min_count           = 1

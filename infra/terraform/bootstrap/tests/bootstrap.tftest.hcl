@@ -96,7 +96,7 @@ run "account_foundation" {
   }
 
   assert {
-    condition     = aws_budgets_budget.monthly.limit_amount == "60.00" && length(aws_budgets_budget.monthly.notification) == 4
+    condition     = aws_budgets_budget.monthly.limit_amount == "200.00" && length(aws_budgets_budget.monthly.notification) == 4
     error_message = "The budget alerts at 50, 80 and 100 percent of actual spend and on the forecast."
   }
 }

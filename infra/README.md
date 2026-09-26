@@ -9,7 +9,8 @@ infra/
   compose/               Caddyfile, database init script and the env generator of docker-compose.prod.yml
   scripts/
     smoke-test.mts       health, version, sign-in and PDF checks of a running deployment
-    deploy-ecs.sh        release (migrations first) and one-step rollback on ECS
+    deploy-ecs.sh        release (migrations first), one-step rollback, restart and status on ECS
+    cost-estimate.mts    monthly cost of the AWS layout, from AWS's public price list
     restore-drill.sh     timed restore of an encrypted nightly backup into a throwaway container
     make-test-backup.sh  a backup in the nightly format from any PostgreSQL container
     check-terraform.sh   fmt, validate, terraform test, tflint and Trivy, all in containers
@@ -77,7 +78,7 @@ SMOKE_PASSWORD='TopFlow2026!' node infra/scripts/smoke-test.mts --web https://lo
 
 | What | Command | Needs |
 | --- | --- | --- |
-| Env generator and smoke test (Node's test runner) | `node --test "infra/**/*.test.mts"` and `npx tsc -p infra/tsconfig.json` | Node.js 22.18+ |
+| Env generator, smoke test and cost estimate (Node's test runner) | `node --test "infra/**/*.test.mts"` and `npx tsc -p infra/tsconfig.json` | Node.js 22.18+ |
 | Deploy script, against a fake AWS CLI | `infra/scripts/tests/deploy-ecs.test.sh` | bash, jq |
 | Restore drill, with a synthetic backup and a throwaway key | `infra/scripts/tests/restore-drill.test.sh --container <postgres container> --database <db>` | Docker, age |
 | Terraform: fmt, validate, `terraform test` (mocked provider), tflint, Trivy | `infra/scripts/check-terraform.sh` | Docker |
@@ -157,7 +158,26 @@ The workflow then smoke-tests the public URLs and the version they report. **Rol
 - CloudWatch alarms (to an SNS topic; `alarm_email` subscribes an address): load balancer 5xx, API 5xx, API latency, unhealthy API or web targets, API CPU and memory, web memory, API error logs.
 - Sentry, when `sentry_dsn` is set: server errors of the API and the web server.
 - The Uptime workflow checks the public health endpoints every 15 minutes.
-- The bootstrap's budget emails at 50%, 80% and 100% of the monthly limit and when the forecast passes it.
+- The bootstrap's budget emails at 50%, 80% and 100% of the monthly limit and when the forecast passes it. With the default limit (200 US dollars, the estimate below rounded up), the 50% and 80% emails arrive in an ordinary month; the 100% ones mean spending above the estimate.
+
+### Cost (estimate; nothing is running)
+
+`node infra/scripts/cost-estimate.mts` prices the layout from AWS's public price list (the Price List bulk API, no account needed) and the task counts and sizes the environments set in Terraform. Its output on 26 September 2026:
+
+| Item | staging | production |
+| --- | ---: | ---: |
+| Fargate: API tasks | 9.47 (1 × 0.25 vCPU, 0.5 GB) | 37.87 (2 × 0.5 vCPU, 1 GB) |
+| Fargate: web tasks | 9.47 (1 × 0.25 vCPU, 0.5 GB) | 37.87 (2 × 0.5 vCPU, 1 GB) |
+| Application Load Balancer | 23.29 (1 LCU on average) | 23.29 (1 LCU on average) |
+| Public IPv4 addresses | 14.60 (4: one per task, 2 for the load balancer) | 21.90 (6: one per task, 2 for the load balancer) |
+| KMS key | 1.00 (1) | 1.00 (1) |
+| CloudWatch alarms | 0.90 (9) | 0.90 (9) |
+| CloudWatch Logs | 0.70 (1 GB ingested and stored) | 0.70 (1 GB ingested and stored) |
+| **Total per month** | **59.42** | **123.52** |
+
+US dollars a month, on-demand list prices in `ap-south-1`, 730 hours, each environment idling at its auto scaling minimum: **182.94 for both**. It assumes 1 load balancer capacity unit on average and 1 GB of logs per environment and month, and leaves out data transfer out of AWS, the release step's task-minutes, S3 access logs, VPC flow logs, KMS requests, DNS, extra tasks under load and production's Container Insights metrics. Price list files: AmazonECS 2026-09-11, AWSELB 2026-09-11, AmazonVPC 2026-09-17, awskms 2026-09-11, AmazonCloudWatch 2026-09-22.
+
+This is why nothing is applied (ADR-019): the smallest useful layout costs money every hour. Staging uses the smallest Fargate size (the Compose stack runs both servers within 384 MB), and the bootstrap's budget defaults to 200 US dollars, the estimate for both environments rounded up, so its 100% alerts mean spending above the estimate.
 
 ## Restore drill
 

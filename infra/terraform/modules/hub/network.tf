@@ -1,8 +1,10 @@
 # Network: one VPC with a public subnet in each of two availability zones.
 #
 # Tasks run in the public subnets with public IP addresses and reach Supabase, the image registry,
-# Sentry and the email provider directly. That avoids NAT gateways, which would cost more than the
-# rest of the environment; inbound traffic is still limited to the load balancer by security groups.
+# Sentry and the email provider directly. That avoids NAT gateways, which are billed per hour in
+# each availability zone and per GB they process; the tasks' addresses are billed instead, and
+# infra/scripts/cost-estimate.mts prices them. Security groups still admit inbound traffic only
+# from the load balancer.
 
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr

@@ -47,6 +47,10 @@ module "hub" {
   alarm_email              = var.alarm_email
   api_environment          = var.api_environment
 
+  api_cpu                 = 512
+  api_memory              = 1024
+  web_cpu                 = 512
+  web_memory              = 1024
   api_min_count           = 2
   api_max_count           = 4
   web_min_count           = 2

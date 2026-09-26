@@ -22,9 +22,9 @@ variable "github_repository" {
 }
 
 variable "monthly_budget_usd" {
-  description = "Monthly spending limit of the account, in US dollars. Alerts go out at 50%, 80% and 100% of actual spend and at 100% of the forecast."
+  description = "Monthly spending limit of the account, in US dollars. Alerts go out at 50%, 80% and 100% of actual spend and at 100% of the forecast. The default is the estimate for staging and production together (infra/scripts/cost-estimate.mts: 182.94 on 26 September 2026), rounded up."
   type        = number
-  default     = 60
+  default     = 200
 
   validation {
     condition     = var.monthly_budget_usd > 0
