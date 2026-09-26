@@ -3,7 +3,7 @@
  * check is unit-tested. The reset empties every table of the public demo's database, removes the
  * demo project's Supabase Auth users and loads the demo data set again (ADR-021).
  */
-import { DEMO_ACCOUNT_PASSWORD, DEMO_ORGANIZATION, parseDemoModeFlag } from '@topflow/shared';
+import { DEMO_ACCOUNTS, DEMO_ACCOUNT_PASSWORD, DEMO_ORGANIZATION, parseDemoModeFlag } from '@topflow/shared';
 
 export const CONFIRM_FLAG = '--confirm';
 
@@ -12,6 +12,13 @@ const MIGRATIONS_TABLE = '_prisma_migrations';
 
 /** Supabase Auth pages are read in full before anything is deleted; this bounds the loop. */
 const MAX_IDENTITY_PAGES = 100;
+
+/**
+ * Every account the demo seed (`prisma/seed.ts`) creates: the published demo accounts and the
+ * unpublished owner of the company it leaves in the KYC queue. A database whose accounts are all
+ * among them is a demo database, even when a seed that failed part-way left it without Desert Bloom.
+ */
+export const DEMO_SEED_EMAILS: readonly string[] = [...DEMO_ACCOUNTS.map((account) => account.email), 'owner@alwaha.example'];
 
 export interface ResetPlan {
   databaseUrl: string;
@@ -123,6 +130,8 @@ export interface TargetFacts {
   tables: string[];
   /** Rows in `public.users`. */
   users: number;
+  /** Rows in `public.users` whose address is not one of DEMO_SEED_EMAILS. */
+  otherAccounts: number;
   hasDemoOrganization: boolean;
   /**
    * Ids in the database's own `auth.users` table, which every Supabase project's database has, or
@@ -132,16 +141,17 @@ export interface TargetFacts {
 }
 
 /**
- * The last line of defence against a wrong DATABASE_URL: a database is reset only when it is empty
- * or already holds the demo data set. A production database has accounts but no Desert Bloom.
+ * The last line of defence against a wrong DATABASE_URL: a database is reset only when it is empty,
+ * holds the demo data set, or holds nothing but accounts the demo seed creates (what a seed that
+ * failed part-way leaves behind). A production database has other accounts and no Desert Bloom.
  */
 export function assessTarget(facts: TargetFacts): string | null {
   if (!facts.tables.includes('users') || !facts.tables.includes('organizations')) {
     return 'The database has no platform tables. Run `npm run db:deploy` against it first.';
   }
-  if (facts.users > 0 && !facts.hasDemoOrganization) {
+  if (facts.otherAccounts > 0 && !facts.hasDemoOrganization) {
     return (
-      `The database holds ${facts.users} account(s) but not the demo data set ` +
+      `The database holds ${facts.users} account(s), ${facts.otherAccounts} of them not created by the demo seed, and not the demo data set ` +
       `(${DEMO_ORGANIZATION.name}, TRN ${DEMO_ORGANIZATION.trn}), so it does not look like the demo database. Nothing was changed.`
     );
   }
@@ -268,11 +278,11 @@ export interface ResetSummary {
 }
 
 /**
- * 1. Refuse a database that holds accounts but not the demo data set. 2. List the demo project's sign-ins
- * (read-only) and refuse unless they are exactly the database's own auth.users. 3. Empty every
- * application table in one transaction. 4. Remove those sign-ins: changed passwords, enrolled
- * authenticators and visitors' own accounts go with them. 5. Run the demo seed, which creates the
- * published accounts again.
+ * 1. Refuse a database that holds accounts other than the demo seed's but not the demo data set.
+ * 2. List the demo project's sign-ins (read-only) and refuse unless they are exactly the database's
+ * own auth.users. 3. Empty every application table in one transaction. 4. Remove those sign-ins:
+ * changed passwords, enrolled authenticators and visitors' own accounts go with them. 5. Run the demo
+ * seed, which creates the published accounts again.
  */
 export async function resetDemo(env: NodeJS.ProcessEnv, deps: ResetDependencies): Promise<ResetSummary> {
   const facts = await deps.database.facts();

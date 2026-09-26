@@ -1,6 +1,7 @@
-import { DEMO_ACCOUNT_PASSWORD } from '@topflow/shared';
+import { DEMO_ACCOUNTS, DEMO_ACCOUNT_PASSWORD } from '@topflow/shared';
 import {
   CONFIRM_FLAG,
+  DEMO_SEED_EMAILS,
   DemoResetRefused,
   assessTarget,
   checkPreconditions,
@@ -135,6 +136,7 @@ describe('demo reset safety checks', () => {
     const facts = (overrides: Partial<TargetFacts>): TargetFacts => ({
       tables: APP_TABLES,
       users: 8,
+      otherAccounts: 0,
       hasDemoOrganization: true,
       authUserIds: null,
       ...overrides,
@@ -143,12 +145,20 @@ describe('demo reset safety checks', () => {
     it('accepts the demo database and an empty one', () => {
       expect(assessTarget(facts({}))).toBeNull();
       expect(assessTarget(facts({ users: 0, hasDemoOrganization: false }))).toBeNull();
+      // Visitors' own accounts do not matter once Desert Bloom is there.
+      expect(assessTarget(facts({ users: 12, otherAccounts: 4 }))).toBeNull();
     });
 
-    it('refuses a database with accounts but no demo data set', () => {
-      expect(assessTarget(facts({ users: 1250, hasDemoOrganization: false }))).toMatch(
-        /holds 1250 account\(s\) but not the demo data set .*Nothing was changed/,
+    it('accepts what a demo seed that failed after its first account leaves behind', () => {
+      expect(assessTarget(facts({ users: 1, otherAccounts: 0, hasDemoOrganization: false }))).toBeNull();
+    });
+
+    it('refuses a database with other accounts but no demo data set', () => {
+      expect(assessTarget(facts({ users: 1250, otherAccounts: 1250, hasDemoOrganization: false }))).toMatch(
+        /holds 1250 account\(s\), 1250 of them not created by the demo seed, and not the demo data set .*Nothing was changed/,
       );
+      // One account that the demo seed does not create is enough.
+      expect(assessTarget(facts({ users: 3, otherAccounts: 1, hasDemoOrganization: false }))).toMatch(/1 of them not created by the demo seed/);
     });
 
     it('refuses a database without the platform schema', () => {
@@ -192,6 +202,10 @@ describe('demo reset safety checks', () => {
     expect(env.SEED_DEMO_DOCUMENTS).toBeUndefined();
   });
 
+  it('knows every account the demo seed creates', () => {
+    expect(DEMO_SEED_EMAILS).toEqual([...DEMO_ACCOUNTS.map((account) => account.email), 'owner@alwaha.example']);
+  });
+
   it('never logs database credentials', () => {
     expect(describeDatabase(DATABASE_URL)).toBe('127.0.0.1:54500/topflow_test');
     expect(describeDatabase('not a url')).toBe('an unparseable DATABASE_URL');
@@ -231,7 +245,14 @@ describe('resetDemo', () => {
     const deps: ResetDependencies = {
       database: {
         facts: () =>
-          Promise.resolve({ tables: APP_TABLES, users: 8, hasDemoOrganization: true, authUserIds: identities ? [...identities.ids] : null, ...facts }),
+          Promise.resolve({
+            tables: APP_TABLES,
+            users: 8,
+            otherAccounts: 0,
+            hasDemoOrganization: true,
+            authUserIds: identities ? [...identities.ids] : null,
+            ...facts,
+          }),
         truncate: (statement) => {
           steps.push(`truncate ${statement.split(',').length} tables`);
           return Promise.resolve();
@@ -278,7 +299,7 @@ describe('resetDemo', () => {
   });
 
   it('changes nothing when the target does not look like the demo database', async () => {
-    const { deps, steps } = harness({ users: 1250, hasDemoOrganization: false });
+    const { deps, steps } = harness({ users: 1250, otherAccounts: 1250, hasDemoOrganization: false });
     await expect(resetDemo(ready, deps)).rejects.toBeInstanceOf(DemoResetRefused);
     expect(steps).toEqual([]);
   });
@@ -303,5 +324,34 @@ describe('resetDemo', () => {
     const { deps } = harness();
     deps.seed = () => Promise.reject(new Error('The demo seed failed (exit code 1).'));
     await expect(resetDemo(ready, deps)).rejects.toThrow('demo seed failed');
+  });
+
+  it('runs again after a seed that failed after its first account', async () => {
+    // The database as each step leaves it. The seed creates Desert Bloom before any account, but even
+    // a database holding only the first demo account and no Desert Bloom must not lock the reset out.
+    let state = { users: 8, otherAccounts: 0, hasDemoOrganization: true };
+    const { deps, steps } = harness({}, null);
+    deps.database = {
+      facts: () => Promise.resolve({ tables: APP_TABLES, authUserIds: null, ...state }),
+      truncate: () => {
+        steps.push('truncate');
+        state = { users: 0, otherAccounts: 0, hasDemoOrganization: false };
+        return Promise.resolve();
+      },
+    };
+    deps.seed = () => {
+      steps.push('seed fails after admin@topflow.example');
+      state = { users: 1, otherAccounts: 0, hasDemoOrganization: false };
+      return Promise.reject(new Error('The demo seed failed (exit code 1).'));
+    };
+    await expect(resetDemo(ready, deps)).rejects.toThrow('demo seed failed');
+
+    deps.seed = () => {
+      steps.push('seed');
+      state = { users: 8, otherAccounts: 0, hasDemoOrganization: true };
+      return Promise.resolve();
+    };
+    await expect(resetDemo(ready, deps)).resolves.toEqual({ tables: 5, identitiesRemoved: 0 });
+    expect(steps).toEqual(['truncate', 'seed fails after admin@topflow.example', 'truncate', 'seed']);
   });
 });

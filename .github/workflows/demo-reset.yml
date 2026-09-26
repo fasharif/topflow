@@ -3,7 +3,7 @@ name: Demo reset
 # Nightly reset of the hosted portfolio demo (ADR-021): every table of the demo database is emptied,
 # the demo project's Supabase Auth users are deleted, and the demo data set is loaded again, so
 # whatever visitors changed during the day is gone by morning. The demo has its own Supabase project
-# and its own secrets; `npm run demo:reset` refuses a database that holds accounts but not the demo data set,
+# and its own secrets; `npm run demo:reset` refuses a database that holds accounts the demo seed does not create but not the demo data set,
 # and Supabase settings whose users are not exactly that database's own auth.users.
 # While no demo database is configured (DEMO_DATABASE_URL, DEMO_SUPABASE_URL and
 # DEMO_SUPABASE_SECRET_KEY all unset), runs are skipped with a notice. Runbook: docs/OPERATIONS.md.

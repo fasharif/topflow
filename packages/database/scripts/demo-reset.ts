@@ -5,9 +5,9 @@
  *
  * Empties every application table of DATABASE_URL, removes the Supabase Auth users of the demo project
  * (SUPABASE_URL + SUPABASE_SECRET_KEY) and runs the demo seed again. It refuses to start without
- * DEMO_MODE=true and --confirm, refuses a database that holds accounts but not the demo data, and
- * refuses Supabase settings whose users are not exactly the database's own auth.users. The safety
- * checks live in demo-reset-core.ts.
+ * DEMO_MODE=true and --confirm, refuses a database that holds accounts the demo seed does not create
+ * but not the demo data, and refuses Supabase settings whose users are not exactly the database's own
+ * auth.users. The safety checks live in demo-reset-core.ts.
  */
 import 'dotenv/config';
 import { spawnSync } from 'node:child_process';
@@ -16,6 +16,7 @@ import { createClient } from '@supabase/supabase-js';
 import { Client } from 'pg';
 import { DEMO_ORGANIZATION } from '@topflow/shared';
 import {
+  DEMO_SEED_EMAILS,
   DemoResetRefused,
   checkPreconditions,
   describeDatabase,
@@ -39,11 +40,20 @@ function postgres(client: Client): DemoDatabase {
         ? (await client.query<{ id: string }>('SELECT id::text AS id FROM auth.users')).rows.map((row) => row.id)
         : null;
       if (!tables.includes('users') || !tables.includes('organizations')) {
-        return { tables, users: 0, hasDemoOrganization: false, authUserIds };
+        return { tables, users: 0, otherAccounts: 0, hasDemoOrganization: false, authUserIds };
       }
-      const users = await client.query<{ count: string }>('SELECT count(*)::text AS count FROM public.users');
+      const accounts = await client.query<{ users: string; other: string }>(
+        'SELECT count(*)::text AS users, (count(*) FILTER (WHERE lower(email) <> ALL($1::text[])))::text AS other FROM public.users',
+        [[...DEMO_SEED_EMAILS]],
+      );
       const demo = await client.query('SELECT 1 FROM public.organizations WHERE trn = $1', [DEMO_ORGANIZATION.trn]);
-      return { tables, users: Number(users.rows[0]?.count ?? 0), hasDemoOrganization: (demo.rowCount ?? 0) > 0, authUserIds };
+      return {
+        tables,
+        users: Number(accounts.rows[0]?.users ?? 0),
+        otherAccounts: Number(accounts.rows[0]?.other ?? 0),
+        hasDemoOrganization: (demo.rowCount ?? 0) > 0,
+        authUserIds,
+      };
     },
     async truncate(statement) {
       await client.query('BEGIN');
@@ -84,7 +94,9 @@ function runSeed(env: NodeJS.ProcessEnv): Promise<void> {
   });
   if (result.status !== 0) {
     return Promise.reject(
-      new Error(`The demo seed failed (exit code ${result.status ?? 'none'}). The demo database stays empty until a reset succeeds.`),
+      new Error(
+        `The demo seed failed (exit code ${result.status ?? 'none'}). The demo is incomplete until a reset succeeds: fix the cause and run the reset again.`,
+      ),
     );
   }
   return Promise.resolve();
