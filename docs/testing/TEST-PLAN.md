@@ -189,7 +189,7 @@ Boundary values over HTTP, on a new company with a credit limit of AED 1,050.00:
 
 ## 9. Results of this cycle
 
-Run on 26 September 2026 on a Windows 11 laptop with Docker Desktop (16 CPUs, 7.9 GB for all containers), shared with other builds. The stack ran from production builds against a local Supabase CLI stack seeded with the demo profile; the API suites used a `postgres:17` container. Only pass and fail results and counts are reported here, not timings.
+Run on 26 September 2026 on a Windows 11 laptop with Docker Desktop (16 CPUs, 7.9 GB for all containers), shared with other builds. The final run started from a clean clone of the branch: the API and the web app from production builds, a freshly started Supabase CLI stack (Auth, PostgreSQL 17 and Mailpit only, on non-default ports because the defaults were taken on that machine) seeded with the demo profile, and a new `postgres:17` container for the API suites. Only pass and fail results and counts are reported here, not timings.
 
 | Suite | Command | Result |
 | --- | --- | --- |
@@ -198,7 +198,7 @@ Run on 26 September 2026 on a Windows 11 laptop with Docker Desktop (16 CPUs, 7.
 | API end-to-end tests | `npm run test:e2e:cov -w @topflow/api` | 34 passed (22 in `app.e2e-spec.ts`, 12 in `decision-tables.e2e-spec.ts`) |
 | Playwright | `npm run e2e -w @topflow/system-tests` | 26 passed: 8 sign-ins, 13 journeys and checks on desktop, 5 accessibility tests on a phone |
 | k6 smoke | `npm run load -w @topflow/system-tests` | All thresholds met, 0 failed requests |
-| Schemathesis | `npm run contract -w @topflow/system-tests` | 8,681 generated cases passed against the baseline; no server error in any run |
+| Schemathesis | `npm run contract -w @topflow/system-tests` | 8,683 generated cases passed against the baseline; no server error in any run |
 
 API coverage from the same runs (statements, excluding specs and entry points): end-to-end suite 79.3 % (1,697 of 2,141), unit suite 15.5 % (331 of 2,141). CI prints both in its job summary.
 

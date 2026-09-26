@@ -195,7 +195,7 @@ The first authenticated run (seed 2, 30 examples per operation, 3,742 test cases
 | 422 for an unknown or archived product at checkout | Correct: 422 marks well-formed input that breaks a business rule. Added to the accepted statuses |
 | Three network errors (*Resource temporarily unavailable*) | Test environment: Docker Desktop's port forwarding under four workers. The runner now uses two workers and retries network failures twice; they did not recur |
 
-No check found a server error (5xx) in any run. With the configuration and baseline committed, the last run on 26 September 2026 generated 8,681 test cases and passed.
+No check found a server error (5xx) in any run. With the configuration and baseline committed, the final run on 26 September 2026 (from a clean clone, against a freshly started stack) generated 8,683 test cases and passed.
 
 ## Observations for review
 
