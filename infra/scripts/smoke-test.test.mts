@@ -1,16 +1,18 @@
 import assert from 'node:assert/strict';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { after, before, describe, it } from 'node:test';
-import { createHttpClient, formatResults, runSmokeTest, type SmokeOptions } from './smoke-test.mts';
+import { after, before, beforeEach, describe, it } from 'node:test';
+import { createHttpClient, formatResults, parseCount, runSmokeTest, type SmokeOptions } from './smoke-test.mts';
 
 /** A fake deployment: web, API and Supabase Auth on one local server, with switches for failures. */
-const state = { version: 'sha-1a2b3c4', database: 'up', sitemapHost: '', readyFailuresLeft: 0 };
+const HEALTHY = { version: 'sha-1a2b3c4', database: 'up', readyFailuresLeft: 0, homeFailuresLeft: 0, portfolio: true, memberships: true, quotations: true };
+const state = { ...HEALTHY, sitemapHost: '' };
 const ORG = '7f3c2a8e-0000-4000-8000-000000000001';
 const QUOTATION = '7f3c2a8e-0000-4000-8000-000000000002';
+const HOME = '<!doctype html><title>Top Flow Hub</title><aside>Portfolio project by Farah Sharif, built with Top Flow’s permission. This is not Top Flow’s official store.</aside>';
 
-function send(response: ServerResponse, status: number, body: unknown, type = 'application/json'): void {
-  response.writeHead(status, { 'content-type': type });
+function send(response: ServerResponse, status: number, body: unknown, type = 'application/json', headers: Record<string, string> = {}): void {
+  response.writeHead(status, { 'content-type': type, ...headers });
   response.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
 }
 
@@ -31,7 +33,13 @@ function handle(request: IncomingMessage, response: ServerResponse): void {
     case 'GET /robots.txt':
       return send(response, 200, `User-Agent: *\nSitemap: ${state.sitemapHost}/sitemap.xml\n`, 'text/plain');
     case 'GET /':
-      return send(response, 200, '<!doctype html><title>Top Flow Hub</title>', 'text/html; charset=utf-8');
+      if (state.homeFailuresLeft > 0) {
+        state.homeFailuresLeft -= 1;
+        return send(response, 502, 'Bad gateway', 'text/plain');
+      }
+      return state.portfolio
+        ? send(response, 200, HOME, 'text/html; charset=utf-8', { 'x-robots-tag': 'noindex, nofollow' })
+        : send(response, 200, '<!doctype html><title>Top Flow — official store</title>', 'text/html; charset=utf-8');
     case 'POST /auth/v1/token': {
       let raw = '';
       request.on('data', (chunk: Buffer) => (raw += chunk.toString()));
@@ -43,9 +51,11 @@ function handle(request: IncomingMessage, response: ServerResponse): void {
       return;
     }
     case 'GET /auth/me':
-      return authorised ? send(response, 200, { email: 'buyer@example.com', role: 'CUSTOMER', memberships: [{ organizationId: ORG }] }) : send(response, 401, { message: 'Authentication required' });
+      return authorised
+        ? send(response, 200, { email: 'buyer@example.com', role: 'CUSTOMER', memberships: state.memberships ? [{ organizationId: ORG }] : [] })
+        : send(response, 401, { message: 'Authentication required' });
     case 'GET /org/quotations':
-      return request.headers['x-organization-id'] === ORG ? send(response, 200, { items: [{ id: QUOTATION }] }) : send(response, 403, {});
+      return request.headers['x-organization-id'] === ORG ? send(response, 200, { items: state.quotations ? [{ id: QUOTATION }] : [] }) : send(response, 403, {});
     case `GET /org/quotations/${QUOTATION}/pdf`:
       return send(response, 200, Buffer.from('%PDF-1.7 fake'), 'application/pdf');
     default:
@@ -75,6 +85,10 @@ describe('smoke test', () => {
   after(() => {
     server.close();
   });
+  // Every test starts from a healthy deployment.
+  beforeEach(() => {
+    Object.assign(state, HEALTHY);
+  });
 
   it('passes every check against a healthy deployment, including a real session', async () => {
     const results = await runSmokeTest(options({ signIn: { email: 'buyer@example.com', password: 'correct horse' } }), client);
@@ -91,12 +105,53 @@ describe('smoke test', () => {
         'auth: Supabase Auth health',
         'web: robots.txt uses the runtime site URL',
         'web: home page renders',
+        'web: marked as a portfolio project, not indexed',
         'auth: password sign-in',
         'api: GET /auth/me with the Supabase token',
         'api: organization quotations',
         'api: quotation PDF renders',
       ],
     );
+  });
+
+  it('fails when the site does not say it is a portfolio project', async () => {
+    state.portfolio = false;
+    const results = await runSmokeTest(options({ attempts: 1 }), client);
+    const notice = results.find((result) => result.name === 'web: marked as a portfolio project, not indexed');
+    assert.equal(notice?.ok, false);
+    assert.match(notice?.detail ?? '', /does not say "Portfolio project by Farah Sharif"/);
+  });
+
+  it('retries every check, not only the health checks', async () => {
+    state.homeFailuresLeft = 2;
+    const results = await runSmokeTest(options(), client);
+    assert.equal(results.find((result) => result.name === 'web: home page renders')?.ok, true);
+    assert.equal(results.find((result) => result.name.startsWith('web: marked'))?.ok, true);
+  });
+
+  it('fails, rather than skips, when the sign-in account has no organization', async () => {
+    state.memberships = false;
+    const results = await runSmokeTest(options({ attempts: 1, signIn: { email: 'buyer@example.com', password: 'correct horse' } }), client);
+    const quotations = results.find((result) => result.name === 'api: organization quotations');
+    assert.equal(quotations?.ok, false);
+    assert.match(quotations?.detail ?? '', /belongs to no organization/);
+  });
+
+  it('fails, rather than skips, when there is no quotation to render', async () => {
+    state.quotations = false;
+    const results = await runSmokeTest(options({ attempts: 1, signIn: { email: 'buyer@example.com', password: 'correct horse' } }), client);
+    const quotations = results.find((result) => result.name === 'api: organization quotations');
+    assert.equal(quotations?.ok, false);
+    assert.match(quotations?.detail ?? '', /has no quotation to render/);
+    assert.equal(results.filter((result) => !result.ok).length, 1);
+  });
+
+  it('accepts only whole numbers in range for --attempts and --delay-ms', () => {
+    assert.equal(parseCount('--attempts', '3', 1, 100), 3);
+    assert.equal(parseCount('--delay-ms', '0', 0, 600_000), 0);
+    for (const value of ['', 'abc', '2.5', '-1', '0', '101', '1e2']) {
+      assert.throws(() => parseCount('--attempts', value, 1, 100), /--attempts must be a whole number from 1 to 100/, value);
+    }
   });
 
   it('fails when the deployed version is not the one expected', async () => {

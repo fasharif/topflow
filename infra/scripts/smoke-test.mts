@@ -7,9 +7,12 @@
  *     [--sign-in buyer@desertbloom.ae]   (password in SMOKE_PASSWORD, Supabase key in SMOKE_SUPABASE_KEY)
  *
  * Checks: web and API liveness (and the deployed version), database readiness, Supabase Auth,
- * robots.txt built from the runtime site URL, the server-rendered home page and, with --sign-in,
- * a real session: Supabase password sign-in, GET /auth/me, the member's quotations and a quotation
- * PDF. Health checks are retried, so it can run while a rolling deployment settles.
+ * robots.txt built from the runtime site URL, the server-rendered home page, the portfolio notice
+ * and noindex on it and, with --sign-in, a real session: Supabase password sign-in, GET /auth/me,
+ * the member's quotations and a quotation PDF. With --sign-in, an account without an organisation
+ * or quotations fails those checks rather than skipping them. Every check is retried (--attempts,
+ * --delay-ms), so the test can run while a rolling deployment settles, and one slow response is
+ * not an outage.
  */
 import { lookup } from 'node:dns';
 import { appendFileSync, readFileSync, realpathSync } from 'node:fs';
@@ -107,6 +110,18 @@ function json(response: HttpResponse): Record<string, unknown> {
   }
 }
 
+/** The start of the notice every page of the web app shows (apps/web/lib/portfolio.ts). */
+export const PORTFOLIO_NOTICE = 'Portfolio project by Farah Sharif';
+
+/** A whole number between min and max from a command-line option, or a clear error. */
+export function parseCount(name: string, value: string, min: number, max: number): number {
+  const number = Number(value);
+  if (!/^[0-9]+$/.test(value.trim()) || !Number.isInteger(number) || number < min || number > max) {
+    throw new Error(`${name} must be a whole number from ${min} to ${max}, not "${value}".`);
+  }
+  return number;
+}
+
 class CheckFailure extends Error {}
 
 function expect(condition: unknown, message: string): asserts condition {
@@ -119,16 +134,16 @@ export async function runSmokeTest(options: SmokeOptions, client: HttpClient): P
   const api = options.api ? trimSlash(options.api) : undefined;
   const auth = options.auth ? trimSlash(options.auth) : undefined;
 
-  async function check(name: string, run: () => Promise<string>, attempts = 1): Promise<boolean> {
+  async function check(name: string, run: () => Promise<string>): Promise<boolean> {
     let detail = '';
-    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    for (let attempt = 1; attempt <= options.attempts; attempt += 1) {
       try {
         detail = await run();
         results.push({ name, ok: true, detail });
         return true;
       } catch (error) {
         detail = error instanceof Error ? error.message : String(error);
-        if (attempt < attempts) await sleep(options.delayMs);
+        if (attempt < options.attempts) await sleep(options.delayMs);
       }
     }
     results.push({ name, ok: false, detail });
@@ -146,30 +161,22 @@ export async function runSmokeTest(options: SmokeOptions, client: HttpClient): P
     return `ok, version ${String(body.version)}`;
   };
 
-  await check('web: liveness (/health)', () => liveness(`${web}/health`), options.attempts);
+  await check('web: liveness (/health)', () => liveness(`${web}/health`));
   if (api) {
-    await check('api: liveness (/health)', () => liveness(`${api}/health`), options.attempts);
-    await check(
-      'api: database readiness (/health/ready)',
-      async () => {
-        const response = await client(`${api}/health/ready`);
-        const body = json(response);
-        expect(response.status === 200 && body.database === 'up', `HTTP ${response.status}, database ${String(body.database)}`);
-        return 'database up';
-      },
-      options.attempts,
-    );
+    await check('api: liveness (/health)', () => liveness(`${api}/health`));
+    await check('api: database readiness (/health/ready)', async () => {
+      const response = await client(`${api}/health/ready`);
+      const body = json(response);
+      expect(response.status === 200 && body.database === 'up', `HTTP ${response.status}, database ${String(body.database)}`);
+      return 'database up';
+    });
   }
   if (auth) {
-    await check(
-      'auth: Supabase Auth health',
-      async () => {
-        const response = await client(`${auth}/auth/v1/health`, options.signIn?.apiKey ? { headers: { apikey: options.signIn.apiKey } } : {});
-        expect(response.status === 200, `HTTP ${response.status}`);
-        return `ok, ${String(json(response).version ?? 'version not reported')}`;
-      },
-      options.attempts,
-    );
+    await check('auth: Supabase Auth health', async () => {
+      const response = await client(`${auth}/auth/v1/health`, options.signIn?.apiKey ? { headers: { apikey: options.signIn.apiKey } } : {});
+      expect(response.status === 200, `HTTP ${response.status}`);
+      return `ok, ${String(json(response).version ?? 'version not reported')}`;
+    });
   }
   await check('web: robots.txt uses the runtime site URL', async () => {
     const response = await client(`${web}/robots.txt`);
@@ -177,11 +184,20 @@ export async function runSmokeTest(options: SmokeOptions, client: HttpClient): P
     expect(response.status === 200 && response.body.toString('utf8').includes(expected), `expected "${expected}"`);
     return expected;
   });
+  let home: HttpResponse | undefined;
   await check('web: home page renders', async () => {
     const response = await client(`${web}/`);
     expect(response.status === 200, `HTTP ${response.status}`);
     expect(String(response.headers['content-type']).startsWith('text/html'), `content type ${String(response.headers['content-type'])}`);
+    home = response;
     return `${response.body.length} bytes of HTML`;
+  });
+  await check('web: marked as a portfolio project, not indexed', async () => {
+    const response = home ?? (await client(`${web}/`));
+    home = undefined;
+    expect(response.body.toString('utf8').includes(PORTFOLIO_NOTICE), `the page does not say "${PORTFOLIO_NOTICE}"`);
+    expect(String(response.headers['x-robots-tag'] ?? '').includes('noindex'), `X-Robots-Tag is "${String(response.headers['x-robots-tag'] ?? '')}"`);
+    return 'portfolio notice shown, X-Robots-Tag noindex';
   });
 
   if (options.signIn && auth && api) {
@@ -201,7 +217,7 @@ export async function runSmokeTest(options: SmokeOptions, client: HttpClient): P
     if (signedIn) {
       const bearer = { authorization: `Bearer ${token}` };
       let organizationId = '';
-      await check('api: GET /auth/me with the Supabase token', async () => {
+      const knowsUser = await check('api: GET /auth/me with the Supabase token', async () => {
         const response = await client(`${api}/auth/me`, { headers: bearer });
         const body = json(response);
         expect(response.status === 200, `HTTP ${response.status}: ${String(body.message ?? '')}`);
@@ -210,24 +226,28 @@ export async function runSmokeTest(options: SmokeOptions, client: HttpClient): P
         organizationId = memberships[0]?.organizationId ?? '';
         return `role ${String(body.role)}, ${memberships.length} organization(s)`;
       });
-      if (organizationId) {
-        const orgHeaders = { ...bearer, 'x-organization-id': organizationId };
-        let quotationId = '';
-        await check('api: organization quotations', async () => {
+      // The sign-in account was chosen to exercise the trade flow: without an organisation or a
+      // quotation these checks fail, so a run never passes with fewer checks than it was asked for.
+      let quotationId = '';
+      const orgHeaders = { ...bearer, 'x-organization-id': organizationId };
+      const listed =
+        knowsUser &&
+        (await check('api: organization quotations', async () => {
+          expect(organizationId, `${email} belongs to no organization, so there are no quotations to check`);
           const response = await client(`${api}/org/quotations`, { headers: orgHeaders });
           const items = (json(response).items ?? []) as Array<{ id?: string }>;
           expect(response.status === 200, `HTTP ${response.status}`);
           quotationId = items[0]?.id ?? '';
+          expect(quotationId, `the organization of ${email} has no quotation to render`);
           return `${items.length} quotation(s)`;
+        }));
+      if (listed) {
+        await check('api: quotation PDF renders', async () => {
+          const response = await client(`${api}/org/quotations/${quotationId}/pdf`, { headers: orgHeaders });
+          expect(response.status === 200, `HTTP ${response.status}`);
+          expect(response.body.subarray(0, 5).toString('latin1') === '%PDF-', 'the response is not a PDF');
+          return `${response.body.length} bytes`;
         });
-        if (quotationId) {
-          await check('api: quotation PDF renders', async () => {
-            const response = await client(`${api}/org/quotations/${quotationId}/pdf`, { headers: orgHeaders });
-            expect(response.status === 200, `HTTP ${response.status}`);
-            expect(response.body.subarray(0, 5).toString('latin1') === '%PDF-', 'the response is not a PDF');
-            return `${response.body.length} bytes`;
-          });
-        }
       }
     }
   }
@@ -270,8 +290,8 @@ async function main(argv: string[]): Promise<number> {
       auth: values.auth,
       expectVersion: values['expect-version'],
       signIn,
-      attempts: Number(values.attempts),
-      delayMs: Number(values['delay-ms']),
+      attempts: parseCount('--attempts', values.attempts, 1, 100),
+      delayMs: parseCount('--delay-ms', values['delay-ms'], 0, 600_000),
     },
     client,
   );
