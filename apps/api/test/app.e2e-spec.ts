@@ -158,6 +158,21 @@ describe('TopFlow Hub API (e2e)', () => {
       expect(
         schemas.CreateWebsiteQuoteRequestDto.properties?.phone,
       ).toHaveProperty('pattern');
+      // Money is a number or a digits string; it was published as an array of numbers (BUG-16).
+      expect(
+        schemas.ReviewOrganizationDto.properties?.creditLimit,
+      ).toMatchObject({
+        anyOf: [
+          { type: 'number', minimum: 0 },
+          { type: 'string', pattern: expect.any(String) },
+        ],
+      });
+      expect(JSON.stringify(document)).not.toContain(
+        '"type":"array","items":{"type":"number"}',
+      );
+      expect(schemas.InviteMemberDto.properties?.email).toMatchObject({
+        format: 'email',
+      });
       // OpenAPI 3.0 only allows boolean exclusive bounds next to minimum/maximum.
       expect(JSON.stringify(document)).not.toMatch(
         /"exclusive(Minimum|Maximum)":-?\d/,

@@ -8,7 +8,7 @@ import {
   signUpMetadataSchema,
 } from './auth';
 import { createProductSchema, productQuerySchema, updateProductSchema } from './catalog';
-import { moneySchema, optionalText } from './common';
+import { emailSchema, moneySchema, optionalText } from './common';
 import { checkoutSchema } from './orders';
 import { acceptInvitationSchema, inviteMemberSchema } from './organizations';
 import {
@@ -74,6 +74,29 @@ describe('request schemas', () => {
     expect(moneySchema.parse('1200')).toBe('1200.00');
     expect(moneySchema.safeParse('-3').success).toBe(false);
     expect(moneySchema.safeParse('12,5').success).toBe(false);
+  });
+
+  it('publishes money as a non-negative number or a digits string, not as an array (BUG-16)', () => {
+    const schema = z.toJSONSchema(z.object({ amount: moneySchema }), { io: 'input', target: 'openapi-3.0' }) as {
+      properties: Record<string, unknown>;
+    };
+    expect(schema.properties.amount).toEqual({
+      anyOf: [
+        { type: 'number', minimum: 0 },
+        { type: 'string', pattern: expect.any(String) },
+      ],
+    });
+    expect(moneySchema.safeParse('abc').error?.issues[0]?.message).toBe('Enter a valid amount, e.g. 125.50');
+    expect(moneySchema.safeParse(-3).error?.issues[0]?.message).toBe('Amount cannot be negative');
+    expect(moneySchema.parse(' 12.5 ')).toBe('12.50');
+  });
+
+  it('publishes email addresses with the email format and still trims them', () => {
+    const schema = z.toJSONSchema(z.object({ email: emailSchema }), { io: 'input', target: 'openapi-3.0' }) as {
+      properties: Record<string, unknown>;
+    };
+    expect(schema.properties.email).toMatchObject({ type: 'string', format: 'email' });
+    expect(emailSchema.parse('  Jane@TopFlow.example ')).toBe('jane@topflow.example');
   });
 
   it('treats blank optional text as absent', () => {

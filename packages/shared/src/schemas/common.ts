@@ -9,11 +9,16 @@ import { fromFils, toFils } from '../money';
 
 export const idSchema = z.uuid({ error: 'Invalid identifier' });
 
+/**
+ * An email address, trimmed and lower-cased before it is checked. The format is stated in the
+ * published description too; without it the input side of the pipe was published as any string.
+ */
 export const emailSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .pipe(z.email({ error: 'Enter a valid email address' }));
+  .pipe(z.email({ error: 'Enter a valid email address' }))
+  .meta({ format: 'email' });
 
 export const passwordSchema = z
   .string()
@@ -70,8 +75,21 @@ export const queryFlagSchema = z
   .optional()
   .transform((value) => (value === undefined || value === '' ? undefined : value === 'true' || value === '1'));
 
-/** Non-negative AED amount given as a number or decimal string; normalised to "123.45". */
-export const moneySchema = z.union([z.number(), z.string().trim()]).transform((value, ctx) => {
+/**
+ * Non-negative AED amount given as a number or decimal string; normalised to "123.45". Each form
+ * carries its rule (a minimum, a digits pattern), so the union is published in the OpenAPI
+ * description as two alternatives; a bare number-or-string union came out as an array of numbers
+ * (BUG-16 in docs/testing/BUGS-FOUND.md).
+ */
+export const moneySchema = z
+  .union([
+    z.number().min(0, { error: 'Amount cannot be negative' }),
+    z
+      .string()
+      .trim()
+      .regex(/^\d+(\.\d+)?$/, { error: 'Enter a valid amount, e.g. 125.50' }),
+  ])
+  .transform((value, ctx) => {
   try {
     const fils = toFils(value);
     if (fils < 0) {
