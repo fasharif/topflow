@@ -14,8 +14,6 @@ interface TrendMetric {
   'p(95)': number;
   max: number;
   count: number;
-  /** Threshold expression → whether it was crossed (k6's legacy summary export). */
-  thresholds?: Record<string, boolean>;
 }
 
 interface RateMetric {
@@ -29,27 +27,31 @@ interface SummaryExport {
   metrics: Record<string, TrendMetric | RateMetric>;
 }
 
-/** Endpoints in the order the load test calls them, with the p95 target from api-load.ts. */
-export const ENDPOINTS: ReadonlyArray<{ tag: string; label: string; target: string }> = [
-  { tag: 'health', label: 'GET /health/ready', target: 'p(95)<200' },
-  { tag: 'categories', label: 'GET /catalog/categories', target: 'p(95)<500' },
-  { tag: 'catalogue', label: 'GET /catalog/products (page)', target: 'p(95)<500' },
-  { tag: 'search', label: 'GET /catalog/products?search=', target: 'p(95)<500' },
-  { tag: 'product', label: 'GET /catalog/products/{slug}', target: 'p(95)<500' },
-  { tag: 'me', label: 'GET /auth/me', target: 'p(95)<500' },
-  { tag: 'my-orders', label: 'GET /me/orders', target: 'p(95)<500' },
-  { tag: 'quote-request', label: 'POST /quote-requests', target: 'p(95)<1000' },
+/**
+ * Endpoints in the order the load test calls them, with the p95 target in milliseconds from
+ * P95_TARGETS_MS in load/api-load.ts. The result column compares the measured p95 with the target
+ * itself, because only the load profile turns the targets into thresholds.
+ */
+export const ENDPOINTS: ReadonlyArray<{ tag: string; label: string; targetMs: number }> = [
+  { tag: 'health', label: 'GET /health/ready', targetMs: 200 },
+  { tag: 'categories', label: 'GET /catalog/categories', targetMs: 500 },
+  { tag: 'catalogue', label: 'GET /catalog/products (page)', targetMs: 500 },
+  { tag: 'search', label: 'GET /catalog/products?search=', targetMs: 500 },
+  { tag: 'product', label: 'GET /catalog/products/{slug}', targetMs: 500 },
+  { tag: 'me', label: 'GET /auth/me', targetMs: 500 },
+  { tag: 'my-orders', label: 'GET /me/orders', targetMs: 500 },
+  { tag: 'quote-request', label: 'POST /quote-requests', targetMs: 1000 },
 ];
 
 const ms = (value: number): string => `${value.toFixed(0)} ms`;
 
 export function summaryTable(summary: SummaryExport | null): string {
-  const rows = ENDPOINTS.map(({ tag, label, target }) => {
+  const rows = ENDPOINTS.map(({ tag, label, targetMs }) => {
     const metric = summary?.metrics[`http_req_duration{endpoint:${tag}}`] as TrendMetric | undefined;
-    const goal = target.replace('p(95)<', '< ') + ' ms';
+    const goal = `< ${targetMs} ms`;
     if (!metric) return `| ${label} | pending | pending | pending | pending | ${goal} | pending |`;
-    const crossed = metric.thresholds?.[target] ?? false;
-    return `| ${label} | ${metric.count} | ${ms(metric.med)} | ${ms(metric['p(90)'])} | ${ms(metric['p(95)'])} | ${goal} | ${crossed ? 'missed' : 'met'} |`;
+    const met = metric['p(95)'] < targetMs;
+    return `| ${label} | ${metric.count} | ${ms(metric.med)} | ${ms(metric['p(90)'])} | ${ms(metric['p(95)'])} | ${goal} | ${met ? 'met' : 'missed'} |`;
   });
   const failed = summary?.metrics.http_req_failed as RateMetric | undefined;
   const errors = failed ? `${(failed.value * 100).toFixed(2)} % of ${failed.passes + failed.fails} requests` : 'pending';

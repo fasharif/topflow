@@ -1,11 +1,13 @@
 /**
  * k6 load test for the TopFlow Hub API (runs in the grafana/k6 container, see run-k6.sh).
  *
- *   K6_PROFILE=smoke  one virtual user, a few iterations: proves the script and thresholds work
- *   K6_PROFILE=load   shoppers browsing, signed-in customers and quote requests at a steady rate
+ *   K6_PROFILE=smoke  one virtual user, a few iterations: proves the script, the endpoints and the
+ *                     thresholds work. It fails on errors and failed checks, not on timings: a p95
+ *                     of three requests is the slowest single request, which says nothing.
+ *   K6_PROFILE=load   shoppers browsing, signed-in customers and quote requests at a steady rate;
+ *                     the p95 targets are thresholds, so a missed target fails the run (exit 99)
  *
- * The p95 thresholds below are targets. When one is missed, k6 exits with code 99 and the run
- * fails. Measured results belong in docs/testing/PERFORMANCE.md, from a quiet machine only.
+ * Measured results belong in docs/testing/PERFORMANCE.md, from a quiet machine only.
  */
 import { check, fail, group, sleep } from 'k6';
 import exec from 'k6/execution';
@@ -15,8 +17,9 @@ import type { Options } from 'k6/options';
 const API_URL = (__ENV.API_URL ?? 'http://host.docker.internal:3000').replace(/\/+$/, '');
 const SUPABASE_URL = (__ENV.SUPABASE_URL ?? 'http://host.docker.internal:54321').replace(/\/+$/, '');
 const SUPABASE_PUBLISHABLE_KEY = __ENV.SUPABASE_PUBLISHABLE_KEY ?? '';
-const CUSTOMER_EMAIL = __ENV.CUSTOMER_EMAIL ?? 'customer@example.com';
-const DEMO_PASSWORD = __ENV.DEMO_PASSWORD ?? 'TopFlow2026!';
+/** The demo customer's sign-in; run-k6.sh passes the published account from @topflow/shared. */
+const CUSTOMER_EMAIL = __ENV.CUSTOMER_EMAIL ?? '';
+const DEMO_PASSWORD = __ENV.DEMO_PASSWORD ?? '';
 /** With the web app's shared secret, each virtual user is rate limited as its own shopper, as behind the web app. */
 const INTERNAL_API_SECRET = __ENV.INTERNAL_API_SECRET ?? '';
 const PROFILE = __ENV.K6_PROFILE ?? 'smoke';
@@ -60,25 +63,44 @@ const SCENARIOS: Record<string, NonNullable<Options['scenarios']>> = {
 const scenarios = SCENARIOS[PROFILE];
 if (!scenarios) throw new Error(`Unknown K6_PROFILE "${PROFILE}" (use smoke or load)`);
 
+/** p95 targets in milliseconds per endpoint tag (docs/testing/PERFORMANCE.md). */
+const P95_TARGETS_MS: Record<string, number> = {
+  health: 200,
+  categories: 500,
+  catalogue: 500,
+  search: 500,
+  product: 500,
+  me: 500,
+  'my-orders': 500,
+  'quote-request': 1000,
+};
+
+/**
+ * The load profile gates on the p95 targets. The smoke profile only guards against a request that
+ * hangs (30 s); the threshold still makes k6 report each endpoint separately in the summary.
+ */
+const durationThresholds = Object.fromEntries(
+  Object.entries(P95_TARGETS_MS).map(([endpoint, target]) => [
+    `http_req_duration{endpoint:${endpoint}}`,
+    [PROFILE === 'load' ? `p(95)<${target}` : 'max<30000'],
+  ]),
+);
+
 export const options: Options = {
   scenarios,
   thresholds: {
     http_req_failed: ['rate<0.01'],
     checks: ['rate>0.99'],
-    'http_req_duration{endpoint:health}': ['p(95)<200'],
-    'http_req_duration{endpoint:categories}': ['p(95)<500'],
-    'http_req_duration{endpoint:catalogue}': ['p(95)<500'],
-    'http_req_duration{endpoint:search}': ['p(95)<500'],
-    'http_req_duration{endpoint:product}': ['p(95)<500'],
-    'http_req_duration{endpoint:me}': ['p(95)<500'],
-    'http_req_duration{endpoint:my-orders}': ['p(95)<500'],
-    'http_req_duration{endpoint:quote-request}': ['p(95)<1000'],
+    ...durationThresholds,
   },
   summaryTrendStats: ['avg', 'med', 'p(90)', 'p(95)', 'max', 'count'],
 };
 
+/**
+ * What setup() hands to every virtual user. k6 copies it into the summary export, so it must hold
+ * nothing secret: each virtual user signs in for itself (customerToken).
+ */
 interface SetupData {
-  accessToken: string;
   slugs: string[];
   productIds: string[];
 }
@@ -103,15 +125,31 @@ function jsonBody<T>(response: RefinedResponse<ResponseType>): T {
   return response.json() as unknown as T;
 }
 
+/** Signs the demo customer in with Supabase Auth; untagged, so it stays out of the endpoint results. */
+function signIn(): string {
+  const response = http.post(
+    `${SUPABASE_URL}/auth/v1/token?grant_type=password`,
+    JSON.stringify({ email: CUSTOMER_EMAIL, password: DEMO_PASSWORD }),
+    {
+      headers: { apikey: SUPABASE_PUBLISHABLE_KEY, 'content-type': 'application/json' },
+    },
+  );
+  if (response.status !== 200)
+    fail(`Supabase sign-in for ${CUSTOMER_EMAIL} failed with ${response.status}: ${typeof response.body === 'string' ? response.body : ''}`);
+  return jsonBody<{ access_token: string }>(response).access_token;
+}
+
+/** This virtual user's access token: each one signs in once, on its first account iteration. */
+let customerToken: string | undefined;
+function accessToken(): string {
+  customerToken ??= signIn();
+  return customerToken;
+}
+
 export function setup(): SetupData {
+  if (!CUSTOMER_EMAIL || !DEMO_PASSWORD) fail('Set CUSTOMER_EMAIL and DEMO_PASSWORD (run-k6.sh passes the demo customer).');
   const ready = http.get(`${API_URL}/health/ready`);
   if (ready.status !== 200) fail(`API not ready at ${API_URL} (status ${ready.status})`);
-
-  const signIn = http.post(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, JSON.stringify({ email: CUSTOMER_EMAIL, password: DEMO_PASSWORD }), {
-    headers: { apikey: SUPABASE_PUBLISHABLE_KEY, 'content-type': 'application/json' },
-  });
-  if (signIn.status !== 200)
-    fail(`Supabase sign-in for ${CUSTOMER_EMAIL} failed with ${signIn.status}: ${typeof signIn.body === 'string' ? signIn.body : ''}`);
 
   const page = jsonBody<{ items: Array<{ id: string; slug: string; isTradeOnly: boolean }> }>(
     http.get(`${API_URL}/catalog/products?pageSize=100&sort=name`),
@@ -119,14 +157,12 @@ export function setup(): SetupData {
   const retail = page.items.filter((item) => !item.isTradeOnly);
   if (retail.length === 0) fail('The catalogue is empty: seed the database first (npm run db:seed)');
 
-  // Warm-up, untagged so it stays out of the endpoint thresholds: the API fetches and caches the
-  // Supabase signing keys on the first authenticated request.
-  const accessToken = jsonBody<{ access_token: string }>(signIn).access_token;
-  const me = http.get(`${API_URL}/auth/me`, { headers: { authorization: `Bearer ${accessToken}` } });
+  // Warm-up, untagged so it stays out of the endpoint results: the API fetches and caches the
+  // Supabase signing keys on the first authenticated request. The token is not returned.
+  const me = http.get(`${API_URL}/auth/me`, { headers: { authorization: `Bearer ${signIn()}` } });
   if (me.status !== 200) fail(`The API refused the customer's token (status ${me.status})`);
 
   return {
-    accessToken,
     slugs: retail.map((item) => item.slug),
     productIds: retail.map((item) => item.id),
   };
@@ -153,8 +189,8 @@ export function browse(data: SetupData): void {
 }
 
 /** A signed-in retail customer checking their account and order history. */
-export function account(data: SetupData): void {
-  const auth = { authorization: `Bearer ${data.accessToken}` };
+export function account(): void {
+  const auth = { authorization: `Bearer ${accessToken()}` };
   group('customer account', () => {
     check(get('/auth/me', 'me', auth), { 'me: 200': (r) => r.status === 200 });
     check(get('/me/orders?pageSize=10', 'my-orders', auth), { 'my orders: 200': (r) => r.status === 200 });

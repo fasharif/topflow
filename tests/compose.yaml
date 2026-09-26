@@ -1,10 +1,13 @@
 # Tool containers for the system tests (see tests/README.md). They run one-off against the stack on
 # the host, which they reach as host.docker.internal. Images are pinned; Dependabot proposes updates.
-# They run as root so they can read the mounted scripts and write reports whatever the host user is.
+# On Linux they run as the calling user (TOOL_USER, set by scripts/common.sh), so the reports they
+# write belong to that user; HOME points at /tmp because that user has no home in the image.
 name: topflow-system-tests
 
 x-host-access: &host-access
-  user: '0:0'
+  user: '${TOOL_USER:-0:0}'
+  environment:
+    HOME: /tmp
   extra_hosts:
     - 'host.docker.internal:host-gateway'
 

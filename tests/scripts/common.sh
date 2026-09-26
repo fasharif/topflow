@@ -10,6 +10,19 @@ TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && native_pwd)"
 REPO_DIR="$(cd "$TESTS_DIR/.." && native_pwd)"
 export TESTS_DIR REPO_DIR
 
+# User the tool containers run as (compose.yaml). On Linux with a rootful Docker engine, such as a
+# GitHub runner, a report written as root belongs to root and the calling user cannot change or
+# remove it, so the containers run as the calling user. Docker Desktop (Windows, macOS) maps file
+# ownership itself and refuses bind mounts to unknown users, so there they run as root. Set
+# TOOL_USER to override, for example for rootless Docker.
+if [[ -z "${TOOL_USER:-}" ]]; then
+  case "$(uname -s)" in
+    Linux) TOOL_USER="$(id -u):$(id -g)" ;;
+    *) TOOL_USER="0:0" ;;
+  esac
+fi
+export TOOL_USER
+
 # URL of a service on the host, as a tool container reaches it.
 from_container() {
   printf '%s' "$1" | sed -e 's#//localhost:#//host.docker.internal:#' -e 's#//127\.0\.0\.1:#//host.docker.internal:#'
@@ -25,6 +38,23 @@ prepare_reports() {
 
 json_field() {
   node -e 'let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => { const v = JSON.parse(s)[process.argv[1]]; if (v === undefined) process.exit(1); console.log(v); });' "$1"
+}
+
+# Address of a published demo account (@topflow/shared, DEMO_ACCOUNTS) by its local part, such as
+# `customer`. Needs the shared package built (npm run build -w @topflow/shared).
+demo_account_email() {
+  (cd "$REPO_DIR" && node -e 'const { DEMO_ACCOUNTS } = require("@topflow/shared"); const a = DEMO_ACCOUNTS.find((x) => x.email.startsWith(process.argv[1] + "@")); if (!a) process.exit(1); console.log(a.email);' "$1") ||
+    { echo "No demo account \"$1\" in @topflow/shared: build it with npm run build -w @topflow/shared." >&2; return 1; }
+}
+
+# Password of the seeded demo accounts: E2E_DEMO_PASSWORD, else SEED_DEMO_PASSWORD, else the
+# published demo password from @topflow/shared.
+demo_password() {
+  if [[ -n "${E2E_DEMO_PASSWORD:-${SEED_DEMO_PASSWORD:-}}" ]]; then
+    printf '%s\n' "${E2E_DEMO_PASSWORD:-$SEED_DEMO_PASSWORD}"
+    return
+  fi
+  (cd "$REPO_DIR" && node -e 'console.log(require("@topflow/shared").DEMO_ACCOUNT_PASSWORD)')
 }
 
 # Reads the Supabase URL and keys from the local stack (npx supabase status) unless they are set.
