@@ -60,6 +60,16 @@ export function optionalText(max: number) {
     .optional();
 }
 
+/**
+ * A yes/no query-string flag: "true" or "1", "false" or "0". An empty value (`?flag=`) counts as
+ * absent, as it does for the text filters. The accepted values are an enum, so the published
+ * OpenAPI description lists them.
+ */
+export const queryFlagSchema = z
+  .enum(['true', '1', 'false', '0', ''])
+  .optional()
+  .transform((value) => (value === undefined || value === '' ? undefined : value === 'true' || value === '1'));
+
 /** Non-negative AED amount given as a number or decimal string; normalised to "123.45". */
 export const moneySchema = z.union([z.number(), z.string().trim()]).transform((value, ctx) => {
   try {

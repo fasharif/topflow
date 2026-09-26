@@ -209,6 +209,14 @@ describe('TopFlow Hub API (e2e)', () => {
       ).toEqual([]);
     });
 
+    it('treats an empty includeInactive filter as absent', async () => {
+      const page = (
+        await http().get('/catalog/products?includeInactive=').expect(200)
+      ).body as Paginated<ProductDto>;
+      expect(page.items.length).toBeGreaterThan(0);
+      await http().get('/catalog/products?includeInactive=maybe').expect(400);
+    });
+
     it('trusts a forwarded client address only from the web app', async () => {
       const item = await product('AX-EFS-002');
       const auditedAddress = async (headers: Record<string, string>) => {

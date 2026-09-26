@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { OrgRole, UnitOfMeasure } from '../enums';
 import {
   changePasswordSchema,
@@ -89,6 +90,22 @@ describe('request schemas', () => {
     expect(updateProductSchema.safeParse({ categoryId: 0 }).success).toBe(false);
     expect(updateProductSchema.parse({ categoryId: 1 })).toEqual({ categoryId: 1 });
     expect(updateProductSchema.parse({ categoryId: null })).toEqual({ categoryId: null });
+  });
+
+  it('reads the includeInactive flag and ignores an empty value (BUG-07)', () => {
+    expect(productQuerySchema.parse({ includeInactive: '' }).includeInactive).toBeUndefined();
+    expect(productQuerySchema.parse({}).includeInactive).toBeUndefined();
+    expect(productQuerySchema.parse({ includeInactive: '1' }).includeInactive).toBe(true);
+    expect(productQuerySchema.parse({ includeInactive: 'false' }).includeInactive).toBe(false);
+    expect(productQuerySchema.parse({ includeInactive: '0' }).includeInactive).toBe(false);
+    expect(productQuerySchema.safeParse({ includeInactive: 'maybe' }).success).toBe(false);
+  });
+
+  it('publishes the values the includeInactive flag accepts', () => {
+    const schema = z.toJSONSchema(productQuerySchema, { io: 'input' }) as { properties: Record<string, { type?: string; enum?: string[] }> };
+    const flag = schema.properties.includeInactive ?? {};
+    expect(flag.type).toBe('string');
+    expect([...(flag.enum ?? [])].sort()).toEqual(['', '0', '1', 'false', 'true']);
   });
 
   it('coerces catalog query strings', () => {
