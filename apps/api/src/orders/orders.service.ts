@@ -363,15 +363,9 @@ export class OrdersService {
           input.trackingReference ?? order.trackingReference;
       }
       if (input.status === OrderStatus.DELIVERED) {
-        data.deliveredAt = now;
-        if (
-          order.paymentMethod === PaymentMethod.CASH_ON_DELIVERY &&
-          order.paymentStatus === PaymentStatus.UNPAID
-        ) {
-          Object.assign(data, {
-            paymentStatus: PaymentStatus.PAID,
-            paidAt: now,
-          });
+        const delivered = deliveredChanges(order, now);
+        Object.assign(data, delivered.data);
+        if (delivered.paymentCollected) {
           note = [note, 'Payment collected on delivery']
             .filter(Boolean)
             .join(' · ');
@@ -528,6 +522,102 @@ export class OrdersService {
       `We have refunded AED ${amount}${reference ? ` (reference ${reference})` : ''}. Please allow a few working days for it to reach your account.${input.note ? `\n\n${input.note}` : ''}`,
     );
     return this.adminGet(user, id);
+  }
+
+  // ─── Deliveries confirmed by the dispatch service ───────────────────────
+
+  /**
+   * Marks a dispatched order delivered on the word of the dispatch delivery service (ADR-024),
+   * inside the caller's transaction. The rules are those of a warehouse user marking it delivered:
+   * only a dispatched order can be delivered, cash on delivery counts as collected, and the change
+   * goes on the order timeline and into the audit trail, attributed to the integration rather
+   * than to a person. An order that is already delivered is left as it is.
+   */
+  async deliverFromDispatch(
+    tx: Prisma.TransactionClient,
+    input: DispatchDelivery,
+  ): Promise<{ applied: boolean; order: OrderRecord }> {
+    const order = await tx.order.findUnique({
+      where: { orderNumber: input.orderNumber },
+      include: orderInclude,
+    });
+    if (!order) {
+      throw new UnprocessableEntityException(
+        `There is no order ${input.orderNumber}`,
+      );
+    }
+    if (order.status === OrderStatus.DELIVERED)
+      return { applied: false, order };
+    if (order.status === OrderStatus.CANCELLED) {
+      throw new UnprocessableEntityException(
+        `Order ${order.orderNumber} is cancelled and cannot be delivered`,
+      );
+    }
+    if (order.status !== OrderStatus.DISPATCHED) {
+      // Worth retrying: the warehouse may still mark the goods as dispatched.
+      throw new ConflictException(
+        `Order ${order.orderNumber} is ${ORDER_STATUS_LABELS[order.status].toLowerCase()}: it must be dispatched before it can be delivered`,
+      );
+    }
+    assertTransition(
+      ORDER_TRANSITIONS,
+      order.status,
+      OrderStatus.DELIVERED,
+      'order',
+    );
+
+    const delivered = deliveredChanges(order, input.deliveredAt);
+    // Conditional on the status read above, so a concurrent change cannot be overwritten.
+    const { count } = await tx.order.updateMany({
+      where: { id: order.id, status: OrderStatus.DISPATCHED },
+      data: delivered.data,
+    });
+    if (count !== 1) {
+      throw new ConflictException(
+        `Order ${order.orderNumber} changed while the delivery was being recorded`,
+      );
+    }
+    const note = [
+      input.note,
+      delivered.paymentCollected ? 'Payment collected on delivery' : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    await this.writer.recordEvent(
+      tx,
+      order.id,
+      OrderStatus.DISPATCHED,
+      OrderStatus.DELIVERED,
+      null,
+      note,
+    );
+    await this.audit.record(
+      {
+        action: AuditAction.ORDER_STATUS_CHANGED,
+        entityType: 'Order',
+        entityId: order.id,
+        organizationId: order.organizationId,
+        userId: null,
+        ipAddress: input.ipAddress,
+        details: {
+          from: OrderStatus.DISPATCHED,
+          to: OrderStatus.DELIVERED,
+          source: 'dispatch',
+          ...input.auditDetails,
+        },
+      },
+      tx,
+    );
+    return { applied: true, order };
+  }
+
+  /** Emails the customer that the order was delivered (after the transaction has committed). */
+  notifyDelivered(order: OrderRecord, note?: string | null): void {
+    this.notifyCustomer(
+      order,
+      ORDER_STATUS_LABELS[OrderStatus.DELIVERED],
+      note,
+    );
   }
 
   // ─── Internals ──────────────────────────────────────────────────────────
@@ -736,4 +826,38 @@ export class OrdersService {
 /** Within an organization, cancelling a committed purchase is reserved for approvers and owners. */
 function hasOrgApprovalRights(ctx: OrganizationContext): boolean {
   return ctx.role === 'OWNER' || ctx.role === 'APPROVER';
+}
+
+/** A delivery the dispatch service reports as completed. */
+export interface DispatchDelivery {
+  orderNumber: string;
+  deliveredAt: Date;
+  /** Shown on the order timeline. */
+  note: string;
+  ipAddress: string | null;
+  auditDetails: Prisma.InputJsonObject;
+}
+
+/**
+ * What changes when an order is delivered, wherever the confirmation comes from: the delivery
+ * time, and for cash on delivery the payment, which the driver collected at the door.
+ */
+function deliveredChanges(
+  order: Pick<OrderRecord, 'paymentMethod' | 'paymentStatus'>,
+  deliveredAt: Date,
+): { data: Prisma.OrderUpdateManyMutationInput; paymentCollected: boolean } {
+  const paymentCollected =
+    order.paymentMethod === PaymentMethod.CASH_ON_DELIVERY &&
+    order.paymentStatus === PaymentStatus.UNPAID;
+  return {
+    data: {
+      status: OrderStatus.DELIVERED,
+      deliveredAt,
+      ...(paymentCollected && {
+        paymentStatus: PaymentStatus.PAID,
+        paidAt: deliveredAt,
+      }),
+    },
+    paymentCollected,
+  };
 }

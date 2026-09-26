@@ -15,4 +15,7 @@ process.env.SUPABASE_JWT_SECRET =
 process.env.STAFF_MFA_REQUIRED = 'true';
 process.env.INTERNAL_API_SECRET =
   'e2e-internal-api-secret-e2e-internal-api-secret';
+process.env.DISPATCH_WEBHOOK_SECRET =
+  'e2e-dispatch-webhook-secret-e2e-dispatch-webhook';
+delete process.env.DISPATCH_WEBHOOK_SECRET_PREVIOUS;
 delete process.env.SUPABASE_SECRET_KEY;

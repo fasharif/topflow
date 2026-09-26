@@ -18,6 +18,7 @@ import { APP_CONFIG, ConfigModule } from './config/config.module';
 import type { AppConfig } from './config/env';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { HealthController } from './health/health.controller';
+import { IntegrationsModule } from './integrations/integrations.module';
 import { MailModule } from './mail/mail.service';
 import { OrdersModule } from './orders/orders.module';
 import { OrganizationsModule } from './organizations/organizations.module';
@@ -28,7 +29,7 @@ import { UsersModule } from './users/users.module';
 /**
  * Modular monolith — one NestJS module per bounded context:
  *   identity (Auth, Users) · tenancy (Organizations) · Catalog · Procurement (RFQ/quotations)
- *   · Orders (checkout/fulfilment) · back office (Dashboard, Audit).
+ *   · Orders (checkout/fulfilment) · back office (Dashboard, Audit) · Integrations (dispatch).
  */
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { UsersModule } from './users/users.module';
     OrdersModule,
     ProcurementModule,
     DashboardModule,
+    IntegrationsModule,
   ],
   controllers: [HealthController, AuditController],
   providers: [

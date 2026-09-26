@@ -29,4 +29,5 @@ export type EnumParity = [
   Assert<Equals<Db.OrderStatus, Shared.OrderStatus>>,
   Assert<Equals<Db.PaymentMethod, Shared.PaymentMethod>>,
   Assert<Equals<Db.PaymentStatus, Shared.PaymentStatus>>,
+  Assert<Equals<Db.DispatchEventOutcome, Shared.DispatchEventOutcome>>,
 ];

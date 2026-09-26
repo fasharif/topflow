@@ -7,6 +7,8 @@ import {
   toFils,
   type AddressDto,
   type AuthUser,
+  type DispatchEvent,
+  type DispatchEventReceiptDto,
   type CategoryDto,
   type OrderDto,
   type Paginated,
@@ -25,6 +27,7 @@ import { APP_CONFIG } from '../src/config/config.module';
 import type { AppConfig } from '../src/config/env';
 import { MailService } from '../src/mail/mail.service';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { dispatchEvent, signDispatchBody } from './support/dispatch';
 import {
   FakeIdentityAdmin,
   signAccessToken,
@@ -98,7 +101,8 @@ describe('TopFlow Hub API (e2e)', () => {
       .overrideProvider(IdentityAdminService)
       .useValue(identities)
       .compile();
-    app = moduleRef.createNestApplication();
+    // rawBody as in main.ts: dispatch webhooks are verified against the bytes that were signed.
+    app = moduleRef.createNestApplication({ rawBody: true });
     configureApp(app, app.get<AppConfig>(APP_CONFIG));
     await app.init();
     mail = app.get(MailService);
@@ -1081,6 +1085,245 @@ describe('TopFlow Hub API (e2e)', () => {
         .set(bearer(await sessionFor('warehouse@topflow.ae')))
         .send({})
         .expect(403);
+    });
+  });
+
+  describe('dispatch integration (delivery webhooks)', () => {
+    const secret = () => process.env.DISPATCH_WEBHOOK_SECRET ?? '';
+    const send = (
+      event: DispatchEvent,
+      options: { signature?: string; body?: string } = {},
+    ) => {
+      const body = options.body ?? JSON.stringify(event);
+      return http()
+        .post('/integrations/dispatch/events')
+        .set('content-type', 'application/json')
+        .set('x-dispatch-event-id', event.id)
+        .set('x-dispatch-event-type', event.type)
+        .set(
+          'x-dispatch-signature',
+          options.signature ?? signDispatchBody(secret(), body),
+        )
+        .send(body);
+    };
+
+    /** A retail cash-on-delivery order, moved by the warehouse up to the given status. */
+    const retailOrder = async (
+      until: 'PROCESSING' | 'DISPATCHED',
+    ): Promise<OrderDto> => {
+      const customer = await sessionFor('customer@example.com');
+      const warehouse = await sessionFor('warehouse@topflow.ae');
+      const addresses = (
+        await http().get('/me/addresses').set(bearer(customer)).expect(200)
+      ).body as AddressDto[];
+      const order = (
+        await http()
+          .post('/me/orders')
+          .set(bearer(customer))
+          .send({
+            items: [
+              { productId: (await product('AX-EFS-002')).id, quantity: 1 },
+            ],
+            addressId: addresses[0].id,
+            paymentMethod: 'CASH_ON_DELIVERY',
+          })
+          .expect(201)
+      ).body as OrderDto;
+      const steps =
+        until === 'DISPATCHED'
+          ? (['PROCESSING', 'DISPATCHED'] as const)
+          : (['PROCESSING'] as const);
+      for (const status of steps) {
+        await http()
+          .patch(`/admin/orders/${order.id}/status`)
+          .set(bearer(warehouse))
+          .send({ status })
+          .expect(200);
+      }
+      return order;
+    };
+    const orderById = async (id: string): Promise<OrderDto> =>
+      (
+        await http()
+          .get(`/admin/orders/${id}`)
+          .set(bearer(await sessionFor('admin@topflow.ae')))
+          .expect(200)
+      ).body as OrderDto;
+
+    it('marks a dispatched order delivered, once, from a signed delivery.completed event', async () => {
+      const order = await retailOrder('DISPATCHED');
+      const event = dispatchEvent('delivery.completed', order.orderNumber);
+
+      const first = await send(event).expect(200);
+      expect(first.body as DispatchEventReceiptDto).toEqual({
+        eventId: event.id,
+        outcome: 'APPLIED',
+        orderNumber: order.orderNumber,
+        orderStatus: 'DELIVERED',
+      });
+      const delivered = await orderById(order.id);
+      expect(delivered).toMatchObject({
+        status: 'DELIVERED',
+        // The same rule as for the warehouse: cash on delivery is collected at the door.
+        paymentStatus: 'PAID',
+      });
+      const confirmation = delivered.events.find(
+        (e) => e.toStatus === 'DELIVERED',
+      );
+      expect(confirmation?.note).toContain(
+        'Delivery confirmed by dispatch (driver Omar Haddad): signed by Aisha Rahman, 12 m from the drop-off point',
+      );
+      expect(confirmation?.note).toContain('Payment collected on delivery');
+      expect(mail.lastMessageTo('customer@example.com')?.subject).toContain(
+        'Delivered',
+      );
+      const audit = await prisma.auditLog.findFirstOrThrow({
+        where: { entityId: order.id, action: 'orders.status_changed' },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(audit).toMatchObject({ userId: null });
+      expect(audit.details).toMatchObject({
+        from: 'DISPATCHED',
+        to: 'DELIVERED',
+        source: 'dispatch',
+        eventId: event.id,
+      });
+
+      // dispatch delivers at least once: the same event again changes nothing.
+      const again = await send(event).expect(200);
+      expect((again.body as DispatchEventReceiptDto).outcome).toBe('DUPLICATE');
+      const after = await orderById(order.id);
+      expect(
+        after.events.filter((e) => e.toStatus === 'DELIVERED'),
+      ).toHaveLength(1);
+      expect(
+        await prisma.dispatchEvent.findUniqueOrThrow({
+          where: { id: event.id },
+        }),
+      ).toMatchObject({ outcome: 'APPLIED', orderId: order.id });
+    });
+
+    it('refuses unsigned, tampered, stale and foreign-secret requests', async () => {
+      const order = await retailOrder('DISPATCHED');
+      const event = dispatchEvent('delivery.completed', order.orderNumber);
+      const body = JSON.stringify(event);
+
+      const unsigned = await http()
+        .post('/integrations/dispatch/events')
+        .set('content-type', 'application/json')
+        .send(body)
+        .expect(401);
+      expect(unsigned.body).toMatchObject({ code: 'INVALID_SIGNATURE' });
+      await send(event, {
+        body: body.replace('Aisha Rahman', 'Someone Else'),
+        signature: signDispatchBody(secret(), body),
+      }).expect(401);
+      const stale = await send(event, {
+        signature: signDispatchBody(
+          secret(),
+          body,
+          Math.floor(Date.now() / 1000) - 3600,
+        ),
+      }).expect(401);
+      expect(stale.body.message).toMatch(/outside the accepted window/);
+      await send(event, {
+        signature: signDispatchBody('x'.repeat(48), body),
+      }).expect(401);
+
+      expect((await orderById(order.id)).status).toBe('DISPATCHED');
+      expect(
+        await prisma.dispatchEvent.count({ where: { id: event.id } }),
+      ).toBe(0);
+    });
+
+    it('waits for the warehouse: an order not dispatched yet is refused with 409 and not recorded', async () => {
+      const order = await retailOrder('PROCESSING');
+      const event = dispatchEvent('delivery.completed', order.orderNumber);
+
+      const early = await send(event).expect(409);
+      expect(early.body.message).toMatch(/must be dispatched before/);
+      expect(
+        await prisma.dispatchEvent.count({ where: { id: event.id } }),
+      ).toBe(0);
+
+      // dispatch retries with backoff; once the goods have left, the same event applies.
+      await http()
+        .patch(`/admin/orders/${order.id}/status`)
+        .set(bearer(await sessionFor('warehouse@topflow.ae')))
+        .send({ status: 'DISPATCHED' })
+        .expect(200);
+      const retried = await send(event).expect(200);
+      expect((retried.body as DispatchEventReceiptDto).outcome).toBe('APPLIED');
+    });
+
+    it('records other event types and repeat completions without changing the order', async () => {
+      const order = await retailOrder('DISPATCHED');
+      const assigned = dispatchEvent('delivery.assigned', order.orderNumber, {
+        trackingUrl: 'http://localhost:57300/track/v1.example',
+      });
+      const receipt = await send(assigned).expect(200);
+      expect(receipt.body as DispatchEventReceiptDto).toMatchObject({
+        outcome: 'IGNORED',
+        orderStatus: null,
+      });
+      expect(
+        await prisma.dispatchEvent.findUniqueOrThrow({
+          where: { id: assigned.id },
+        }),
+      ).toMatchObject({ type: 'delivery.assigned', orderId: order.id });
+
+      await send(dispatchEvent('delivery.completed', order.orderNumber)).expect(
+        200,
+      );
+      // A second completion under a new event id (a delivery sent again) changes nothing.
+      const repeat = await send(
+        dispatchEvent('delivery.completed', order.orderNumber),
+      ).expect(200);
+      expect(repeat.body as DispatchEventReceiptDto).toMatchObject({
+        outcome: 'IGNORED',
+        orderStatus: 'DELIVERED',
+      });
+    });
+
+    it('rejects events for unknown or cancelled orders as unprocessable', async () => {
+      await send(
+        dispatchEvent('delivery.completed', 'TF-SO-2026-999999'),
+      ).expect(422);
+
+      const order = await retailOrder('PROCESSING');
+      await http()
+        .patch(`/admin/orders/${order.id}/status`)
+        .set(bearer(await sessionFor('sales@topflow.ae')))
+        .send({ status: 'CANCELLED', note: 'Customer changed their mind' })
+        .expect(200);
+      const cancelled = await send(
+        dispatchEvent('delivery.completed', order.orderNumber),
+      ).expect(422);
+      expect(cancelled.body.message).toMatch(
+        /cancelled and cannot be delivered/,
+      );
+    });
+
+    it('validates the event body and its id header', async () => {
+      const event = dispatchEvent('delivery.completed', 'TF-SO-2026-000001');
+      const body = JSON.stringify({ ...event, type: 'delivery.teleported' });
+      await http()
+        .post('/integrations/dispatch/events')
+        .set('content-type', 'application/json')
+        .set('x-dispatch-event-id', event.id)
+        .set('x-dispatch-signature', signDispatchBody(secret(), body))
+        .send(body)
+        .expect(400);
+      await http()
+        .post('/integrations/dispatch/events')
+        .set('content-type', 'application/json')
+        .set('x-dispatch-event-id', randomUUID())
+        .set(
+          'x-dispatch-signature',
+          signDispatchBody(secret(), JSON.stringify(event)),
+        )
+        .send(JSON.stringify(event))
+        .expect(400);
     });
   });
 });

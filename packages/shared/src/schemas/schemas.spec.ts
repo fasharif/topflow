@@ -8,6 +8,7 @@ import {
 } from './auth';
 import { createProductSchema, productQuerySchema, updateProductSchema } from './catalog';
 import { moneySchema, optionalText } from './common';
+import { dispatchEventSchema } from './integrations';
 import { checkoutSchema } from './orders';
 import { acceptInvitationSchema, inviteMemberSchema } from './organizations';
 import {
@@ -137,5 +138,31 @@ describe('request schemas', () => {
 
   it('defaults invited members to BUYER', () => {
     expect(inviteMemberSchema.parse({ email: 'buyer@oasis.ae' }).role).toBe(OrgRole.BUYER);
+  });
+
+  it('accepts a signed-off delivery.completed event from dispatch and rejects unknown event types', () => {
+    const event = {
+      id: '7b0e8f2e-8d0a-4c55-9d6f-2f1d3c4b5a61',
+      type: 'delivery.completed',
+      createdAt: '2026-09-20T10:00:00.000Z',
+      data: {
+        deliveryId: '1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f',
+        orderReference: 'TF-SO-2026-000123',
+        status: 'delivered',
+        occurredAt: '2026-09-20T09:59:30.000+04:00',
+        driver: { id: PRODUCT_ID, name: 'Omar Haddad' },
+        proof: {
+          recipientName: 'Aisha Rahman',
+          capturedAt: '2026-09-20T09:59:00.000Z',
+          withinGeofence: true,
+          distanceMeters: 12.4,
+          hasPhoto: true,
+          hasSignature: true,
+        },
+      },
+    };
+    expect(dispatchEventSchema.parse(event).data.proof?.withinGeofence).toBe(true);
+    expect(dispatchEventSchema.safeParse({ ...event, type: 'delivery.teleported' }).success).toBe(false);
+    expect(dispatchEventSchema.safeParse({ ...event, id: 'not-a-uuid' }).success).toBe(false);
   });
 });

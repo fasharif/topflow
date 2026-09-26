@@ -8,7 +8,10 @@ import { APP_CONFIG } from './config/config.module';
 import type { AppConfig } from './config/env';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // rawBody: webhooks are verified against the exact bytes that were signed (ADR-024).
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+  });
   const config = app.get<AppConfig>(APP_CONFIG);
   configureApp(app, config);
 
