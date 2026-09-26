@@ -243,6 +243,19 @@ describe('TopFlow Hub API (e2e)', () => {
       await http().get('/catalog/products?includeInactive=maybe').expect(400);
     });
 
+    it('ignores NUL characters in input instead of failing on them', async () => {
+      const search = async (term: string) =>
+        (
+          await http()
+            .get('/catalog/products')
+            .query({ search: term, pageSize: 5 })
+            .expect(200)
+        ).body as Paginated<ProductDto>;
+      const plain = await search('drip');
+      expect(plain.total).toBeGreaterThan(0);
+      expect((await search('dr\u0000ip')).total).toBe(plain.total);
+    });
+
     it('trusts a forwarded client address only from the web app', async () => {
       const item = await product('AX-EFS-002');
       const auditedAddress = async (headers: Record<string, string>) => {
