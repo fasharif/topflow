@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Black-box tests against the running stack: Playwright journeys with axe accessibility checks, k6 load tests and Schemathesis API fuzzing",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "scripts": {
     "e2e": "playwright test",
     "e2e:report": "playwright show-report reports/playwright",

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Prisma 7 schema, migrations, seed data and generated client for the Top Flow platform",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "type": "commonjs",
   "main": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",
