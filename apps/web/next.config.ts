@@ -26,7 +26,8 @@ const nextConfig: NextConfig = {
     outputFileTracingRoot: path.join(__dirname, '../..'),
   }),
   async headers() {
-    return [{ source: '/:path*', headers: securityHeaders }];
+    // noindex: a portfolio project stays out of search results (lib/portfolio.ts, ADR-023).
+    return [{ source: '/:path*', headers: [...securityHeaders, { key: 'X-Robots-Tag', value: 'noindex, nofollow' }] }];
   },
 };
 
