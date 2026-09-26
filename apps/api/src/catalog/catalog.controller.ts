@@ -54,8 +54,8 @@ import { UuidParam } from '../common/uuid-param';
   name: ORGANIZATION_HEADER,
   required: false,
   description:
-    'Optional: show trade-only products and negotiated prices for this organization',
-  schema: { type: 'string', format: 'uuid' },
+    'Optional: show trade-only products and negotiated prices for this organization (its id). ' +
+    'A value that is not the id of an organization the caller belongs to is ignored.',
 })
 @Controller('catalog')
 export class CatalogController {

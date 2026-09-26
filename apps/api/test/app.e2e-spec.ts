@@ -223,16 +223,16 @@ describe('TopFlow Hub API (e2e)', () => {
       );
       expect(stringIds.length).toBeGreaterThan(30);
       expect(stringIds.filter((p) => p.schema?.format !== 'uuid')).toEqual([]);
+      // The catalogue's optional header ignores other values, so only /org requires a UUID.
       const headers = parameters.filter(
-        (p) => p.in === 'header' && p.name === ORGANIZATION_HEADER,
+        (p) =>
+          p.in === 'header' &&
+          p.name === ORGANIZATION_HEADER &&
+          p.operation.includes(' /org'),
       );
       expect(headers.length).toBeGreaterThan(20);
       expect(headers.filter((p) => p.schema?.format !== 'uuid')).toEqual([]);
-      expect(
-        headers.filter(
-          (p) => p.operation.includes(' /org') && p.required !== true,
-        ),
-      ).toEqual([]);
+      expect(headers.filter((p) => p.required !== true)).toEqual([]);
     });
 
     it('treats an empty includeInactive filter as absent', async () => {
