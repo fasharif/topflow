@@ -13,6 +13,9 @@ mock_provider "aws" {
   mock_resource "aws_iam_role" {
     defaults = { arn = "arn:aws:iam::123456789012:role/mock" }
   }
+  mock_resource "aws_iam_policy" {
+    defaults = { arn = "arn:aws:iam::123456789012:policy/topflow-hub-workload-boundary" }
+  }
 }
 
 variables {
@@ -47,15 +50,49 @@ run "account_foundation" {
 
   assert {
     condition = jsondecode(aws_iam_role.terraform_apply.assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"] == [
-      "repo:fasharif/topflow:environment:staging",
-      "repo:fasharif/topflow:environment:production",
+      "repo:fasharif/topflow:environment:aws-staging-infra",
+      "repo:fasharif/topflow:environment:aws-production-infra",
     ]
-    error_message = "Applies may run only from the approved staging and production environments."
+    error_message = "Applies may run only from the approved Terraform environments, not from the Deploy workflow's."
   }
 
   assert {
-    condition     = jsondecode(aws_iam_role_policy.terraform_apply_iam.policy).Statement[0].Resource == "arn:aws:iam::123456789012:role/topflow-hub-*"
-    error_message = "The apply role may only manage this project's IAM roles."
+    condition = alltrue([
+      for statement in jsondecode(aws_iam_role_policy.terraform_apply_iam.policy).Statement :
+      statement.Resource == [
+        "arn:aws:iam::123456789012:role/topflow-hub-staging-*",
+        "arn:aws:iam::123456789012:role/topflow-hub-production-*",
+      ]
+      if statement.Effect == "Allow" && statement.Sid != "ReadIdentityProvider"
+    ])
+    error_message = "The apply role may manage only the environments' roles, never the bootstrap's own (topflow-hub-terraform-*)."
+  }
+
+  assert {
+    condition = alltrue([
+      for statement in jsondecode(aws_iam_role_policy.terraform_apply_iam.policy).Statement :
+      statement.Condition == { StringEquals = { "iam:PermissionsBoundary" = "arn:aws:iam::123456789012:policy/topflow-hub-workload-boundary" } }
+      if statement.Effect == "Allow" && length(setintersection(statement.Action, ["iam:CreateRole", "iam:PutRolePolicy", "iam:AttachRolePolicy", "iam:PutRolePermissionsBoundary"])) > 0
+    ])
+    error_message = "Roles may be created or given permissions only with the workload boundary attached."
+  }
+
+  assert {
+    condition = alltrue([
+      for statement in jsondecode(aws_iam_role_policy.terraform_apply_iam.policy).Statement :
+      !contains(statement.Action, "iam:DeleteRolePermissionsBoundary") && !contains(statement.Action, "iam:CreatePolicyVersion")
+      if statement.Effect == "Allow"
+    ])
+    error_message = "The apply role must not remove a boundary or rewrite the boundary policy."
+  }
+
+  assert {
+    condition = alltrue(flatten([
+      for statement in jsondecode(aws_iam_policy.workload_boundary.policy).Statement : [
+        for action in statement.Action : !startswith(action, "iam:") || action == "iam:PassRole"
+      ]
+    ]))
+    error_message = "The workload boundary must not allow any IAM change: an environment role could otherwise widen itself."
   }
 
   assert {

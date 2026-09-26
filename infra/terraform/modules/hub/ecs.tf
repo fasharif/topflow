@@ -149,12 +149,15 @@ resource "aws_ecs_task_definition" "app" {
 }
 
 resource "aws_ecs_service" "app" {
-  for_each = { api = var.api_min_count, web = var.web_min_count }
+  for_each = toset(["api", "web"])
 
-  name                               = "${local.name}-${each.key}"
-  cluster                            = aws_ecs_cluster.main.id
-  task_definition                    = aws_ecs_task_definition.app[each.key].arn
-  desired_count                      = each.value
+  name            = "${local.name}-${each.key}"
+  cluster         = aws_ecs_cluster.main.id
+  task_definition = aws_ecs_task_definition.app[each.key].arn
+  # Created without tasks: nothing may start before the secrets exist and the first release step
+  # has migrated the database. The first Deploy run starts each service at its auto scaling
+  # minimum (infra/scripts/deploy-ecs.sh); from then on auto scaling owns the count.
+  desired_count                      = 0
   launch_type                        = "FARGATE"
   platform_version                   = "LATEST"
   deployment_minimum_healthy_percent = 100

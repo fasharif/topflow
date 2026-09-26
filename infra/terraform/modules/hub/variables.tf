@@ -135,7 +135,7 @@ variable "web_memory" {
 }
 
 variable "api_min_count" {
-  description = "Minimum number of API tasks (also the initial count)."
+  description = "Minimum number of API tasks once released (services start without tasks; the first deploy starts this many)."
   type        = number
   default     = 1
 
@@ -152,7 +152,7 @@ variable "api_max_count" {
 }
 
 variable "web_min_count" {
-  description = "Minimum number of web tasks (also the initial count)."
+  description = "Minimum number of web tasks once released (services start without tasks; the first deploy starts this many)."
   type        = number
   default     = 1
 

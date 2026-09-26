@@ -17,3 +17,8 @@ output "terraform_apply_role_arn" {
   description = "AWS_TERRAFORM_APPLY_ROLE_ARN repository variable."
   value       = aws_iam_role.terraform_apply.arn
 }
+
+output "workload_boundary_arn" {
+  description = "Permissions boundary that every role of the environments carries (modules/hub)."
+  value       = aws_iam_policy.workload_boundary.arn
+}

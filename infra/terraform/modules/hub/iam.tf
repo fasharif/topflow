@@ -18,8 +18,9 @@ locals {
 }
 
 resource "aws_iam_role" "execution" {
-  name               = "${local.name}-ecs-execution"
-  assume_role_policy = local.ecs_tasks_trust
+  name                 = "${local.name}-ecs-execution"
+  assume_role_policy   = local.ecs_tasks_trust
+  permissions_boundary = local.permissions_boundary
 }
 
 resource "aws_iam_role_policy" "execution" {
@@ -53,13 +54,14 @@ resource "aws_iam_role_policy" "execution" {
 resource "aws_iam_role" "task" {
   for_each = toset(["api", "web", "migrate"])
 
-  name               = "${local.name}-${each.key}-task"
-  description        = "Runtime identity of the ${each.key} containers; deliberately without permissions"
-  assume_role_policy = local.ecs_tasks_trust
+  name                 = "${local.name}-${each.key}-task"
+  description          = "Runtime identity of the ${each.key} containers; deliberately without permissions"
+  assume_role_policy   = local.ecs_tasks_trust
+  permissions_boundary = local.permissions_boundary
 }
 
 # ── Deploy role for .github/workflows/deploy.yml ──────────────────────────────────────────────
-# Only a job running in this repository's GitHub environment of the same name can assume it; that
+# Only a job running in this repository's GitHub environment aws-<environment> can assume it; that
 # environment requires a reviewer's approval before the job starts.
 
 data "aws_iam_openid_connect_provider" "github" {
@@ -68,8 +70,9 @@ data "aws_iam_openid_connect_provider" "github" {
 
 resource "aws_iam_role" "deploy" {
   name                 = "${local.name}-github-deploy"
-  description          = "Assumed by the deploy workflow of ${var.github_repository} in the ${var.environment} environment"
+  description          = "Assumed by the deploy workflow of ${var.github_repository} in the ${local.github_environment} environment"
   max_session_duration = 3600
+  permissions_boundary = local.permissions_boundary
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -79,7 +82,7 @@ resource "aws_iam_role" "deploy" {
       Condition = {
         StringEquals = {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-          "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository}:environment:${var.environment}"
+          "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository}:environment:${local.github_environment}"
         }
       }
     }]
@@ -104,6 +107,14 @@ resource "aws_iam_role_policy" "deploy" {
         Effect   = "Allow"
         Action   = ["ecs:DescribeServices", "ecs:UpdateService"]
         Resource = [for service in aws_ecs_service.app : service.id]
+      },
+      {
+        # The first release starts each service at its auto scaling minimum. Describe calls of
+        # Application Auto Scaling cannot be limited to a resource.
+        Sid      = "ReadScalingLimits"
+        Effect   = "Allow"
+        Action   = ["application-autoscaling:DescribeScalableTargets"]
+        Resource = "*"
       },
       {
         Sid      = "RunReleaseStep"

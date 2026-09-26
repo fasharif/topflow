@@ -28,6 +28,15 @@ locals {
     migrate = "${var.image_registry}/${var.project}-migrate:${var.image_tag}"
   }
 
+  # Every role of the environment carries the account's workload boundary (created by
+  # infra/terraform/bootstrap): the Terraform apply role may only create or change roles that do,
+  # so no role here can ever do more than the boundary allows, whatever policy it is given.
+  permissions_boundary = "arn:aws:iam::${local.account_id}:policy/${var.project}-workload-boundary"
+
+  # The GitHub environment whose jobs may assume the deploy role. It is not the name Vercel gives
+  # its deployments ("Production"), and not the one Terraform applies run in ("aws-<env>-infra").
+  github_environment = "aws-${var.environment}"
+
   # SSM parameter paths. Terraform creates each parameter with a placeholder; operators set the real
   # values with `aws ssm put-parameter --overwrite` (docs/OPERATIONS.md), so they never reach the
   # Terraform state.

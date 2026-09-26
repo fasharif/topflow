@@ -65,7 +65,8 @@ resource "aws_flow_log" "rejected" {
 }
 
 resource "aws_iam_role" "flow_logs" {
-  name = "${local.name}-flow-logs"
+  name                 = "${local.name}-flow-logs"
+  permissions_boundary = local.permissions_boundary
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{

@@ -24,8 +24,13 @@ output "task_definition_families" {
 }
 
 output "deploy_role_arn" {
-  description = "Set as the AWS_DEPLOY_ROLE_ARN variable of the GitHub environment with the same name."
+  description = "Set as the AWS_DEPLOY_ROLE_ARN variable of the GitHub environment named in github_environment."
   value       = aws_iam_role.deploy.arn
+}
+
+output "github_environment" {
+  description = "GitHub environment (with required reviewers) whose Deploy jobs may assume the deploy role."
+  value       = local.github_environment
 }
 
 output "secret_parameter_names" {

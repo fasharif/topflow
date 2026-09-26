@@ -144,8 +144,23 @@ run "staging_defaults" {
   }
 
   assert {
-    condition     = jsondecode(aws_iam_role.deploy.assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"] == "repo:fasharif/topflow:environment:staging"
-    error_message = "Only the repository's staging environment may assume the staging deploy role."
+    condition     = jsondecode(aws_iam_role.deploy.assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"] == "repo:fasharif/topflow:environment:aws-staging" && output.github_environment == "aws-staging"
+    error_message = "Only the repository's aws-staging environment may assume the staging deploy role."
+  }
+
+  assert {
+    condition = alltrue([
+      for boundary in concat(
+        [aws_iam_role.execution.permissions_boundary, aws_iam_role.deploy.permissions_boundary, aws_iam_role.flow_logs.permissions_boundary],
+        [for role in aws_iam_role.task : role.permissions_boundary],
+      ) : boundary == "arn:aws:iam::123456789012:policy/topflow-hub-workload-boundary"
+    ]) && length(aws_iam_role.task) == 3
+    error_message = "Every role of the environment must carry the workload boundary, or the apply role cannot create it."
+  }
+
+  assert {
+    condition     = alltrue([for service in aws_ecs_service.app : service.desired_count == 0])
+    error_message = "Services must start without tasks: the first release step runs before anything serves."
   }
 
   assert {

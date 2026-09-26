@@ -4,8 +4,13 @@ output "load_balancer_dns_name" {
 }
 
 output "deploy_role_arn" {
-  description = "AWS_DEPLOY_ROLE_ARN variable of the matching GitHub environment."
+  description = "AWS_DEPLOY_ROLE_ARN variable of the GitHub environment named by github_environment."
   value       = module.hub.deploy_role_arn
+}
+
+output "github_environment" {
+  description = "GitHub environment, with required reviewers, that the Deploy workflow runs in."
+  value       = module.hub.github_environment
 }
 
 output "secret_parameter_names" {
