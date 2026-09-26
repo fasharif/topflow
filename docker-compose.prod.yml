@@ -17,8 +17,8 @@
 #   docker compose -f docker-compose.prod.yml --env-file infra/compose/.env up -d --build --wait
 #   docker compose -f docker-compose.prod.yml --env-file infra/compose/.env --profile demo run --rm seed
 #
-# Nothing here is exposed beyond this machine: the proxy publishes HTTPS and HTTP (redirect) ports,
-# and Mailpit and PostgreSQL listen on 127.0.0.1 only.
+# Nothing here is exposed beyond this machine: the proxy's HTTPS and HTTP (redirect) ports, Mailpit
+# and PostgreSQL listen on 127.0.0.1 only.
 
 name: ${COMPOSE_PROJECT_NAME:-topflow-hub}
 
@@ -153,8 +153,8 @@ services:
       API_HOST: ${API_HOST:?}
       AUTH_HOST: ${AUTH_HOST:?}
     ports:
-      - "${HTTPS_PORT}:${HTTPS_PORT}"
-      - "${HTTP_PORT}:${HTTP_PORT}"
+      - "127.0.0.1:${HTTPS_PORT}:${HTTPS_PORT}"
+      - "127.0.0.1:${HTTP_PORT}:${HTTP_PORT}"
     volumes:
       - ./infra/compose/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./supabase/templates:/srv/email-templates:ro
