@@ -36,8 +36,10 @@ prepare_reports() {
   mkdir -p "$TESTS_DIR/reports/$1"
 }
 
+# Prints one field of the JSON document on stdin; a dotted path reaches nested fields
+# (memberships.0.organizationId). Fails when the field is missing.
 json_field() {
-  node -e 'let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => { const v = JSON.parse(s)[process.argv[1]]; if (v === undefined) process.exit(1); console.log(v); });' "$1"
+  node -e 'let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => { const v = process.argv[1].split(".").reduce((o, k) => (o == null ? undefined : o[k]), JSON.parse(s)); if (v === undefined) process.exit(1); console.log(v); });' "$1"
 }
 
 # Address of a published demo account (@topflow/shared, DEMO_ACCOUNTS) by its local part, such as

@@ -144,6 +144,15 @@ jobs:
             node tests/scripts/k6-summary-table.mts tests/reports/k6/summary-smoke.json
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Summarise the Schemathesis passes
+        if: ${{ !cancelled() && hashFiles('tests/reports/schemathesis/run-*.json') != '' }}
+        run: |
+          {
+            echo "### Schemathesis"
+            echo
+            node tests/scripts/schemathesis-summary.mts tests/reports/schemathesis
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload the Playwright report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7

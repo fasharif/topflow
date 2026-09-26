@@ -14,3 +14,14 @@ allow-extra-parameters = false
 # 422 is how the API rejects well-formed input that breaks a business rule, for example an
 # unknown or archived product at checkout.
 expected-statuses = ["2xx", 401, 403, 404, 409, 422, 429]
+
+# Test data for the customer pass: run-schemathesis.sh creates a saved address and an order for
+# the throwaway customer and exports their ids, so these operations reach the code behind the
+# lookup instead of answering 404 for a random id. The other passes do not include them.
+[[operations]]
+include-path = "/me/addresses/{id}"
+parameters = { "path.id" = "${FUZZ_ADDRESS_ID}" }
+
+[[operations]]
+include-path-regex = "^/me/orders/\\{id\\}"
+parameters = { "path.id" = "${FUZZ_ORDER_ID}" }
