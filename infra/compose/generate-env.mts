@@ -10,7 +10,7 @@
  * was created with, so new ones would lock the stack out of its own data.
  */
 import { createHmac, randomBytes } from 'node:crypto';
-import { existsSync, realpathSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, fchmodSync, openSync, realpathSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
@@ -115,6 +115,21 @@ export function formatEnv(env: Map<string, string>): string {
   return `${lines.join('\n')}\n`;
 }
 
+/**
+ * Writes a file only its owner can read. The mode passed to open() applies only when the file is
+ * created, so an existing file (say, 0644 from an earlier copy) is narrowed to 0600 before any
+ * secret is written into it. Windows has no such modes; there the call only writes.
+ */
+export function writeSecretFile(path: string, content: string): void {
+  const fd = openSync(path, 'w', 0o600);
+  try {
+    if (process.platform !== 'win32') fchmodSync(fd, 0o600);
+    writeFileSync(fd, content);
+  } finally {
+    closeSync(fd);
+  }
+}
+
 function main(argv: string[]): void {
   const { values } = parseArgs({
     args: argv,
@@ -142,7 +157,7 @@ function main(argv: string[]): void {
     mailPort: port(values['mail-port'], DEFAULTS.mailPort),
     dbPort: port(values['db-port'], DEFAULTS.dbPort),
   });
-  writeFileSync(out, formatEnv(env), { mode: 0o600 });
+  writeSecretFile(out, formatEnv(env));
   console.log(`Wrote ${out}. The web app will be at ${env.get('SITE_URL')}.`);
 }
 

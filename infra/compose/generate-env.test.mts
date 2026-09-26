@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHmac } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it } from 'node:test';
-import { buildEnv, DEFAULTS, formatEnv, publicUrl, signJwt } from './generate-env.mts';
+import { buildEnv, DEFAULTS, formatEnv, publicUrl, signJwt, writeSecretFile } from './generate-env.mts';
 
 const script = fileURLToPath(new URL('./generate-env.mts', import.meta.url));
 
@@ -84,7 +84,8 @@ describe('generate-env', () => {
     const dir = mkdtempSync(join(tmpdir(), 'topflow-env-'));
     try {
       const out = join(dir, '.env');
-      writeFileSync(out, 'KEEP=1\n');
+      // A readable copy, as `cp` or an editor might leave it: --force must not keep that mode.
+      writeFileSync(out, 'KEEP=1\n', { mode: 0o644 });
       const refused = spawnSync(process.execPath, [script, '--out', out], { encoding: 'utf8' });
       assert.equal(refused.status, 1);
       assert.match(refused.stderr, /already exists/);
@@ -94,6 +95,24 @@ describe('generate-env', () => {
       assert.equal(forced.status, 0, forced.stderr);
       assert.match(readFileSync(out, 'utf8'), /^SITE_URL=https:\/\/localhost:9443$/m);
       if (process.platform !== 'win32') assert.equal(statSync(out).mode & 0o777, 0o600);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('narrows an existing file to owner-only before writing secrets into it', { skip: process.platform === 'win32' && 'Windows has no POSIX file modes' }, () => {
+    const dir = mkdtempSync(join(tmpdir(), 'topflow-env-'));
+    try {
+      const out = join(dir, '.env');
+      writeFileSync(out, 'OLD=1\n');
+      chmodSync(out, 0o666);
+      writeSecretFile(out, 'SECRET=2\n');
+      assert.equal(statSync(out).mode & 0o777, 0o600);
+      assert.equal(readFileSync(out, 'utf8'), 'SECRET=2\n');
+
+      const created = join(dir, 'new.env');
+      writeSecretFile(created, 'SECRET=3\n');
+      assert.equal(statSync(created).mode & 0o777, 0o600);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
