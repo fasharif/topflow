@@ -3,19 +3,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { Button } from './button';
 import { cx } from './cx';
-
-/**
- * Horizontal scroll container for content wider than the screen, such as tables on phones. It can
- * be focused and scrolled with the arrow keys, and screen readers announce it by `label`
- * (WCAG 2.1.1 Keyboard; axe rule scrollable-region-focusable).
- */
-export function ScrollRegion({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
-  return (
-    <div role="region" aria-label={label} tabIndex={0} className={cx('overflow-x-auto', className)}>
-      {children}
-    </div>
-  );
-}
+import { ScrollRegion } from './scroll-region';
 
 /** Data table in a card. `label` names its scroll region for keyboard and screen-reader users. */
 export function Table({ label, children, className }: { label: string; children: ReactNode; className?: string }) {

@@ -11,7 +11,8 @@ export { Field, Input, SearchInput, Select, Textarea, controlClass } from './for
 export { Alert, Badge, EmptyState, LoadingBlock, Skeleton, Spinner, type Tone } from './feedback';
 export { Card, CardHeader, Stat, type CardTone } from './card';
 export { ArrowLink, BackLink, Breadcrumbs, Container, PageHeader, Section, SectionHeading, containerClass, type BreadcrumbItem } from './layout';
-export { Pagination, PaginationLinks, ScrollRegion, Table, Td, Th, pageWindow } from './table';
+export { Pagination, PaginationLinks, Table, Td, Th, pageWindow } from './table';
+export { ScrollRegion } from './scroll-region';
 export { QuantityInput } from './quantity-input';
 export { InfoTooltip, Tooltip } from './tooltip';
 export { APPROX_PRICE_NOTE, ApproxPrice, TradePrice, type PriceSize } from './price';
