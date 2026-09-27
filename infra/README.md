@@ -85,7 +85,7 @@ SMOKE_PASSWORD='TopFlow2026!' node infra/scripts/smoke-test.mts --web https://lo
 | Terraform: fmt, validate, `terraform test` (mocked provider), tflint, Trivy | `infra/scripts/check-terraform.sh` | Docker |
 | Shell scripts | `docker run --rm -v "$PWD:/mnt:ro" -w /mnt koalaman/shellcheck:v0.11.0 infra/scripts/*.sh infra/scripts/tests/*.sh infra/scripts/tests/fake-aws infra/compose/initdb/*.sh apps/api/docker/*.sh` | Docker |
 
-CI runs all of them ([ci.yml](../.github/workflows/ci.yml), [infra.yml](../.github/workflows/infra.yml)), plus the Compose stack with the smoke test ([containers.yml](../.github/workflows/containers.yml)).
+CI is set up to run all of them ([ci.yml](../.github/workflows/ci.yml), [infra.yml](../.github/workflows/infra.yml)), plus the Compose stack with the smoke test ([containers.yml](../.github/workflows/containers.yml)). Those workflows have not run on GitHub yet (see [Not run yet](#not-run-yet)); each command in this table was run locally in Linux containers.
 
 ## AWS (prepared, not applied)
 
@@ -200,7 +200,7 @@ infra/scripts/restore-drill.sh --backup topflow-hub-db-<timestamp>.tar.gz.age \
 
 It decrypts the backup with age, restores `roles.sql`, `schema.sql` and `data.sql` into a disposable PostgreSQL container in one transaction (as [OPERATIONS.md](../docs/OPERATIONS.md) section 4 describes for a real restore), checks that every table holds as many rows as the dump and that the core tables are not empty, prints how long each step took and removes the container. The default image is the Supabase Postgres image (`public.ecr.aws/supabase/postgres:17.6.1.167`), because Supabase dumps expect its roles and extensions; `--image postgres:17` suits plain dumps.
 
-It was run on 26 September 2026 against a dump made with the project's Supabase CLI (`supabase db dump`, 2.117.0) of a migrated and seeded local database (19 tables, 754 rows): every count matched. CI proves it on every change with a synthetic backup and a throwaway key.
+It was run on 26 September 2026 against a dump made with the project's Supabase CLI (`supabase db dump`, 2.117.0) of a migrated and seeded local database (19 tables, 754 rows): every count matched. Its test, `tests/restore-drill.test.sh`, backs up a migrated and seeded database in the nightly format, encrypts it to a throwaway key and checks that the drill restores it and that a wrong key, a damaged file and a missing table fail. It passes locally with Docker CLI 29.8.1 and 20.10.24, and CI is set up to run it on every change.
 
 **Timings: pending a measured run.** Timings from this build machine were distorted by parallel work and are not published. The table below is the drill's own report format (`--report`); it will be filled from a run on a quiet machine against a real nightly backup.
 
@@ -223,4 +223,5 @@ It was run on 26 September 2026 against a dump made with the project's Supabase 
 | Dependabot updates of the base images | Dependabot has not run on this branch; whether it resolves tags on `public.ecr.aws` is unconfirmed | watch for its pull requests after the merge; Trivy's critical-vulnerability gate is the backstop |
 | The Uptime workflow | needs public URLs; its schedule is off until then | set `UPTIME_WEB_URL` and `UPTIME_API_URL`, and uncomment the schedule |
 | The restore drill on a real nightly backup | no hosted database yet (the backup workflow skips) | download a backup artifact and run the drill with the offline key |
-| Sentry event delivery | needs a Sentry project | set `SENTRY_DSN`; the SDK start-up is covered by unit tests and the Compose smoke test |
+| Sentry event delivery | needs a Sentry project | set `SENTRY_DSN`; what the SDK would send is checked by unit tests that run the real SDK with a recording transport, and the Compose smoke test starts both servers with a DSN |
+| The CI, Containers and Infrastructure workflows on GitHub's runners | this branch has not been pushed | push it; every job's commands were run locally in Linux containers with the same scripts and images |

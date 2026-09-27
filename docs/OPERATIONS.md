@@ -79,7 +79,7 @@ infra/scripts/restore-drill.sh --backup topflow-hub-db-<timestamp>.tar.gz.age \
   --identity topflow-hub-backup-key.txt --report restore-drill.md
 ```
 
-It restores into the Supabase Postgres image by default, because Supabase dumps expect its roles and extensions. Run it after changing the backup job, after rotating the key, and at least once a quarter; keep the reports. CI runs it on every change with a synthetic backup and a throwaway key ([infra/README.md](../infra/README.md#restore-drill)).
+It restores into the Supabase Postgres image by default, because Supabase dumps expect its roles and extensions. Run it after changing the backup job, after rotating the key, and at least once a quarter; keep the reports. Its test restores a synthetic backup encrypted to a throwaway key, and CI is set up to run it on every change ([infra/README.md](../infra/README.md#restore-drill)).
 
 ## 5. Accounts and access
 

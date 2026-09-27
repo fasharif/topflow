@@ -31,10 +31,10 @@ A plain web shop serves the first group only. **TopFlow Hub** serves both: a sto
 | **Multi-tenancy** | Every B2B request runs inside a verified organization context (`x-organization-id`). Users can belong to several organizations, and Top Flow staff verify each company (KYC). |
 | **Operations** | Role-based back office for Sales, Warehouse and Admin: KYC queue, quotation builder, fulfilment state machine, stock deduction at dispatch, low-stock alerts, dashboard KPIs, staff invitations and an immutable audit trail. |
 | **Identity & security** | **Supabase Auth** with email confirmation, password recovery and **two-factor authentication required for staff**. Web sessions live in httpOnly cookies behind a backend-for-frontend; the API verifies Supabase tokens (JWKS) and enforces RBAC and tenant isolation. Platform tables are locked away from Supabase's public Data API, rate limits apply per client, and prices are never trusted from clients. |
-| **Containers** | Non-root images for the API, its release step (migrations) and the web app, scanned with Trivy (critical findings fail the build). A **production-like Compose stack** runs them with HTTPS, Supabase Auth and the release step before the API; CI starts it on every change and signs in through Supabase Auth. On `develop`, CI publishes exactly the images it tested, with signed provenance and SBOM attestations. |
+| **Containers** | Non-root images for the API, its release step (migrations) and the web app, scanned with Trivy (critical findings fail the build). A **production-like Compose stack** runs them with HTTPS, Supabase Auth and the release step before the API; the Containers workflow starts it for every change and signs in through Supabase Auth. On `develop`, it publishes exactly the images it tested, with signed provenance and SBOM attestations. |
 | **AWS, prepared** | **Terraform** for staging and production on ECS Fargate behind a load balancer, with secrets in SSM, CloudWatch alarms, a budget alert, S3 state with locking and GitHub OIDC roles under a permissions boundary. Checked with `terraform test` against a mocked provider, tflint and Trivy; **never applied**. |
 | **Releases** | A manual deploy that verifies each image's provenance, pins digests, runs migrations before new code, keeps both services on one release if a rollout fails, and **rolls back in one step**; a restart for rotated secrets; a smoke test and an uptime check. |
-| **Operations tooling** | Optional **Sentry** for server errors (a no-op without `SENTRY_DSN`), nightly **encrypted off-site database backups**, and a **timed restore drill** that CI proves with a synthetic backup and a throwaway key. |
+| **Operations tooling** | Optional **Sentry** for server errors (a no-op without `SENTRY_DSN`), a workflow for nightly **encrypted off-site database backups** (it skips until a database is hosted), and a **timed restore drill**, whose test restores a synthetic backup encrypted to a throwaway key. |
 
 ## Architecture
 
@@ -85,7 +85,7 @@ The browser never holds a token: the web app's server keeps the Supabase session
 | Containers | Docker multi-stage builds, traced runtimes, Docker Compose, Caddy, GoTrue, Trivy | Small non-root images that run on any container host; a stack that exercises the real release order, HTTPS and Supabase Auth on one machine (ADR-023). |
 | Cloud (prepared) | Terraform 1.16 with the AWS provider, ECS Fargate, ALB, SSM, CloudWatch, tflint, `terraform test` | Fargate runs the release step as a one-off task, which App Runner cannot; everything is testable without an account (ADR-023). |
 | Delivery | GitHub Actions with OIDC to AWS, artifact attestations (Sigstore), Dependabot, Sentry | No stored cloud keys; deploys verify that an image came from this repository's CI; errors reported only when configured. |
-| Tooling | npm workspaces, Turborepo, ESLint, Prettier, Jest, Supertest, `node:test`, ShellCheck, actionlint | Builds in dependency order with caching; every script and workflow is linted and tested in CI. |
+| Tooling | npm workspaces, Turborepo, ESLint, Prettier, Jest, Supertest, `node:test`, ShellCheck, actionlint | Builds in dependency order with caching; CI lints and tests every script and workflow. |
 
 ## Quick start
 
@@ -154,7 +154,7 @@ infra/scripts/check-terraform.sh        # fmt, validate, terraform test, tflint,
 - **Unit tests** cover money/VAT maths, workflow state machines, the permission matrix, request schemas, Supabase token verification, guards, error mapping, configuration and error reporting (Sentry off without a DSN; errors, breadcrumbs and spans scrubbed, also checked with the real SDK), and in the web app the health endpoint, the public origin and the portfolio notice.
 - **End-to-end tests** boot the real application (the production middleware stack) against PostgreSQL. They simulate Supabase Auth with locally signed tokens and exercise account provisioning, token rejection, staff MFA, staff invitations and suspension, team invitations, RBAC, tenant isolation, the full RFQ → quotation → approval → order flow, website quote requests and retail fulfilment. A test also asserts that every table has Row Level Security enabled.
 - **Infrastructure tests** cover the deploy script (18 cases against a fake AWS CLI, including a web rollout that fails and a deploy that stopped half-way), the Terraform module and bootstrap (`terraform test`, mocked provider), the smoke test, the env generator, the cost estimate and the backup restore drill.
-- **CI** (`.github/workflows/ci.yml`) runs all of the above except the Terraform checks, which run in `infra.yml`, plus the restore drill end to end. **Containers** (`containers.yml`) builds and scans the images, starts the production-like stack and runs the smoke test.
+- **CI** (`.github/workflows/ci.yml`) runs all of the above except the Terraform checks, which run in `infra.yml`, plus the restore drill end to end. **Containers** (`containers.yml`) builds and scans the images, starts the production-like stack and runs the smoke test. These workflows have not run on GitHub yet, because this branch has not been pushed; every job's commands were run locally in Linux containers (see Limitations).
 
 The smoke test against the Compose stack, on 26 September 2026 (images from commit `4725a2e`, Docker Desktop on Windows 11), passed all 11 checks:
 
@@ -202,10 +202,10 @@ The original coursework was a Kotlin/Firebase Android app for a bicycle shop. [d
 
 - **Nothing is hosted.** The platform runs locally or as the Compose stack. [ADR-019](docs/DECISIONS.md) records why: only officially free hosting qualifies, and Netlify's free plan is the default if the platform is published as a business site.
 - **The AWS layout has never been applied.** It would cost about 183 US dollars a month for staging and production together (`node infra/scripts/cost-estimate.mts`, on-demand list prices of 26 September 2026, [infra/README.md](infra/README.md#cost-estimate-nothing-is-running)). No `terraform plan` has run against an account, and the deploy script has run only against a fake AWS CLI.
-- **Publishing has not run.** GHCR publishing and the provenance and SBOM attestations run on the first push to `develop`; the Deploy workflow's verification of them has not run either.
+- **The new workflows have not run on GitHub.** This branch has not been pushed, so the CI, Containers and Infrastructure workflows have run only as their commands, locally in Linux containers. GHCR publishing and the provenance and SBOM attestations run on the first push to `develop`; the Deploy workflow's verification of them has not run either.
 - **The Compose stack is not a Supabase project.** It runs Supabase Auth (GoTrue) with a shared signing secret, while hosted projects use asymmetric keys; both are covered by unit tests.
 - **Errors in the browser are not reported.** Sentry covers the API and the web server only.
-- **Restore timings are pending** a measured run on a quiet machine; the drill itself passes in CI.
+- **Restore timings are pending** a measured run on a quiet machine. The drill's test passes locally; the nightly backup workflow skips until a database is hosted, so there is no real backup to restore yet.
 - **The release step's image has two high-severity advisories** in packages the Prisma CLI pins (listed in [infra/README.md](infra/README.md#container-images)); they clear when Prisma updates them.
 - **Roadmap:** choose a host under ADR-019; then the first real plan, apply and deploy, a restore drill against a real nightly backup, and a Sentry project.
 
