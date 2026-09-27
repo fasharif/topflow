@@ -2,7 +2,7 @@
 
 Defects found while building and reviewing the system tests in [TEST-PLAN.md](TEST-PLAN.md), with the evidence to reproduce them. Each defect fixed on this branch has its own `fix:` commit with a regression test. BUG-08 to BUG-10 were fixed on `feature/demo-mode`, which this branch is based on. One defect is open: BUG-17 (Low), which needs a product decision before it is fixed. Issues can be filed for the record once Farah approves them.
 
-The reproductions ran on 26 and 27 September 2026 on a Windows 11 laptop, against the local stack: the Supabase CLI (Auth, PostgreSQL 17, Mailpit), the API and the web app from production builds, and the demo seed. Severity uses this scale:
+The reproductions ran on 26 to 28 September 2026 on a Windows 11 laptop, against the local stack: the Supabase CLI (Auth, PostgreSQL 17, Mailpit), the API and the web app from production builds, and the demo seed. Severity uses this scale:
 
 | Severity | Meaning |
 | --- | --- |
@@ -226,7 +226,7 @@ The reproductions ran on 26 and 27 September 2026 on a Windows 11 laptop, agains
 
 **Actual:** both orders were confirmed on the credit account, an exposure of AED 2,100.00 against a limit of AED 1,050.00. `OrderWriter.createFromQuotation` summed the unpaid orders and then created the order in a READ COMMITTED transaction, and nothing stopped the second transaction from reading the same sum.
 
-How often it happens: the first version of the regression test below ran its five rounds on one organisation and cleared the orders only after a round passed, so after one failing round the later rounds started from leftover exposure; its "5 of 5" counted one real trial. With each round on a new organisation (commit `test(api): make each concurrency round a separate trial`), removing the lock released both orders on credit in 5 of 5 rounds, in each of three runs on 27 September 2026 (`node tests/scripts/mutation-check.mts --with-db`).
+How often it happens: the first version of the regression test below ran its five rounds on one organisation and cleared the orders only after a round passed, so after one failing round the later rounds started from leftover exposure; its "5 of 5" counted one real trial. With each round on a new organisation (commit `test(api): make each concurrency round a separate trial`), removing the lock released both orders on credit in 5 of 5 rounds, in each of four runs on 27 and 28 September 2026 (`node tests/scripts/mutation-check.mts --with-db`).
 
 **Fix** (commit `fix(api): release one organisation's orders on credit one at a time`): the organisation's row is locked (`SELECT … FOR UPDATE`) before the exposure is summed, and the terms are read again under the lock. The buyer's acceptance and the approver's sign-off both go through this path. Regression tests: *decision table B under concurrency* in `apps/api/test/decision-tables.e2e-spec.ts` (five rounds of two simultaneous acceptances, each on a new organisation; exactly one order is released on credit each time), and two unit tests in `order-writer.service.spec.ts`. The mutation check in CI removes the lock and fails if these rounds still pass.
 

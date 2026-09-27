@@ -156,7 +156,7 @@ The API validates its environment at start-up and stops with a readable report w
 
 ## Tests
 
-**Quality at a glance.** The latest full run, on 27 September 2026, from a clean clone on a Windows 11 laptop with Docker Desktop: the Node steps ran in a Linux container (`node:24-bookworm`) against a Supabase CLI stack and PostgreSQL 17 in Docker, as the CI workflows describe. The workflows themselves have not run on GitHub yet ([limitations](#limitations-and-roadmap)).
+**Quality at a glance.** The latest full run, on 28 September 2026, from a clean clone on a Windows 11 laptop with Docker Desktop: the Node steps ran in a Linux container (`node:24-bookworm`) against a Supabase CLI stack and PostgreSQL 17 in Docker, as the CI workflows describe. The workflows themselves have not run on GitHub yet ([limitations](#limitations-and-roadmap)).
 
 | Level | Tool | Tests | Result | Details |
 | --- | --- | --- | --- | --- |
@@ -223,7 +223,6 @@ The original coursework was a Kotlin/Firebase Android app for a bicycle shop. [d
 - **The demo has not run against Supabase.** The nightly reset's Supabase steps were tested with unit tests and by hand against a stand-in for the Auth admin API, and CI runs the rest of the reset against PostgreSQL. The first real run will be the demo project's setup ([runbook, section 10](docs/OPERATIONS.md#10-public-demo)).
 - **Direct Supabase Auth calls.** The web app does not change a shared account's password or two-factor settings, but someone who calls Supabase Auth directly with the published password can, until the nightly reset. The API still enforces every business rule.
 - **The mobile app has no demo mode.** Pointed at the demo, it is subject to the same API restrictions, but it shows no banner, and its sign-up and password reset go straight to Supabase, where the demo project has sign-ups switched off and emails only its own team.
-- **`npm run setup` and the Supabase CLI.** The script's key step reads `npx supabase status -o env`; it was tested with sample output, not with a running Supabase CLI, and says which keys to copy by hand if it cannot read them.
 - **No release yet.** release-please is configured to open a release pull request against `develop`; the first release will be `v1.0.0`, and nothing has been tagged.
 - **The system-test workflows have not run on GitHub yet.** `system-tests.yml` and `test-report-pages.yml` were reproduced step by step on a local machine. Publishing the Playwright report also needs GitHub Pages to be enabled for the repository, with GitHub Actions as the source.
 - **Testing gaps.** Load-test timings are pending a measured run on a quiet machine; Schemathesis does not fuzz the back office's writes (the API suite covers them), and its generated input rarely satisfies rules across fields, for which it has no examples or custom strategies yet; only Chromium runs; device tests of the mobile app (for example with Maestro) are out of scope for now, so its screens have no automated test.

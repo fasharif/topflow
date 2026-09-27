@@ -194,7 +194,7 @@ The unit table covers every rule, with boundary rows one fils below the limit (B
 | 6 | Net 60 with a zero limit; 0.21 | — | Pending payment (B6) |
 | Concurrency | Two orders of 1,050.00 accepted at the same moment; five rounds, each on a new company with the same terms | 0.00 | Exactly one confirmed on credit, the other pending payment |
 
-**Evidence that the tables bite.** `node tests/scripts/mutation-check.mts --with-db` breaks each rule in turn, runs the tests that guard it (after checking that they pass unchanged), and restores the code; CI runs it after the end-to-end suites. On 27 September 2026, against PostgreSQL 17 prepared as in CI:
+**Evidence that the tables bite.** `node tests/scripts/mutation-check.mts --with-db` breaks each rule in turn, runs the tests that guard it (after checking that they pass unchanged), and restores the code; CI runs it after the end-to-end suites. In the final run of section 9, against PostgreSQL 17 prepared as in CI:
 
 | Mutant | Tests run | Failed | Result |
 | --- | ---: | --- | --- |
@@ -202,7 +202,7 @@ The unit table covers every rule, with boundary rows one fils below the limit (B
 | Table B: `<=` becomes `<` in the OrderWriter credit check | 15 | 3 | killed |
 | BUG-13: `FOR UPDATE` removed from the credit release | 5 | 5; 5 rounds that released both orders on credit | killed |
 
-The three failures of table A are the three rows exactly at a limit, out of its 13 rows (`approval.spec.ts` also holds three tests of who may approve); the three of table B are its three at-limit B4 rows. Without the row lock, all five concurrency rounds released both orders on credit, in each of three runs. Each round now uses its own company, so no round inherits another's orders: an earlier version shared one company, and after a failing round the later ones started from its leftover exposure.
+The three failures of table A are the three rows exactly at a limit, out of its 13 rows (`approval.spec.ts` also holds three tests of who may approve); the three of table B are its three at-limit B4 rows. Without the row lock, all five concurrency rounds released both orders on credit, in each of four runs on 27 and 28 September 2026. Each round now uses its own company, so no round inherits another's orders: an earlier version shared one company, and after a failing round the later ones started from its leftover exposure.
 
 **Observations.** The two rules compare different amounts (net for approval, gross for credit), and orders waiting for payment keep counting against the credit limit until paid or cancelled. Both look intentional and are listed for review in BUGS-FOUND.md.
 
@@ -216,34 +216,40 @@ The three failures of table A are the three rows exactly at a limit, out of its 
 
 ## 9. Results of this cycle
 
-Run on 26 September 2026 on a Windows 11 laptop with Docker Desktop (16 CPUs, 7.9 GB for all containers), shared with other builds. The final run started from a clean clone of commit `af5c251` of the branch (the commits after it change Markdown only): `npm ci`, the API and the web app from production builds, a freshly started Supabase CLI stack (Auth, PostgreSQL 17 and Mailpit only, on ports 54325, 54326 and 54328 because the defaults were taken by another stack on that machine) seeded with the demo profile, and a new `postgres:17` container for the API suites, prepared as in CI with `db:deploy`, `db:seed` and the demo reset. Only pass and fail results and counts are reported here, not timings.
+Run on 28 September 2026 on a Windows 11 laptop with Docker Desktop (16 CPUs, 7.9 GB for all containers), shared with other builds. The final run started from a clean clone of commit `adebb33` of the branch (the commit after it changes Markdown only). `npm ci` and every Node step ran in a Linux container (`node:24-bookworm`), in the order of the CI workflows: the API and the web app from production builds, against a freshly started Supabase CLI 2.117 stack (Auth, PostgreSQL 17 and Mailpit only, on the default ports, under its own project id so that it could not touch another stack on that machine) seeded with the demo profile, and a new `postgres:17` container for the API suites, prepared as in CI with `db:deploy`, `db:seed` and the demo reset. The stack's ports were forwarded into the container, so it used the same addresses as a CI runner. k6, Schemathesis, the threshold check, shellcheck and actionlint ran from Git Bash on the host, in their pinned containers. Only pass and fail results and counts are reported here, not timings.
 
 | Suite | Command | Result |
 | --- | --- | --- |
-| Static checks | `npx turbo run lint`, `npx turbo run check-types`; shellcheck 0.11 on the tool scripts; actionlint 1.7.12 | All passed; no finding in the 7 workflows |
+| Static checks | `npx turbo run lint check-types`; shellcheck 0.9.0 and 0.11.0 on the tool scripts; actionlint 1.7.12 | All passed; no finding in the 7 workflows |
+| Script guards and load thresholds | `bash tests/scripts/common.test.sh`; `npm run load:check -w @topflow/system-tests` | 18 address checks passed; the load profile gates on all 8 p95 targets, failed requests and checks |
 | Shared unit tests | `npm test -w @topflow/shared` | 91 passed |
 | API unit tests | `npm run test:cov -w @topflow/api` | 84 passed |
 | Web unit tests | `npm test -w web` | 30 passed |
+| Mobile unit tests | `npm test -w mobile` | 8 passed |
 | Database and setup scripts | `npm test -w @topflow/database`, `npm run test:scripts` | 35 and 6 passed |
-| Web builds | `npm run build -w web` and `npm run test:demo -w web`, ordinary and demo build | Both built; both smoke checks passed |
-| API end-to-end tests | `npm run test:e2e:cov -w @topflow/api` | 53 passed: 26 in `app.e2e-spec.ts`, 17 in `decision-tables.e2e-spec.ts` (including five concurrency rounds), 10 in `demo.e2e-spec.ts` |
-| Playwright | `npm run e2e -w @topflow/system-tests` with `CI=1` | 30 passed, none retried: 8 sign-ins, 17 journeys and checks on desktop, 5 accessibility tests on a phone (41 pages at each size) |
-| k6 smoke | `npm run load -w @topflow/system-tests` | 25 of 25 checks passed, 0 of 27 requests failed; the summary holds no access token |
-| Schemathesis | `npm run contract -w @topflow/system-tests` | No new failure in any pass; table below |
-| README media | `npm run screenshots` and `npm run walkthrough:gif` against a demo build | 14 passed (8 sign-ins, 6 captures, each with the demo banner); GIF written. The committed images come from the same scripts run in the working copy |
+| Local setup | `npm run setup` against the running Supabase CLI stack | The three env files were created, the Supabase keys and one shared `INTERNAL_API_SECRET` were filled from `npx supabase status -o env`, and the migrations and demo data were loaded. For this check the clone's `supabase/config.toml` carried the stack's project id |
+| Web builds | `npm run build -w web` and `npm run test:demo -w web`, ordinary and demo build | Both built; both smoke checks passed (22 checks on 6 pages each) |
+| API end-to-end tests | `npm run test:e2e:cov -w @topflow/api` | 53 passed: 26 in `app.e2e-spec.ts`, 17 in `decision-tables.e2e-spec.ts` (including five concurrency rounds, a new company each), 10 in `demo.e2e-spec.ts` |
+| Mutation check | `node tests/scripts/mutation-check.mts --with-db` | 3 of 3 mutants killed (section 7) |
+| Playwright | `npm run e2e -w @topflow/system-tests` with `CI=1` | 31 passed, none retried: 8 sign-ins, 18 journeys and checks on desktop, 5 accessibility tests on a phone (41 pages at each size) |
+| k6 smoke | `npm run load -w @topflow/system-tests` | 25 of 25 checks passed, 0 of 27 requests failed, three virtual users; the summary holds no access token |
+| Schemathesis | `npm run contract -w @topflow/system-tests` | No new failure in any pass; table below. The three throwaway accounts were deactivated and their sign-ins deleted |
+| README media | not rerun | The web app has not changed since the images were captured on 26 September 2026 (`npm run screenshots`, 14 passed, and `npm run walkthrough:gif`) |
+
+The Playwright suite ran twice on that clone. The first run also passed, but money path 3 needed its retry: the warehouse's "Mark as Delivered" request did not finish within the 15-second wait, while the API logged a database connection timeout (*Unable to start a transaction in the given time*) on a machine busy with other builds. The second run, on the data the first run, k6 and Schemathesis had left, passed with no retry and no error in the API log.
 
 Schemathesis, from `node tests/scripts/schemathesis-summary.mts tests/reports/schemathesis`:
 
 | Pass | Operations tested | Test cases | New failures | Known (baseline) | Only 401/403 | Repeated 404 | Mostly rejected |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| customer | 82 of 82 | 9,085 | 0 | 11 | 29 | 7 | 47 |
+| customer | 58 of 82 | 6,642 | 0 | 5 | 24 | 7 | 23 |
 | staff | 13 of 82 | 1,949 | 0 | 0 | 0 | 5 | 1 |
 | trade | 24 of 82 | 2,889 | 0 | 3 | 0 | 14 | 9 |
 
-Schemathesis 4.28.0, seed 20260926. The customer pass is refused by the back office and the trade portal, as it should be; the staff and trade passes reach those operations. The repeated 404s of the staff and trade passes are lookups by id for documents the new accounts do not have. The reasons behind the other warnings and every baseline entry are in BUGS-FOUND.md.
+Schemathesis 4.28.0, seed 20260926. An hour earlier, the same command against the same API on another stack generated 6,648 cases for the customer pass: the counts vary a little between runs with the same seed, because the stateful and coverage phases depend on the responses. The customer pass leaves the trade portal to the trade pass; the back office refuses it, as it should. What the warnings mean for each pass, and which operations they name, is in BUGS-FOUND.md.
 
 API coverage from the same runs (statements, excluding specs and entry points): end-to-end suites 80.8 % (1,842 of 2,281; branches 65.0 %), unit suite 19.9 % (453 of 2,281). CI prints both in its job summary.
 
-**Not run here.** The GitHub Actions workflows (`ci.yml`, `system-tests.yml`, `test-report-pages.yml`) have not run on a GitHub runner, because nothing can be pushed from this machine; each step was run locally as above. The one behaviour that differs on a Linux runner, the ownership of files the tool containers write, was reproduced on a Linux-native Docker mount: a summary written by a container running as root could not be rewritten by user 1000, one written as user 1000 could, which is why the containers now run as the calling user on Linux. Measured k6 results are pending a quiet machine (PERFORMANCE.md).
+**Not run here.** The GitHub Actions workflows (`ci.yml`, `system-tests.yml`, `test-report-pages.yml`) have not run on a GitHub runner, because nothing can be pushed from this machine; each step was run locally as above, except the Pages deployment. The one behaviour that differs on a Linux runner, the ownership of files the tool containers write, was reproduced on a Linux-native Docker mount on 26 September 2026: a summary written by a container running as root could not be rewritten by user 1000, one written as user 1000 could, which is why the containers run as the calling user on Linux. Measured k6 results are pending a quiet machine (PERFORMANCE.md).
 
-Sixteen defects are recorded in BUGS-FOUND.md, all fixed: thirteen on this branch with regression tests, three on `feature/demo-mode`.
+Seventeen defects are recorded in BUGS-FOUND.md: sixteen fixed (thirteen on this branch, each with a regression test, and three on `feature/demo-mode`) and BUG-17 (Low) open until a product decision is made.
