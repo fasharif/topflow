@@ -6,6 +6,7 @@ import { IBM_Plex_Mono, IBM_Plex_Sans } from 'next/font/google';
 import { PortfolioNotice } from '@/components/portfolio-notice';
 import { SessionBootstrap } from '@/components/session-bootstrap';
 import { SITE_URL } from '@/lib/site';
+import { onVercel } from '@/lib/vercel';
 import './globals.css';
 
 // Plex Sans is a variable font: one file covers the 400–700 weights the interface uses.
@@ -45,8 +46,13 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
         <PortfolioNotice />
         <SessionBootstrap />
         <LucideProvider strokeWidth={1.75}>{children}</LucideProvider>
-        <Analytics />
-        <SpeedInsights />
+        {/* Their scripts are served only on Vercel (lib/vercel.ts). */}
+        {onVercel() && (
+          <>
+            <Analytics />
+            <SpeedInsights />
+          </>
+        )}
       </body>
     </html>
   );
