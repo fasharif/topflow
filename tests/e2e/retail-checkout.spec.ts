@@ -7,12 +7,22 @@ import { open } from '../support/page';
 // Money path 1: a retail customer finds a product, buys three at the listed price and pays on
 // delivery. The order must carry the catalogue price and the documented delivery and VAT rules.
 
+/**
+ * Money path 1's totals worked out by hand from the seeded price of AX-EFS-002 (AED 39.00 net), not
+ * with the shared money maths that the API and expectedRetailTotals both use, so a defect there
+ * cannot pass unnoticed: 3 × 39.00 = 117.00 net; below AED 500, so AED 25.00 delivery; VAT at 5 %
+ * of 117.00 (5.85) and of 25.00 (1.25) is 7.10; the total is 117.00 + 25.00 + 7.10 = 149.10.
+ */
+const HAND_WORKED = { subtotal: '117.00', deliveryFee: '25.00', vatAmount: '7.10', totalAmount: '149.10' };
+
 test.describe('money path 1: retail checkout', () => {
   test('a customer buys from the catalogue and the server prices the order', async ({ actAs }) => {
     const { page, api } = await actAs('customer');
     const product = await productBySku(api, PRODUCTS.fitting);
     const quantity = 3;
+    expect(product.unitPrice, `the seeded price of ${product.sku} that the hand-worked totals assume`).toBe('39.00');
     const expected = expectedRetailTotals([{ unitPrice: product.unitPrice, quantity }]);
+    expect(expected, 'the test oracle agrees with the totals worked by hand').toEqual(HAND_WORKED);
 
     await test.step('find the product by its code', async () => {
       await open(page, `/products?search=${encodeURIComponent(product.sku)}`);
@@ -60,7 +70,7 @@ test.describe('money path 1: retail checkout', () => {
         status: 'CONFIRMED',
         paymentMethod: 'CASH_ON_DELIVERY',
         paymentStatus: 'UNPAID',
-        ...expected,
+        ...HAND_WORKED,
       });
       expect(order.items).toEqual([expect.objectContaining({ sku: product.sku, quantity, unitPrice: product.unitPrice })]);
     });
