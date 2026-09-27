@@ -2,7 +2,7 @@
   "name": "topflow-hub",
   "version": "0.0.0",
   "private": true,
-  "description": "TopFlow Hub — B2B/B2C irrigation & flow-control commerce platform for Top Flow (Turborepo monorepo)",
+  "description": "TopFlow Hub: a portfolio B2B/B2C commerce platform built on Top Flow's irrigation and flow-control catalogue (Turborepo monorepo)",
   "workspaces": [
     "apps/*",
     "packages/*",
