@@ -155,6 +155,15 @@ jobs:
       - name: End-to-end coverage summary
         run: node apps/api/scripts/coverage-summary.mjs >> "$GITHUB_STEP_SUMMARY"
 
+      # Breaks each decision-table rule and the credit row lock in turn; fails if the tests miss one.
+      - name: Mutation check of the money rules
+        run: |
+          {
+            echo "### Mutation check"
+            echo
+            node tests/scripts/mutation-check.mts --with-db
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - uses: actions/upload-artifact@v7
         with:
           name: api-coverage-e2e
