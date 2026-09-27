@@ -1,8 +1,10 @@
 // End-to-end check of a production build's demo promises (ADR-021): starts `next start` on the build in
-// .next, requests real pages over HTTP and checks what a visitor or a search engine receives.
+// .next, requests real pages over HTTP and checks what a visitor, a search engine or a link preview
+// receives: the banner, noindex, page titles and Open Graph cards, robots.txt, the demo notices and the
+// note beside Top Flow's real contact details.
 //
-//   npm run build -w web && npm run test:demo -w web            (build made with NEXT_PUBLIC_DEMO_MODE=true)
-//   npm run build -w web && npm run test:demo -w web -- --off   (an ordinary build: no demo traces)
+//   NEXT_PUBLIC_DEMO_MODE=true npm run build -w web && npm run test:demo -w web   (a demo build)
+//   npm run build -w web && npm run test:demo -w web -- --off                     (an ordinary build: no demo traces)
 //
 // The API does not need to run: the pages checked here render without it. The sign-in page's list of
 // demo accounts is rendered in the browser (the form reads the query string inside a Suspense boundary),
@@ -80,6 +82,14 @@ async function run() {
       `${path}: the link preview text ${EXPECT_DEMO ? 'starts' : 'does not start'} with the banner text`,
     );
   }
+
+  // Top Flow's real phone number and email appear on the contact page and in every footer.
+  const contact = await page('/contact');
+  const contactNotes = contact.html.split("These are Top Flow's real contact details.").length - 1;
+  check(
+    EXPECT_DEMO ? contactNotes >= 2 : contactNotes === 0,
+    `the contact page ${EXPECT_DEMO ? 'says, on the page and in the footer,' : 'does not say'} that the demo does not reach Top Flow (found ${contactNotes})`,
+  );
 
   const robots = await page('/robots.txt');
   const disallowAll = /^Disallow: \/$/m.test(robots.html);

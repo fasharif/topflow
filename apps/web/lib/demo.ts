@@ -14,6 +14,13 @@ export const DEMO_MODE = parseDemoModeFlag(process.env.NEXT_PUBLIC_DEMO_MODE, 'N
  */
 export const DEMO_NO_EMAIL = 'The portfolio demo does not email visitors.';
 
+/**
+ * Next to Top Flow's real phone number, WhatsApp link and email address in demo mode, on the contact
+ * page and in the footer: a visitor who calls Top Flow must know that nothing done in the demo reached it.
+ */
+export const DEMO_CONTACT_NOTE =
+  "These are Top Flow's real contact details. Quote requests and orders made in the portfolio demo are not passed to Top Flow, and its prices are not an offer.";
+
 /** Why an action is unavailable in the demo, shown in place of the form or as its error. */
 export const DEMO_NOTICES = {
   signUp: 'New accounts are switched off in the portfolio demo, because signing up sends an email. Sign in with one of the demo accounts instead.',
