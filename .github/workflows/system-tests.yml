@@ -139,7 +139,7 @@ jobs:
           {
             echo "### k6 smoke run"
             echo
-            echo "One virtual user on a shared CI runner. The run fails on errors and failed checks; timings are shown for information, are not gated in the smoke profile and are not a performance measurement."
+            echo "One virtual user per scenario (three in all) on a shared CI runner. The run fails on errors and failed checks; timings are shown for information, are not gated in the smoke profile and are not a performance measurement."
             echo
             node tests/scripts/k6-summary-table.mts tests/reports/k6/summary-smoke.json
           } >> "$GITHUB_STEP_SUMMARY"
