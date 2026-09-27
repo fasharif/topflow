@@ -23,6 +23,19 @@ if [[ -z "${TOOL_USER:-}" ]]; then
 fi
 export TOOL_USER
 
+# Whether a URL points at this machine: localhost (or a name under .localhost), 127.0.0.1, [::1] or
+# the Docker host as a container sees it. Used to keep scripts that write test data off shared stacks.
+is_local_url() {
+  local host
+  # Drop the scheme, any user, the path, query or fragment, the port and IPv6 brackets.
+  host="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]' |
+    sed -E -e 's|^[a-z][a-z0-9+.-]*://||' -e 's|^[^@/]*@||' -e 's|[/?#].*$||' -e 's|:[0-9]+$||' -e 's|^\[(.*)\]$|\1|')"
+  case "$host" in
+    localhost | *.localhost | 127.0.0.1 | ::1 | host.docker.internal) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 # URL of a service on the host, as a tool container reaches it.
 from_container() {
   printf '%s' "$1" | sed -e 's#//localhost:#//host.docker.internal:#' -e 's#//127\.0\.0\.1:#//host.docker.internal:#'

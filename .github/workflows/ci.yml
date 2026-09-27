@@ -101,7 +101,11 @@ jobs:
         run: |
           npm run lint -w @topflow/system-tests
           npm run check-types -w @topflow/system-tests
-          shellcheck -x tests/load/run-k6.sh tests/contract/run-schemathesis.sh tests/scripts/*.sh
+          shellcheck -x tests/load/*.sh tests/contract/run-schemathesis.sh tests/scripts/*.sh
+
+      # The guard that keeps Schemathesis off shared stacks.
+      - name: System tests — script guards
+        run: bash tests/scripts/common.test.sh
 
   e2e:
     name: API end-to-end tests (PostgreSQL)
