@@ -35,7 +35,7 @@ Secrets live only in the Vercel project settings, GitHub Actions secrets and Sup
 | `APP_VERSION` | API and web (set by the container images) | Reported by `/health`, so a deployment can be checked |
 | `SUPABASE_DB_URL` (secret), `BACKUP_AGE_RECIPIENT`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `API_HEALTH_URL` (variables) | GitHub Actions | Nightly backup and keep-alive |
 | `UPTIME_WEB_URL`, `UPTIME_API_URL` (variables) | GitHub Actions | Uptime check every 15 minutes ([section 7](#7-monitoring-and-incidents)) |
-| `AWS_DEPLOY_ROLE_ARN`, `WEB_URL`, `API_URL` (variables of the `aws-staging` and `aws-production` environments); `AWS_TERRAFORM_PLAN_ROLE_ARN`, `AWS_TERRAFORM_APPLY_ROLE_ARN`, `TF_STATE_BUCKET` (repository variables) | GitHub Actions | AWS deployments ([section 11](#11-aws-prepared-not-applied)); workflows skip with a notice without them |
+| `AWS_DEPLOY_ROLE_ARN`, `WEB_URL`, `API_URL` (variables of the `aws-staging` and `aws-production` environments); `AWS_TERRAFORM_PLAN_ROLE_ARN`, `AWS_TERRAFORM_APPLY_ROLE_ARN`, `TF_STATE_BUCKET`, `ALARM_EMAIL` (repository variables) | GitHub Actions | AWS deployments ([section 11](#11-aws-prepared-not-applied)); workflows skip with a notice without them |
 
 Supabase Auth settings (site URL, redirect allow-list, password policy, MFA, email templates) are versioned in `supabase/config.toml` and applied with `npx supabase config push --project-ref <ref>` after `npx supabase login`.
 

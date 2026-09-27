@@ -10,6 +10,8 @@ name: Infrastructure
 # (bootstrap/main.tf); a push to a feature branch gets the checks only. Applies are manual, run from
 # develop, wait for the reviewers of the aws-<environment>-infra GitHub environment and apply
 # exactly the plan saved by the same run, which the reviewers read in the plan job's summary.
+# The alarm address comes from the ALARM_EMAIL repository variable, not the committed
+# terraform.tfvars, and is a sensitive variable, so the plan in the job summary does not show it.
 
 on:
   push:
@@ -75,6 +77,7 @@ jobs:
       ROLE_ARN: ${{ vars.AWS_TERRAFORM_PLAN_ROLE_ARN }}
       STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
       EVENT: ${{ github.event_name }}
+      ALARM_EMAIL: ${{ vars.ALARM_EMAIL }}
     steps:
       - uses: actions/checkout@v7
 
@@ -109,6 +112,7 @@ jobs:
       - name: Plan
         if: steps.config.outputs.ready == 'true'
         run: |
+          if [ -n "$ALARM_EMAIL" ]; then export TF_VAR_alarm_email="$ALARM_EMAIL"; fi
           terraform init -input=false -lockfile=readonly -backend-config="bucket=$STATE_BUCKET"
           terraform plan -input=false -lock-timeout=5m -no-color -out=plan.tfplan
           {
@@ -119,7 +123,9 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       # The apply job applies this file, not a new plan. Plans hold identifiers (account, ARNs,
-      # host names) but no secrets: none pass through Terraform (secrets.tf).
+      # host names) but no secrets: none pass through Terraform (secrets.tf). Like every plan file,
+      # it holds sensitive values such as the alarm address in plain text, and anyone signed in to
+      # GitHub can download a public repository's artifacts for the five days it is kept.
       - uses: actions/upload-artifact@v7
         if: steps.config.outputs.ready == 'true'
         with:

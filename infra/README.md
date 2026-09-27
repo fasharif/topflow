@@ -130,12 +130,13 @@ The order matters: ECS services are created without tasks, so nothing starts bef
 2. **Request an ACM certificate** in `ap-south-1` for the web and API host names and validate it through DNS.
 3. **Configure GitHub** (Settings → Environments and Variables):
    - environments `aws-staging` and `aws-production` for the Deploy workflow, and `aws-staging-infra` and `aws-production-infra` for Terraform applies. Give each required reviewers and limit it to the `develop` branch. Use exactly these names: the roles trust them, and GitHub matches environment names without regard to case, so a plain `production` would be the `Production` environment Vercel created, which has no protection rules;
-   - repository variables `AWS_TERRAFORM_PLAN_ROLE_ARN`, `AWS_TERRAFORM_APPLY_ROLE_ARN`, `TF_STATE_BUCKET`, optionally `AWS_REGION`;
+   - repository variables `AWS_TERRAFORM_PLAN_ROLE_ARN`, `AWS_TERRAFORM_APPLY_ROLE_ARN`, `TF_STATE_BUCKET`, optionally `AWS_REGION` and `ALARM_EMAIL` (the address CloudWatch alarms notify);
    - make the three GHCR packages public once the Containers workflow has published them (ECS pulls them without credentials).
-4. **Fill in each environment's `terraform.tfvars`** from `terraform.tfvars.example` (no secrets) and commit it.
+4. **Fill in each environment's `terraform.tfvars`** from `terraform.tfvars.example` (no secrets, no personal data) and commit it. The alarm address is not in it: CI passes `ALARM_EMAIL` as `TF_VAR_alarm_email`, a sensitive variable, so plans show `(sensitive value)` instead. Like every Terraform plan file, the saved plan (a workflow artifact kept five days, which anyone signed in to GitHub can download from a public repository) still holds it in plain text. The bootstrap's `terraform.tfvars`, with the budget addresses, is ignored by Git and stays with its local state.
 5. **Apply the environment**: the Infrastructure workflow, run manually on `develop` with `apply: staging`, plans both environments and, after a reviewer of `aws-staging-infra` approves, applies the staging plan it showed. Locally:
    ```bash
    cd infra/terraform/environments/staging
+   export TF_VAR_alarm_email=alerts@example.com   # optional
    terraform init -backend-config="bucket=<state_bucket>" && terraform apply
    ```
 6. **Create the secret parameters** listed by the `secret_parameter_names` output, with the environment's KMS key:

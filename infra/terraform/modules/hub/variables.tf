@@ -183,6 +183,8 @@ variable "alarm_email" {
   description = "Email address that receives alarm notifications (confirm the subscription email). Null for none."
   type        = string
   default     = null
+  # A personal address: kept out of plan output, which CI shows in a public job summary.
+  sensitive = true
 }
 
 variable "container_insights" {

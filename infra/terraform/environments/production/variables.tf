@@ -36,9 +36,10 @@ variable "sentry_dsn" {
 }
 
 variable "alarm_email" {
-  description = "Address that receives alarm notifications, or null."
+  description = "Address that receives alarm notifications, or null. Set it with TF_VAR_alarm_email (in CI, the ALARM_EMAIL repository variable) rather than in terraform.tfvars, which is committed to a public repository."
   type        = string
   default     = null
+  sensitive   = true
 }
 
 variable "api_environment" {

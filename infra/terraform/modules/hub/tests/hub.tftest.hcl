@@ -208,8 +208,13 @@ run "production_with_sentry_and_alarm_email" {
   }
 
   assert {
-    condition     = length(aws_sns_topic_subscription.email) == 1 && aws_sns_topic_subscription.email[0].endpoint == "alerts@example.com"
+    condition     = length(aws_sns_topic_subscription.email) == 1 && nonsensitive(aws_sns_topic_subscription.email[0].endpoint) == "alerts@example.com"
     error_message = "alarm_email must subscribe to the alarm topic."
+  }
+
+  assert {
+    condition     = issensitive(aws_sns_topic_subscription.email[0].endpoint)
+    error_message = "The alarm address must stay out of plan output."
   }
 
   assert {

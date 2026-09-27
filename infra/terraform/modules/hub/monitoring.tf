@@ -20,7 +20,8 @@ resource "aws_sns_topic" "alarms" {
 }
 
 resource "aws_sns_topic_subscription" "email" {
-  count = var.alarm_email == null ? 0 : 1
+  # Whether an address is set is not itself sensitive; count cannot use a sensitive value.
+  count = nonsensitive(var.alarm_email != null) ? 1 : 0
 
   topic_arn = aws_sns_topic.alarms.arn
   protocol  = "email"

@@ -1,11 +1,12 @@
 # Copy to terraform.tfvars (not a secret: every value here is public or an identifier) and adjust.
 # Secrets are SSM parameters, created separately (see the secret_parameter_names output).
+# alarm_email is personal data: set TF_VAR_alarm_email (in CI, the ALARM_EMAIL repository variable)
+# instead of committing it here.
 web_domain               = "staging.hub.example.com"
 api_domain               = "api.staging.hub.example.com"
 certificate_arn          = "arn:aws:acm:ap-south-1:123456789012:certificate/00000000-0000-0000-0000-000000000000"
 supabase_url             = "https://your-project-ref.supabase.co"
 supabase_publishable_key = "sb_publishable_replace_me"
-alarm_email              = "alerts@example.com"
 # sentry_dsn             = "https://<key>@<org>.ingest.sentry.io/<project>"
 
 api_environment = {
