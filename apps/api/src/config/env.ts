@@ -97,7 +97,8 @@ export const envSchema = z
       .enum(['development', 'test', 'production'])
       .default('development'),
     PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
-    APP_VERSION: z.string().default('3.0.0'),
+    // The release number: release-please sets it in each release pull request.
+    APP_VERSION: z.string().default('0.0.0'), // x-release-please-version
     APP_PUBLIC_URL: z.url().default('http://localhost:3002'),
 
     DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
