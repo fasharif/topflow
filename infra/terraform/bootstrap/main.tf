@@ -134,8 +134,10 @@ resource "aws_iam_openid_connect_provider" "github" {
   client_id_list = ["sts.amazonaws.com"]
 }
 
-# Plans run for pull requests and pushes to develop. ReadOnlyAccess includes no kms:Decrypt, so a
-# plan cannot read the environments' SecureString parameters.
+# Plans run for pull requests and pushes to develop, so any branch of the repository can use this
+# role through a pull request. ReadOnlyAccess includes no kms:Decrypt, so a plan cannot read the
+# environments' SecureString parameters, and the policy below takes away the application data it
+# would otherwise read: log contents and every S3 object except the Terraform state.
 resource "aws_iam_role" "terraform_plan" {
   name                 = "${var.project}-terraform-plan"
   description          = "Terraform plan from GitHub Actions (${var.github_repository})"
@@ -184,9 +186,37 @@ resource "aws_iam_role_policy" "terraform_plan_state" {
   })
 }
 
+resource "aws_iam_role_policy" "terraform_plan_no_data" {
+  name = "no-application-data"
+  role = aws_iam_role.terraform_plan.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        # Application and VPC flow logs hold request paths, client addresses and error details.
+        Sid    = "NoLogContents"
+        Effect = "Deny"
+        Action = [
+          "logs:GetLogEvents", "logs:FilterLogEvents", "logs:GetLogRecord", "logs:StartQuery",
+          "logs:GetQueryResults", "logs:StartLiveTail",
+        ]
+        Resource = "*"
+      },
+      {
+        # The load balancers' access logs hold client addresses and full URLs. A plan reads no
+        # object other than the state (and its lock, which the policy above covers).
+        Sid         = "NoObjectsButState"
+        Effect      = "Deny"
+        Action      = ["s3:GetObject", "s3:GetObjectVersion"]
+        NotResource = "${aws_s3_bucket.state.arn}/*"
+      },
+    ]
+  })
+}
+
 # Applies run only from a job in the aws-staging-infra or aws-production-infra GitHub environment,
 # after a reviewer approves it. PowerUserAccess covers every service the environments use, which
-# makes this a powerful role: the environment approval is its main control. IAM is the exception:
+# makes this a broad role: the environment approval is its main control. IAM is the exception:
 # PowerUserAccess grants none, and the policy below lets the role manage only the environments'
 # roles, and only when they carry the workload boundary.
 resource "aws_iam_role" "terraform_apply" {

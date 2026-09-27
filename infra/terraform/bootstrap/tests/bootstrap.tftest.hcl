@@ -49,6 +49,20 @@ run "account_foundation" {
   }
 
   assert {
+    condition = (
+      anytrue([
+        for statement in jsondecode(aws_iam_role_policy.terraform_plan_no_data.policy).Statement :
+        statement.Effect == "Deny" && statement.Resource == "*" && length(setsubtract(["logs:GetLogEvents", "logs:FilterLogEvents", "logs:StartQuery"], statement.Action)) == 0
+      ]) &&
+      anytrue([
+        for statement in jsondecode(aws_iam_role_policy.terraform_plan_no_data.policy).Statement :
+        statement.Effect == "Deny" && contains(statement.Action, "s3:GetObject") && try(statement.NotResource, "") == "arn:aws:s3:::topflow-hub-tfstate-123456789012/*"
+      ])
+    )
+    error_message = "The plan role must not read log contents or any S3 object but the Terraform state."
+  }
+
+  assert {
     condition = jsondecode(aws_iam_role.terraform_apply.assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"] == [
       "repo:fasharif/topflow:environment:aws-staging-infra",
       "repo:fasharif/topflow:environment:aws-production-infra",
