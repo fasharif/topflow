@@ -10,9 +10,9 @@ export const DEMO_MODE = parseDemoModeFlag(process.env.NEXT_PUBLIC_DEMO_MODE, 'N
 
 /**
  * Said wherever the app would otherwise report that an email went out: in the demo the API withholds
- * business email (ADR-021).
+ * business email from everyone except the maintainer's allow-list, DEMO_MAIL_ALLOWLIST (ADR-021).
  */
-export const DEMO_NO_EMAIL = 'The portfolio demo sends no email.';
+export const DEMO_NO_EMAIL = 'The portfolio demo does not email visitors.';
 
 /** Why an action is unavailable in the demo, shown in place of the form or as its error. */
 export const DEMO_NOTICES = {

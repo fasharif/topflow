@@ -238,9 +238,8 @@ export default function QuotePage() {
             <p className="mt-1 font-mono text-2xl font-semibold tracking-wide text-ink-900">{sent.receipt.number}</p>
             {DEMO_MODE ? (
               <p className="mx-auto mt-5 max-w-lg text-sm leading-relaxed text-slate-600">
-                {DEMO_NO_EMAIL} No confirmation went to <strong className="font-medium text-ink-900">{sent.email}</strong>, and nobody at Top Flow
-                will reply. The request is waiting in the demo&apos;s sales inbox: sign in with the Top Flow sales demo account to review it and build a
-                quotation.
+                {DEMO_NO_EMAIL} Nobody at Top Flow will reply to this request: it is waiting in the demo&apos;s sales inbox. Sign in with the Top Flow
+                sales demo account to review it and build a quotation.
               </p>
             ) : (
               <p className="mx-auto mt-5 max-w-lg text-sm leading-relaxed text-slate-600">

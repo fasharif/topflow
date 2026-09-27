@@ -71,7 +71,11 @@ export function StaffUserForm({ onCreated, onCancel }: { onCreated: (user: UserA
     <Card>
       <CardHeader
         title="Invite a staff member"
-        description="We email an invitation. They choose their own password, and back-office access asks them to set up two-factor authentication."
+        description={
+          DEMO_MODE
+            ? 'We email an invitation. They choose their own password.'
+            : 'We email an invitation. They choose their own password, and back-office access asks them to set up two-factor authentication.'
+        }
       />
       <form onSubmit={submit} noValidate className="grid gap-4 p-5 sm:grid-cols-2">
         {DEMO_MODE && (
@@ -82,7 +86,7 @@ export function StaffUserForm({ onCreated, onCancel }: { onCreated: (user: UserA
           </div>
         )}
         {field('fullName', 'Full name', 'text')}
-        {field('email', 'Work email', 'email', 'name@topflow.ae')}
+        {field('email', 'Work email', 'email', DEMO_MODE ? 'name@example.com' : 'name@topflow.ae')}
         {field('phoneNumber', 'Mobile number (optional)', 'tel', '+971 50 123 4567')}
         <Field label="Role" htmlFor="staff-role" error={errors.role} hint={STAFF_ROLE_SUMMARIES[draft.role]}>
           <Select id="staff-role" value={draft.role} onChange={(e) => setDraft({ ...draft, role: e.target.value as StaffRole })}>
