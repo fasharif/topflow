@@ -4,7 +4,12 @@ import {
   sentryOptions,
   type ErrorReportingSdk,
 } from './sentry';
-import { scrubBreadcrumb, scrubEvent } from './sentry-config';
+import {
+  DATA_COLLECTION,
+  scrubBreadcrumb,
+  scrubEvent,
+  scrubSpan,
+} from './sentry-config';
 
 const DSN = 'https://0123456789abcdef@o123456.ingest.sentry.io/7654321';
 
@@ -54,9 +59,23 @@ describe('error reporting (Sentry)', () => {
       environment: 'production',
       release: 'sha-1a2b3c4',
       tracesSampleRate: 0.2,
-      sendDefaultPii: false,
+      traceLifecycle: 'stream',
+      dataCollection: DATA_COLLECTION,
       beforeSend: scrubEvent,
+      beforeSendSpan: scrubSpan,
       beforeBreadcrumb: scrubBreadcrumb,
+    });
+  });
+
+  it('turns off every kind of personal data the SDK would collect by default', () => {
+    expect(DATA_COLLECTION).toMatchObject({
+      userInfo: false,
+      cookies: false,
+      httpBodies: [],
+      urlQueryParams: false,
+      databaseQueryData: false,
+      stackFrameVariables: false,
+      httpHeaders: { response: false },
     });
   });
 
@@ -69,18 +88,83 @@ describe('error reporting (Sentry)', () => {
           cookie: 'sb=1',
           'x-topflow-internal-auth': 'secret',
           'x-forwarded-for': '203.0.113.7',
+          referer: 'https://hub.example.com/auth/confirm?token_hash=secret',
           'user-agent': 'Mozilla/5.0',
         },
         cookies: { sb: '1' },
         query_string: 'search=secret',
         data: { password: 'secret' },
       },
+      user: { ip_address: '203.0.113.7' },
+      contexts: {
+        trace: {
+          data: {
+            'url.full': 'https://api.example.com/org/quotations?search=secret',
+            'client.address': '203.0.113.7',
+          },
+        },
+      },
     });
-    expect(event.request).toEqual({
-      url: 'https://api.example.com/org/quotations',
-      headers: { 'user-agent': 'Mozilla/5.0' },
+    expect(event).toEqual({
+      request: {
+        url: 'https://api.example.com/org/quotations',
+        headers: { 'user-agent': 'Mozilla/5.0' },
+      },
+      contexts: {
+        trace: {
+          data: { 'url.full': 'https://api.example.com/org/quotations' },
+        },
+      },
     });
     expect(scrubEvent({})).toEqual({});
+  });
+
+  it('strips query strings, client addresses and private headers from spans', () => {
+    const span = scrubSpan({
+      name: 'GET /auth/confirm?token_hash=secret&type=recovery',
+      attributes: {
+        'sentry.op': 'http.server',
+        'url.full': 'https://api.example.com/auth/confirm?token_hash=secret',
+        'http.url': 'https://api.example.com/auth/confirm?token_hash=secret',
+        'http.target': '/auth/confirm?token_hash=secret',
+        'url.path': '/auth/confirm',
+        'url.query': 'token_hash=secret',
+        'http.query': 'token_hash=secret',
+        'client.address': '203.0.113.7',
+        'network.peer.address': '203.0.113.7',
+        'http.request.header.cookie': ['sb=1'],
+        'http.request.header.authorization': ['Bearer token'],
+        'http.request.header.x-forwarded-for': ['203.0.113.7'],
+        'http.request.header.user-agent': ['Mozilla/5.0'],
+        'http.response.header.set-cookie': ['sb=2'],
+        'http.request.body.data': '{"password":"secret"}',
+        'http.request.body.size': 21,
+        'sentry.segment.name': 'GET /auth/confirm?token_hash=secret',
+        'user.name': 'someone',
+        'db.query.text': 'SELECT * FROM "Product" WHERE id = ?',
+        'http.response.status_code': 200,
+      },
+    });
+    expect(span).toEqual({
+      name: 'GET /auth/confirm',
+      attributes: {
+        'sentry.op': 'http.server',
+        'url.full': 'https://api.example.com/auth/confirm',
+        'http.url': 'https://api.example.com/auth/confirm',
+        'http.target': '/auth/confirm',
+        'url.path': '/auth/confirm',
+        'http.request.header.user-agent': ['Mozilla/5.0'],
+        'http.request.body.size': 21,
+        'sentry.segment.name': 'GET /auth/confirm',
+        'db.query.text': 'SELECT * FROM "Product" WHERE id = ?',
+        'http.response.status_code': 200,
+      },
+    });
+    expect(
+      scrubSpan({
+        name: 'GET https://project.supabase.co/auth/v1/user?email=a%40b.c',
+      }),
+    ).toEqual({ name: 'GET https://project.supabase.co/auth/v1/user' });
   });
 
   it('keeps query strings of outgoing calls and console output out of breadcrumbs', () => {

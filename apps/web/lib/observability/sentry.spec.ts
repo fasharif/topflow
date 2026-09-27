@@ -1,4 +1,16 @@
-import { redactRequest, reportRequestError, scrubBreadcrumb, scrubEvent, sentryOptions, startErrorReporting, type ErrorContext, type ErrorReportingSdk, type ErrorRequest } from './sentry';
+import {
+  DATA_COLLECTION,
+  redactRequest,
+  reportRequestError,
+  scrubBreadcrumb,
+  scrubEvent,
+  scrubSpan,
+  sentryOptions,
+  startErrorReporting,
+  type ErrorContext,
+  type ErrorReportingSdk,
+  type ErrorRequest,
+} from './sentry';
 
 const DSN = 'https://0123456789abcdef@o123456.ingest.sentry.io/7654321';
 
@@ -51,9 +63,39 @@ describe('web error reporting (Sentry)', () => {
       environment: 'staging',
       release: 'sha-1a2b3c4',
       tracesSampleRate: 0,
-      sendDefaultPii: false,
+      traceLifecycle: 'stream',
+      dataCollection: DATA_COLLECTION,
       beforeSend: scrubEvent,
+      beforeSendSpan: scrubSpan,
       beforeBreadcrumb: scrubBreadcrumb,
+    });
+    expect(DATA_COLLECTION).toMatchObject({ userInfo: false, cookies: false, httpBodies: [], urlQueryParams: false, stackFrameVariables: false });
+  });
+
+  it('strips query strings, client addresses and private headers from spans (tracing on)', () => {
+    const span = scrubSpan({
+      name: 'GET /auth/confirm?token_hash=secret&type=recovery',
+      attributes: {
+        'http.target': '/auth/confirm?token_hash=secret&type=recovery',
+        'http.url': 'https://hub.example.com/auth/confirm?token_hash=secret',
+        'next.route': '/auth/confirm',
+        'url.query': 'token_hash=secret',
+        'http.client_ip': '203.0.113.7',
+        'http.request.header.cookie': ['sb-access-token=secret'],
+        'http.request.header.accept': ['text/html'],
+        'http.request.body.data': 'email=someone%40example.com',
+        'sentry.segment.name': 'GET /auth/confirm?token_hash=secret',
+      },
+    });
+    expect(span).toEqual({
+      name: 'GET /auth/confirm',
+      attributes: {
+        'http.target': '/auth/confirm',
+        'http.url': 'https://hub.example.com/auth/confirm',
+        'next.route': '/auth/confirm',
+        'http.request.header.accept': ['text/html'],
+        'sentry.segment.name': 'GET /auth/confirm',
+      },
     });
   });
 
@@ -71,13 +113,14 @@ describe('web error reporting (Sentry)', () => {
     const event = scrubEvent({
       request: {
         url: 'https://hub.example.com/checkout?coupon=secret',
-        headers: { Cookie: 'sb=1', authorization: 'Bearer token', 'x-real-ip': '203.0.113.7', accept: 'text/html' },
+        headers: { Cookie: 'sb=1', authorization: 'Bearer token', 'x-real-ip': '203.0.113.7', referer: 'https://hub.example.com/?token=1', accept: 'text/html' },
         cookies: { sb: '1' },
         query_string: 'coupon=secret',
         data: { password: 'secret' },
       },
+      user: { ip_address: '203.0.113.7' },
     });
-    expect(event.request).toEqual({ url: 'https://hub.example.com/checkout', headers: { accept: 'text/html' } });
+    expect(event).toEqual({ request: { url: 'https://hub.example.com/checkout', headers: { accept: 'text/html' } } });
   });
 
   it('reports server errors without the query string, cookies or secrets', async () => {
