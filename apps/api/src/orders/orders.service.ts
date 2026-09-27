@@ -31,6 +31,7 @@ import {
   toFils,
   type CancelOrderInput,
   type CheckoutInput,
+  type DispatchEvent,
   type OrderDto,
   type OrderQuery,
   type OrderSummaryDto,
@@ -643,13 +644,18 @@ export class OrdersService {
    * dispatched (outcome PENDING), in the transaction that dispatches it. Both paths lock the order
    * row first (this one by updating it), so an event arriving at the same moment is either seen
    * here or sees the order dispatched.
+   *
+   * A stored event that no longer parses (the schema was tightened after it arrived) must not
+   * block the warehouse: it is set aside as IGNORED with a logged reason, and the order is
+   * dispatched without it. Every other waiting event of the order is set aside too, so at most
+   * one delivery is applied.
    */
   private async applyWaitingDelivery(
     tx: Prisma.TransactionClient,
     orderId: string,
     dispatchedAt: Date,
   ): Promise<OrderRecord | null> {
-    const waiting = await tx.dispatchEvent.findFirst({
+    const waiting = await tx.dispatchEvent.findMany({
       where: {
         orderId,
         type: 'delivery.completed',
@@ -657,18 +663,40 @@ export class OrdersService {
       },
       orderBy: { receivedAt: 'asc' },
     });
-    if (!waiting) return null;
-    const event = dispatchEventSchema.parse(waiting.payload);
-    const result = await this.deliverFromDispatch(
-      tx,
-      dispatchDeliveryFrom(event, { ipAddress: null, notBefore: dispatchedAt }),
-    );
+    let chosen: { id: string; event: DispatchEvent } | null = null;
+    for (const row of waiting) {
+      const parsed = dispatchEventSchema.safeParse(row.payload);
+      if (parsed.success) {
+        chosen = { id: row.id, event: parsed.data };
+        break;
+      }
+      const issue = parsed.error.issues[0];
+      this.logger.warn(
+        `Set aside waiting dispatch event ${row.id} for order ${orderId}: it no longer parses` +
+          (issue
+            ? ` (${issue.path.map(String).join('.')}: ${issue.message})`
+            : ''),
+      );
+    }
     await tx.dispatchEvent.updateMany({
-      where: { orderId, outcome: DispatchEventOutcome.PENDING },
+      where: {
+        orderId,
+        outcome: DispatchEventOutcome.PENDING,
+        ...(chosen && { id: { not: chosen.id } }),
+      },
       data: { outcome: DispatchEventOutcome.IGNORED },
     });
+    if (!chosen) return null;
+
+    const result = await this.deliverFromDispatch(
+      tx,
+      dispatchDeliveryFrom(chosen.event, {
+        ipAddress: null,
+        notBefore: dispatchedAt,
+      }),
+    );
     await tx.dispatchEvent.update({
-      where: { id: waiting.id },
+      where: { id: chosen.id },
       data: {
         outcome:
           result.outcome === 'applied'

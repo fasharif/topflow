@@ -1332,6 +1332,42 @@ describe('TopFlow Hub API (e2e)', () => {
       });
     });
 
+    it('dispatches an order whose waiting completion no longer parses, and sets that event aside', async () => {
+      const order = await retailOrder('PROCESSING');
+      const event = dispatchEvent('delivery.completed', order.orderNumber);
+      // Stored when it was valid; a stricter schema would now refuse it.
+      await prisma.dispatchEvent.create({
+        data: {
+          id: event.id,
+          type: event.type,
+          deliveryId: event.data.deliveryId,
+          orderReference: order.orderNumber,
+          orderId: order.id,
+          outcome: 'PENDING',
+          occurredAt: new Date(event.data.occurredAt),
+          payload: {
+            ...event,
+            data: {
+              ...event.data,
+              proof: { ...event.data.proof, distanceMeters: -5 },
+            },
+          },
+        },
+      });
+
+      const dispatched = await http()
+        .patch(`/admin/orders/${order.id}/status`)
+        .set(bearer(await sessionFor('warehouse@topflow.ae')))
+        .send({ status: 'DISPATCHED' })
+        .expect(200);
+      expect((dispatched.body as OrderDto).status).toBe('DISPATCHED');
+      expect(
+        await prisma.dispatchEvent.findUniqueOrThrow({
+          where: { id: event.id },
+        }),
+      ).toMatchObject({ outcome: 'IGNORED' });
+    });
+
     it('records event types it does not know yet and acknowledges them', async () => {
       const order = await retailOrder('DISPATCHED');
       const base = dispatchEvent('delivery.assigned', order.orderNumber);
