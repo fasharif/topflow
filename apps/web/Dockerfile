@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-#
 # TopFlow Hub web app (Next.js standalone server). Build from the repository root:
 #
 #   docker build -f apps/web/Dockerfile -t topflow-hub-web .
@@ -12,7 +10,9 @@
 # ADR-023 in docs/DECISIONS.md.
 #
 # Runs as the unprivileged `node` user without npm, from the ECR Public mirror of the Docker
-# Official Node.js image (no Docker Hub pull limits), pinned by digest.
+# Official Node.js image (no Docker Hub pull limits), pinned by digest. There is no `# syntax=`
+# line: BuildKit's built-in Dockerfile frontend supports everything used here (RUN --mount), so
+# no frontend image is pulled from Docker Hub.
 
 # The base image, pinned by tag and digest, on a literal FROM line so Dependabot can update both
 # (it does not read images from build arguments). Every other stage starts from this one.

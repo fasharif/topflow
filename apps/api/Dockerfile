@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-#
 # TopFlow Hub API (NestJS). Two images from one build, both built from the repository root:
 #
 #   docker build -f apps/api/Dockerfile --target api     -t topflow-hub-api .
@@ -12,7 +10,9 @@
 # stack (docker-compose.prod.yml, profile "demo"); it carries the build toolchain and is never pushed.
 #
 # Both images run as the unprivileged `node` user without npm, and start from the ECR Public
-# mirror of the Docker Official Node.js image (no Docker Hub pull limits), pinned by digest.
+# mirror of the Docker Official Node.js image (no Docker Hub pull limits), pinned by digest. There
+# is no `# syntax=` line: BuildKit's built-in Dockerfile frontend supports everything used here
+# (RUN --mount, COPY --chmod), so no frontend image is pulled from Docker Hub.
 
 # The base image, pinned by tag and digest, on a literal FROM line so Dependabot can update both
 # (it does not read images from build arguments). Every other stage starts from this one.

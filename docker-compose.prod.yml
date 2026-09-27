@@ -80,7 +80,7 @@ services:
     restart: unless-stopped
 
   auth:
-    image: public.ecr.aws/supabase/gotrue:v2.196.0
+    image: public.ecr.aws/supabase/gotrue:v2.196.0@sha256:c0c25187a6b835e65a6f6e6c6b39d090e832d40e6de5186f2c038e0411944232
     depends_on:
       db:
         condition: service_healthy
@@ -138,7 +138,7 @@ services:
     restart: unless-stopped
 
   mail:
-    image: public.ecr.aws/supabase/mailpit:v1.30.2
+    image: public.ecr.aws/supabase/mailpit:v1.30.2@sha256:37a38e48e9338cd7e89dfeb487f37b02ebfcd9cb23111bed2d345e79d37d6dd6
     ports:
       - "127.0.0.1:${MAIL_PORT:-8025}:8025"
     mem_limit: 64m
