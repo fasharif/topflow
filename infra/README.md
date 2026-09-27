@@ -151,6 +151,24 @@ The order matters: ECS services are created without tasks, so nothing starts bef
 
 ### Releasing, rolling back and restarting
 
+```mermaid
+flowchart LR
+  subgraph C["Containers workflow (pushes and pull requests; publishing on develop only)"]
+    B["build api, migrate, web"] --> T["Trivy: fail on critical"]
+    T --> S["Compose stack + smoke test<br/>(Supabase Auth sign-in)"]
+    S --> P["publish the tested images to GHCR<br/>provenance + SBOM attestations"]
+  end
+  subgraph D["Deploy workflow (manual, environment reviewers)"]
+    V["gh attestation verify<br/>pin digests"] --> M["release step: migrations"]
+    M --> A["update API"]
+    A --> W["update web"]
+    W --> R["record current and previous tags"]
+    R --> K["smoke test of the public URLs"]
+    W -. web fails .-> AB["API back on its previous revision"]
+  end
+  P --> V
+```
+
 The Containers workflow publishes `ghcr.io/fasharif/topflow-hub-{api,migrate,web}:sha-<commit>` for every push to `develop`: the very images it scanned and smoke-tested (it checks their image IDs), each with a signed build provenance attestation and an SBOM attestation. Run the **Deploy** workflow with the environment, `deploy` and that tag. After a reviewer approves, the workflow resolves each tag to its digest and runs `gh attestation verify`, which must find a provenance attestation for that digest from this repository's Containers workflow on `develop`. Then `deploy-ecs.sh`:
 
 1. registers task definitions with the new images, pinned to the verified digests;
