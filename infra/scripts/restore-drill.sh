@@ -29,6 +29,9 @@ Usage: restore-drill.sh --backup FILE.tar.gz.age --identity KEY.txt [options]
   --report FILE     also write the result as Markdown to FILE
   --keep            keep the restored container for inspection
   -h, --help        show this help
+
+Environment: RESTORE_DRILL_IMAGE sets the default image; RESTORE_DRILL_PREFIX names the disposable
+container (default topflow-restore-drill), so parallel runs on a shared Docker host stay apart.
 USAGE
 }
 
@@ -69,7 +72,7 @@ now_ms() {
 seconds() { printf '%d.%01d' $(($1 / 1000)) $((($1 % 1000) / 100)); }
 
 workdir="$(mktemp -d)"
-container="topflow-restore-drill-$$-$RANDOM"
+container="${RESTORE_DRILL_PREFIX:-topflow-restore-drill}-$$-$RANDOM"
 password="$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
 # shellcheck disable=SC2317,SC2329 # called by the EXIT trap below (SC2317 before ShellCheck 0.11, SC2329 since)
 cleanup() {
@@ -122,9 +125,12 @@ start_ms=$(($(now_ms) - step))
 # 3. Restore in one transaction, as docs/OPERATIONS.md describes for a real restore.
 step=$(now_ms)
 docker exec "$container" mkdir -p /tmp/restore
-docker cp --quiet "$workdir/roles.sql" "$container:/tmp/restore/roles.sql"
-docker cp --quiet "$workdir/schema.sql" "$container:/tmp/restore/schema.sql"
-docker cp --quiet "$workdir/data.sql" "$container:/tmp/restore/data.sql"
+# No --quiet: older Docker CLIs (Debian 12's 20.10, for example) reject it. Newer ones report each
+# copy on stderr, which is kept for the error message.
+for file in roles schema data; do
+  copied="$(docker cp "$workdir/$file.sql" "$container:/tmp/restore/$file.sql" 2>&1)" ||
+    fail "could not copy $file.sql into the restore container: $copied"
+done
 psql_in_container --single-transaction \
   --file /tmp/restore/roles.sql --file /tmp/restore/schema.sql \
   --command 'SET session_replication_role = replica' --file /tmp/restore/data.sql >/dev/null \

@@ -4,6 +4,8 @@
 # that a wrong key, a damaged file and a missing table each make it fail.
 #
 #   infra/scripts/tests/restore-drill.test.sh --container SOURCE_CONTAINER --database DB [--image postgres:17]
+#
+# RESTORE_DRILL_PREFIX, when set, names the drill's disposable containers, as in restore-drill.sh.
 set -Eeuo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -67,7 +69,7 @@ ok "a table the backup does not contain fails the drill"
 expect_failure 'Usage' --backup "$work/backup.tar.gz.age"
 ok "a missing key is a usage error"
 
-leftover="$(docker ps --all --quiet --filter name=topflow-restore-drill-)"
+leftover="$(docker ps --all --quiet --filter "name=${RESTORE_DRILL_PREFIX:-topflow-restore-drill}-")"
 [[ -z "$leftover" ]] || not_ok "restore containers were left behind: $leftover"
 ok "every disposable container was removed"
 
