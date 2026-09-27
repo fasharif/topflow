@@ -34,7 +34,7 @@ Secrets live only in the Vercel project settings, GitHub Actions secrets and Sup
 | `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `SENTRY_TRACES_SAMPLE_RATE` | API **and** web (optional) | Server errors go to Sentry when `SENTRY_DSN` is set; without it nothing is sent |
 | `APP_VERSION` | API and web (set by the container images) | Reported by `/health`, so a deployment can be checked |
 | `SUPABASE_DB_URL` (secret), `BACKUP_AGE_RECIPIENT`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `API_HEALTH_URL` (variables) | GitHub Actions | Nightly backup and keep-alive |
-| `UPTIME_WEB_URL`, `UPTIME_API_URL` (variables) | GitHub Actions | Uptime check every 15 minutes ([section 7](#7-monitoring-and-incidents)) |
+| `UPTIME_WEB_URL`, `UPTIME_API_URL` (variables) | GitHub Actions | Uptime check every 15 minutes, once its schedule is enabled ([section 7](#7-monitoring-and-incidents)) |
 | `AWS_DEPLOY_ROLE_ARN`, `WEB_URL`, `API_URL` (variables of the `aws-staging` and `aws-production` environments); `AWS_TERRAFORM_PLAN_ROLE_ARN`, `AWS_TERRAFORM_APPLY_ROLE_ARN`, `TF_STATE_BUCKET`, `ALARM_EMAIL` (repository variables) | GitHub Actions | AWS deployments ([section 11](#11-aws-prepared-not-applied)); workflows skip with a notice without them |
 
 Supabase Auth settings (site URL, redirect allow-list, password policy, MFA, email templates) are versioned in `supabase/config.toml` and applied with `npx supabase config push --project-ref <ref>` after `npx supabase login`.
@@ -108,7 +108,7 @@ It restores into the Supabase Postgres image by default, because Supabase dumps 
 Every API response and error carries `x-request-id`; search the logs for it (Vercel, CloudWatch or `docker compose logs`).
 
 - **Error reporting.** With `SENTRY_DSN` set, the API reports every 5xx (with its request id) and the web server reports errors in Server Components, Route Handlers, Server Actions and the proxy. Sentry 11 collects cookies, headers, bodies, query strings and client addresses unless told otherwise, so both apps switch every category off (`dataCollection`) and keep only a few request headers (`accept*`, `content-type`, `content-length`, `host`, `user-agent`, `x-request-id`). A scrubber then filters error events and breadcrumbs, and every span when `SENTRY_TRACES_SAMPLE_RATE` is above 0: query strings and fragments go from URLs and span names, and bodies, client addresses, user details and other headers are removed. Console output is not sent. Tests run the real SDK with a recording transport to check this. Error messages and stack traces are sent as written, so code must not put personal data into them. Without the variable the SDK is never started. Browser-side errors are not reported (ADR-023).
-- **Uptime.** `.github/workflows/uptime.yml` checks both health endpoints, database readiness and the home page every 15 minutes, with retries; a failed run emails whoever last changed the schedule.
+- **Uptime.** `.github/workflows/uptime.yml` checks both health endpoints, database readiness and the home page, with retries; a failed scheduled run emails whoever last changed the schedule. Its 15-minute schedule is commented out until something is hosted; after the first deploy, set `UPTIME_WEB_URL` and `UPTIME_API_URL` and uncomment it.
 
 ## 8. Rotating secrets
 

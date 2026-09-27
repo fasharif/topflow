@@ -147,7 +147,7 @@ The order matters: ECS services are created without tasks, so nothing starts bef
    `DATABASE_URL` is Supabase's transaction pooler (port 6543), `DIRECT_URL` its session pooler (5432), `INTERNAL_API_SECRET` 32+ random characters, `SUPABASE_SECRET_KEY` the project's secret key, `RESEND_API_KEY` the email key.
 7. **Point DNS** for both host names at the `load_balancer_dns_name` output, and set the `aws-staging` environment's variables: `AWS_DEPLOY_ROLE_ARN` (the `deploy_role_arn` output), `WEB_URL` and `API_URL`.
 8. **Run the first release**: the Deploy workflow with `staging`, `deploy` and a `sha-<commit>` tag from the Containers workflow. It migrates the database, then starts each service at its auto scaling minimum.
-9. For the uptime check, set the repository variables `UPTIME_WEB_URL` and `UPTIME_API_URL`.
+9. For the uptime check, set the repository variables `UPTIME_WEB_URL` and `UPTIME_API_URL`, then uncomment the schedule in `.github/workflows/uptime.yml` (off until then, so the Actions tab is not filled with runs that only skip).
 
 ### Releasing, rolling back and restarting
 
@@ -169,7 +169,7 @@ The workflow then smoke-tests the public URLs and the version they report.
 
 - CloudWatch alarms (to an SNS topic; `alarm_email` subscribes an address): load balancer 5xx, API 5xx, API latency, unhealthy API or web targets, API CPU and memory, web memory, API error logs.
 - Sentry, when `sentry_dsn` is set: server errors of the API and the web server.
-- The Uptime workflow checks the public health endpoints every 15 minutes.
+- The Uptime workflow checks the public health endpoints every 15 minutes once its schedule is enabled (step 9).
 - The bootstrap's budget emails at 50%, 80% and 100% of the monthly limit and when the forecast passes it. With the default limit (200 US dollars, the estimate below rounded up), the 50% and 80% emails arrive in an ordinary month; the 100% ones mean spending above the estimate.
 
 ### Cost (estimate; nothing is running)
@@ -221,6 +221,6 @@ It was run on 26 September 2026 against a dump made with the project's Supabase 
 | The cost estimate against a bill | nothing runs on AWS | compare the first month's bill with `node infra/scripts/cost-estimate.mts` |
 | GHCR publishing, provenance and SBOM attestations | run on the first push to `develop` | Containers workflow; the Deploy workflow's `gh attestation verify` checks them |
 | Dependabot updates of the base images | Dependabot has not run on this branch; whether it resolves tags on `public.ecr.aws` is unconfirmed | watch for its pull requests after the merge; Trivy's critical-vulnerability gate is the backstop |
-| The Uptime workflow | needs public URLs | set `UPTIME_WEB_URL` and `UPTIME_API_URL` |
+| The Uptime workflow | needs public URLs; its schedule is off until then | set `UPTIME_WEB_URL` and `UPTIME_API_URL`, and uncomment the schedule |
 | The restore drill on a real nightly backup | no hosted database yet (the backup workflow skips) | download a backup artifact and run the drill with the offline key |
 | Sentry event delivery | needs a Sentry project | set `SENTRY_DSN`; the SDK start-up is covered by unit tests and the Compose smoke test |

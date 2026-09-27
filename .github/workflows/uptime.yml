@@ -1,15 +1,18 @@
 name: Uptime
 
-# Every 15 minutes: liveness of the web app and the API, database readiness, robots.txt, the
-# rendered home page and its portfolio notice (infra/scripts/smoke-test.mts). Every check is tried
-# up to three times, 10 seconds apart, so a single slow response is not an outage.
-# A failed run is the alert: GitHub emails whoever last changed this schedule. It skips with a
-# notice until the UPTIME_WEB_URL and UPTIME_API_URL repository variables exist, since nothing is
-# hosted yet. GitHub pauses scheduled workflows after 60 days without repository activity.
+# Liveness of the web app and the API, database readiness, robots.txt, the rendered home page and
+# its portfolio notice (infra/scripts/smoke-test.mts). Every check is tried up to three times,
+# 10 seconds apart, so a single slow response is not an outage.
+#
+# Nothing is hosted yet, so the 15-minute schedule is off: every run would only print a notice.
+# After the first deploy, set the UPTIME_WEB_URL and UPTIME_API_URL repository variables and
+# uncomment the schedule. A failed scheduled run is the alert: GitHub emails whoever last changed
+# the schedule. GitHub pauses scheduled workflows after 60 days without repository activity.
+# A manual run without the variables skips with a notice.
 
 on:
-  schedule:
-    - cron: "*/15 * * * *"
+  # schedule:
+  #   - cron: "*/15 * * * *"
   workflow_dispatch:
 
 permissions:
