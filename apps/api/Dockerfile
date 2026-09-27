@@ -58,7 +58,10 @@ ARG APP_VERSION=dev
 # bundled dependencies from the vulnerability surface.
 RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /opt/yarn-* \
            /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /usr/local/bin/yarn /usr/local/bin/yarnpkg
+# NO_COLOR: NestJS colours its log lines unless told not to, and escape codes in CloudWatch Logs
+# would get in the way of the error-log metric filter and of queries.
 ENV NODE_ENV=production \
+    NO_COLOR=1 \
     APP_VERSION=${APP_VERSION}
 WORKDIR /app
 COPY --chmod=0755 apps/api/docker/entrypoint.sh /usr/local/bin/topflow-api
