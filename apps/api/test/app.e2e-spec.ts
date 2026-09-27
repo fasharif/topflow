@@ -1301,6 +1301,37 @@ describe('TopFlow Hub API (e2e)', () => {
       );
     });
 
+    it('never dates a delivery before dispatch, whatever the phone clock says', async () => {
+      const order = await retailOrder('DISPATCHED');
+      const dayAgo = new Date(Date.now() - 24 * 3_600_000).toISOString();
+      const base = dispatchEvent('delivery.completed', order.orderNumber);
+      const event: DispatchEvent = {
+        ...base,
+        data: {
+          ...base.data,
+          occurredAt: dayAgo,
+          proof: base.data.proof && { ...base.data.proof, capturedAt: dayAgo },
+        },
+      };
+
+      await send(event).expect(200);
+      const after = await orderById(order.id);
+      expect(after.status).toBe('DELIVERED');
+      // Delivered, and cash on delivery collected, no earlier than the warehouse dispatched it.
+      expect(after.deliveredAt).toBe(after.dispatchedAt);
+      expect(after.events.at(-1)?.note).toContain(
+        'The reported time was before dispatch, so the dispatch time is recorded',
+      );
+      const audit = await prisma.auditLog.findFirstOrThrow({
+        where: { entityId: order.id, action: 'orders.status_changed' },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(audit.details).toMatchObject({
+        source: 'dispatch',
+        reportedDeliveredAt: new Date(dayAgo).toISOString(),
+      });
+    });
+
     it('records event types it does not know yet and acknowledges them', async () => {
       const order = await retailOrder('DISPATCHED');
       const base = dispatchEvent('delivery.assigned', order.orderNumber);

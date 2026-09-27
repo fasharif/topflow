@@ -59,6 +59,7 @@ import {
   formatAddress,
 } from '../users/address-book.service';
 import {
+  deliveryTimeFor,
   dispatchDeliveryFrom,
   type DispatchDelivery,
 } from './dispatch-delivery';
@@ -584,7 +585,9 @@ export class OrdersService {
       'order',
     );
 
-    const delivered = deliveredChanges(order, input.deliveredAt);
+    // A phone whose clock is behind must not date the delivery (or a COD payment) before dispatch.
+    const time = deliveryTimeFor(input.deliveredAt, order.dispatchedAt);
+    const delivered = deliveredChanges(order, time.deliveredAt);
     // Conditional on the status read above, so a concurrent change cannot be overwritten.
     const { count } = await tx.order.updateMany({
       where: { id: order.id, status: OrderStatus.DISPATCHED },
@@ -597,6 +600,9 @@ export class OrdersService {
     }
     const note = [
       input.note,
+      time.beforeDispatch
+        ? 'The reported time was before dispatch, so the dispatch time is recorded'
+        : null,
       delivered.paymentCollected ? 'Payment collected on delivery' : null,
     ]
       .filter(Boolean)
@@ -622,6 +628,9 @@ export class OrdersService {
           to: OrderStatus.DELIVERED,
           source: 'dispatch',
           ...input.auditDetails,
+          ...(time.beforeDispatch && {
+            reportedDeliveredAt: input.deliveredAt.toISOString(),
+          }),
         },
       },
       tx,

@@ -1,5 +1,5 @@
 import type { DispatchEvent } from '@topflow/shared';
-import { dispatchDeliveryFrom } from './dispatch-delivery';
+import { deliveryTimeFor, dispatchDeliveryFrom } from './dispatch-delivery';
 
 const completed = (capturedAt: string): DispatchEvent => ({
   id: '7b0e8f2e-8d0a-4c55-9d6f-2f1d3c4b5a61',
@@ -55,6 +55,34 @@ describe('dispatchDeliveryFrom', () => {
     expect(delivery.auditDetails).toMatchObject({
       waitedForDispatch: true,
       proof: { capturedAt: '2026-09-20T10:00:00Z' },
+    });
+  });
+});
+
+describe('deliveryTimeFor', () => {
+  const dispatchedAt = new Date('2026-09-20T10:30:00Z');
+
+  it('keeps a reported time after dispatch', () => {
+    const reported = new Date('2026-09-20T11:00:00Z');
+    expect(deliveryTimeFor(reported, dispatchedAt)).toEqual({
+      deliveredAt: reported,
+      beforeDispatch: false,
+    });
+  });
+
+  it('never dates a delivery before the order was dispatched, whatever the phone clock says', () => {
+    const reported = new Date('2026-09-19T08:00:00Z');
+    expect(deliveryTimeFor(reported, dispatchedAt)).toEqual({
+      deliveredAt: dispatchedAt,
+      beforeDispatch: true,
+    });
+  });
+
+  it('keeps the reported time when the order has no dispatch time', () => {
+    const reported = new Date('2026-09-19T08:00:00Z');
+    expect(deliveryTimeFor(reported, null)).toEqual({
+      deliveredAt: reported,
+      beforeDispatch: false,
     });
   });
 });

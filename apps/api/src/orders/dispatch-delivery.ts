@@ -49,6 +49,22 @@ export function dispatchDeliveryFrom(
   };
 }
 
+/**
+ * The delivery time an order records: the reported time, but never earlier than the moment the
+ * order was dispatched. The reported time comes from the driver's phone, whose clock can be wrong
+ * (the dispatch service bounds it as well), and on cash on delivery it also becomes the payment
+ * time. Applies to every delivery from the dispatch service, not only to one that waited.
+ */
+export function deliveryTimeFor(
+  reported: Date,
+  dispatchedAt: Date | null,
+): { deliveredAt: Date; beforeDispatch: boolean } {
+  if (dispatchedAt && reported.getTime() < dispatchedAt.getTime()) {
+    return { deliveredAt: dispatchedAt, beforeDispatch: true };
+  }
+  return { deliveredAt: reported, beforeDispatch: false };
+}
+
 /** e.g. "Delivery confirmed by dispatch (driver Omar Haddad): signed by Aisha Rahman, 12 m from the drop-off point" */
 function deliveryNote(event: DispatchEvent): string {
   const proof = event.data.proof;
