@@ -5,9 +5,9 @@
  *
  * Empties every application table of DATABASE_URL, removes the Supabase Auth users of the demo project
  * (SUPABASE_URL + SUPABASE_SECRET_KEY) and runs the demo seed again. It refuses to start without
- * DEMO_MODE=true and --confirm, refuses a database that holds accounts the demo seed does not create
- * but not the demo data, and refuses Supabase settings whose users are not exactly the database's own
- * auth.users. The safety checks live in demo-reset-core.ts.
+ * DEMO_MODE=true and --confirm, refuses a database without the demo data that holds any account the
+ * demo seed does not create, and refuses Supabase settings whose users are not exactly the database's
+ * own auth.users. The safety checks live in demo-reset-core.ts.
  */
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
