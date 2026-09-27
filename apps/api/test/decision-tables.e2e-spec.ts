@@ -373,36 +373,23 @@ describe('decision table B: release on credit terms', () => {
 });
 
 describe('decision table B under concurrency: one credit limit, two acceptances at once', () => {
-  let organizationId: string;
-  let owner: TestSession;
-
-  beforeAll(async () => {
-    ({ owner, organizationId } = await newOrganization('Table B Parallel'));
-    await review(organizationId, {
-      status: 'ACTIVE',
-      paymentTerms: 'NET_30',
-      creditLimit: '1050.00',
-      discountRate: 0,
-    });
-  });
-
-  async function orderOf(quotation: QuotationDto): Promise<OrderDto> {
-    if (!quotation.orderId) throw new Error('No order was created');
-    return (
-      await harness
-        .http()
-        .get(`/org/orders/${quotation.orderId}`)
-        .set(harness.member(owner, organizationId))
-        .expect(200)
-    ).body as OrderDto;
-  }
-
   // Each order alone equals the limit, so together they are one order above it. Without a lock on
   // the organisation both transactions read an exposure of 0.00 and both released on credit
-  // (BUG-13 in docs/testing/BUGS-FOUND.md). Several rounds, because a race does not show every time.
+  // (BUG-13 in docs/testing/BUGS-FOUND.md). Several rounds, because a race does not show every
+  // time. Each round uses a new organisation, so a round's orders (cancelled or not, passed or
+  // failed) cannot change the exposure the next round starts from: every round is a separate trial.
   it.each([1, 2, 3, 4, 5])(
     'round %i: at most one of two simultaneous acceptances is released on credit',
-    async () => {
+    async (round) => {
+      const { owner, organizationId } = await newOrganization(
+        `Table B Parallel ${round}`,
+      );
+      await review(organizationId, {
+        status: 'ACTIVE',
+        paymentTerms: 'NET_30',
+        creditLimit: '1050.00',
+        discountRate: 0,
+      });
       const [first, second] = await Promise.all([
         sentQuotation(organizationId, owner, '1000.00'),
         sentQuotation(organizationId, owner, '1000.00'),
@@ -411,24 +398,29 @@ describe('decision table B under concurrency: one credit limit, two acceptances 
         accept(owner, organizationId, first),
         accept(owner, organizationId, second),
       ]);
-      const orders = await Promise.all(accepted.map(orderOf));
+      const orders = await Promise.all(
+        accepted.map(async (quotation) => {
+          if (!quotation.orderId) throw new Error('No order was created');
+          return (
+            await harness
+              .http()
+              .get(`/org/orders/${quotation.orderId}`)
+              .set(harness.member(owner, organizationId))
+              .expect(200)
+          ).body as OrderDto;
+        }),
+      );
       expect(orders.map((o) => o.totalAmount)).toEqual(['1050.00', '1050.00']);
+      // The race shows as both orders released on credit (tests/scripts/mutation-check.mts counts
+      // the rounds that fail this way when the lock is removed).
+      const onCredit = orders.filter(
+        (o) => o.status === 'CONFIRMED' && o.paymentMethod === 'CREDIT_ACCOUNT',
+      );
+      expect(onCredit).toHaveLength(1);
       expect(orders.map((o) => o.status).sort()).toEqual([
         'CONFIRMED',
         'PENDING_PAYMENT',
       ]);
-      expect(orders.find((o) => o.status === 'CONFIRMED')?.paymentMethod).toBe(
-        'CREDIT_ACCOUNT',
-      );
-      // Clear the exposure for the next round.
-      for (const o of orders) {
-        await harness
-          .http()
-          .patch(`/admin/orders/${o.id}/status`)
-          .set(harness.bearer(sales))
-          .send({ status: 'CANCELLED', note: 'Concurrency round clean-up' })
-          .expect(200);
-      }
     },
   );
 });
