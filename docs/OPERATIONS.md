@@ -90,6 +90,7 @@ psql "$TARGET_DB_URL" --single-transaction --variable ON_ERROR_STOP=1 \
 | Supabase project paused | Restore it from the dashboard; check that the nightly backup job (which keeps it awake) is succeeding |
 | Orders stay *Dispatched* although the dispatch service shows them delivered | Look at the dispatch service's webhook list (its console → Webhooks). 401 `INVALID_SIGNATURE`: the two secrets differ or a clock is off by more than the tolerance. 422: the order number is unknown or the order was cancelled. 503: `DISPATCH_WEBHOOK_SECRET` is not set here; the dispatch service retries for about four minutes, then *Send again* in its console replays the event |
 | An order jumped from *Processing* to *Delivered* when it was dispatched | Expected: the driver had already completed the delivery (a `PENDING` row in `dispatch_events`), and it was applied when the warehouse marked the order dispatched. The timeline says so |
+| A waiting completion was not applied when the order was dispatched | The API log names the event: its stored payload no longer passed validation, so it was set aside as `IGNORED` and the order was dispatched without it. Check the payload in `dispatch_events`, then mark the order delivered by hand if the delivery happened |
 
 Every API response and error carries `x-request-id`; search the Vercel logs for it.
 
