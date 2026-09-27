@@ -91,8 +91,10 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
 
-      - name: Mobile — typecheck
-        run: npx tsc --noEmit -p apps/mobile
+      - name: Mobile — typecheck and unit tests
+        run: |
+          npx tsc --noEmit -p apps/mobile
+          npm test -w mobile
 
       # The suites themselves run in system-tests.yml against the whole stack.
       - name: System tests — lint, typecheck and shellcheck

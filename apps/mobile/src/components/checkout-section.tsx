@@ -1,4 +1,4 @@
-import { PAYMENT_METHOD_LABELS, type AddressDto, type AuthUser, type OrderDto } from '@topflow/shared';
+import { ErrorCode, PAYMENT_METHOD_LABELS, type AddressDto, type AuthUser, type OrderDto } from '@topflow/shared';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -12,8 +12,8 @@ import { InlineError } from '@/components/ui/states';
 import { TextField } from '@/components/ui/text-field';
 import { Brand, Radius } from '@/constants/theme';
 import { useResource } from '@/hooks/use-resource';
-import { api } from '@/lib/api';
-import { clearCart, type CartLine } from '@/lib/cart';
+import { api, isApiError } from '@/lib/api';
+import { checkoutRequest, clearCart, loadCatalogueProduct, refreshCartPrices, type CartLine } from '@/lib/cart';
 import { formatAddress } from '@/lib/format';
 import { optional } from '@/lib/forms';
 import { errorMessage } from '@/lib/http';
@@ -79,20 +79,21 @@ function SignedInCheckout({ user, lines }: { user: AuthUser; lines: readonly Car
     setPlacing(true);
     setOrderError(null);
     try {
-      // The server prices every line, delivery and VAT; only products and quantities are sent.
+      // The server prices every line, delivery and VAT; the request carries products, quantities
+      // and the total shown here, which the API checks against its own.
       const order = await api<OrderDto>('/me/orders', {
         method: 'POST',
         auth: true,
-        body: {
-          items: lines.map((line) => ({ productId: line.productId, quantity: line.quantity })),
-          addressId: selected.id,
-          paymentMethod: 'CASH_ON_DELIVERY',
-          notes: optional(notes),
-        },
+        body: checkoutRequest(lines, { addressId: selected.id, notes: optional(notes) }),
       });
       clearCart();
       router.navigate(routes.order(order.id), { withAnchor: true });
     } catch (error) {
+      // A price changed since the cart was opened: show the current prices, and the API's message
+      // with the new total, before the customer places the order again.
+      if (isApiError(error, 409) && error.code === ErrorCode.PRICE_CHANGED) {
+        await refreshCartPrices(loadCatalogueProduct);
+      }
       setOrderError(errorMessage(error));
       setPlacing(false);
     }
@@ -176,7 +177,8 @@ function SignedInCheckout({ user, lines }: { user: AuthUser; lines: readonly Car
         fullWidth
       />
       <Text style={styles.finePrint}>
-        Prices, stock, delivery and VAT are confirmed by Top Flow when you place the order.
+        Prices, stock, delivery and VAT are confirmed by Top Flow when you place the order. If a price has changed
+        since you added the product, you are shown the new total before anything is ordered.
       </Text>
     </View>
   );
