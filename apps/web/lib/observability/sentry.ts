@@ -35,6 +35,12 @@ export interface ScrubbableBreadcrumb {
 
 type Env = Record<string, string | undefined>;
 
+/**
+ * The shape the SDK accepts: https://<public key>@<host>/<numeric project id>. Anything else the
+ * SDK would ignore with only a console message, leaving error reporting silently off.
+ */
+export const SENTRY_DSN_PATTERN = /^https?:\/\/\w+(:\w*)?@(\[[:.%\w]+\]|[\w.-]+)(:\d+)?\/([^\s?#]+\/)?\d+$/;
+
 /** Headers that carry sessions, secrets or shoppers' addresses: never sent to Sentry. */
 const PRIVATE_HEADERS = new Set(['authorization', 'cookie', 'x-topflow-internal-auth', 'x-topflow-client-ip', 'x-forwarded-for', 'x-real-ip']);
 
@@ -80,14 +86,8 @@ export function scrubBreadcrumb<T extends ScrubbableBreadcrumb>(breadcrumb: T): 
 export function sentryOptions(env: Env = process.env): WebSentryOptions | null {
   const dsn = env.SENTRY_DSN?.trim();
   if (!dsn) return null;
-  let url: URL;
-  try {
-    url = new URL(dsn);
-  } catch {
-    throw new Error('SENTRY_DSN must be the URL of a Sentry project (https://<key>@<host>/<project>).');
-  }
-  if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-    throw new Error('SENTRY_DSN must be an http(s) URL.');
+  if (!SENTRY_DSN_PATTERN.test(dsn)) {
+    throw new Error('SENTRY_DSN must be a Sentry DSN: https://<key>@<host>/<project id>.');
   }
   const rate = Number(env.SENTRY_TRACES_SAMPLE_RATE?.trim() || '0');
   if (!Number.isFinite(rate) || rate < 0 || rate > 1) {

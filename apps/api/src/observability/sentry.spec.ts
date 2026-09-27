@@ -6,7 +6,7 @@ import {
 } from './sentry';
 import { scrubBreadcrumb, scrubEvent } from './sentry-config';
 
-const DSN = 'https://public-key@o123456.ingest.sentry.io/7654321';
+const DSN = 'https://0123456789abcdef@o123456.ingest.sentry.io/7654321';
 
 function fakeSdk() {
   return {
@@ -139,6 +139,13 @@ describe('error reporting (Sentry)', () => {
     expect(() => sentryOptions({ SENTRY_DSN: 'not a url' })).toThrow(
       /SENTRY_DSN/,
     );
+    // The SDK itself would ignore these, leaving reporting silently off.
+    expect(() =>
+      sentryOptions({ SENTRY_DSN: 'https://public-key@host/1' }),
+    ).toThrow(/SENTRY_DSN/);
+    expect(() =>
+      sentryOptions({ SENTRY_DSN: 'https://key@host/project' }),
+    ).toThrow(/SENTRY_DSN/);
     expect(() =>
       sentryOptions({ SENTRY_DSN: DSN, SENTRY_TRACES_SAMPLE_RATE: '2' }),
     ).toThrow(/SENTRY_TRACES_SAMPLE_RATE/);

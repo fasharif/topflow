@@ -1,6 +1,6 @@
 import { redactRequest, reportRequestError, scrubBreadcrumb, scrubEvent, sentryOptions, startErrorReporting, type ErrorContext, type ErrorReportingSdk, type ErrorRequest } from './sentry';
 
-const DSN = 'https://public-key@o123456.ingest.sentry.io/7654321';
+const DSN = 'https://0123456789abcdef@o123456.ingest.sentry.io/7654321';
 
 const request: ErrorRequest = {
   path: '/account/orders?page=2&email=someone%40example.com',
@@ -96,6 +96,9 @@ describe('web error reporting (Sentry)', () => {
   it('rejects a malformed DSN or sample rate with a readable message', () => {
     expect(() => sentryOptions({ SENTRY_DSN: 'sentry' })).toThrow(/SENTRY_DSN/);
     expect(() => sentryOptions({ SENTRY_DSN: 'ftp://key@host/1' })).toThrow(/SENTRY_DSN/);
+    // The SDK itself would ignore these, leaving reporting silently off.
+    expect(() => sentryOptions({ SENTRY_DSN: 'https://public-key@host/1' })).toThrow(/SENTRY_DSN/);
+    expect(() => sentryOptions({ SENTRY_DSN: 'https://key@host/project' })).toThrow(/SENTRY_DSN/);
     expect(() => sentryOptions({ SENTRY_DSN: DSN, SENTRY_TRACES_SAMPLE_RATE: '1.5' })).toThrow(/SENTRY_TRACES_SAMPLE_RATE/);
     expect(sentryOptions({ SENTRY_DSN: DSN, SENTRY_TRACES_SAMPLE_RATE: '0.1' })?.tracesSampleRate).toBe(0.1);
   });

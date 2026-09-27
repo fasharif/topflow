@@ -8,12 +8,26 @@ const optional = <T extends z.ZodType>(schema: T) =>
   );
 
 /**
+ * The shape the SDK accepts: https://<public key>@<host>/<numeric project id>. Anything else the
+ * SDK would ignore with only a console message, leaving error reporting silently off.
+ */
+export const SENTRY_DSN_PATTERN =
+  /^https?:\/\/\w+(:\w*)?@(\[[:.%\w]+\]|[\w.-]+)(:\d+)?\/([^\s?#]+\/)?\d+$/;
+
+/**
  * Error-reporting settings, also validated by the environment contract (config/env.ts) so the
  * release preflight rejects a malformed DSN. Sentry stays off unless SENTRY_DSN is set. This file
  * does not load the SDK, so the preflight stays light.
  */
 export const sentryEnvShape = {
-  SENTRY_DSN: optional(z.url({ protocol: /^https?$/ })),
+  SENTRY_DSN: optional(
+    z
+      .string()
+      .regex(
+        SENTRY_DSN_PATTERN,
+        'must be a Sentry DSN: https://<key>@<host>/<project id>',
+      ),
+  ),
   /** Defaults to NODE_ENV; set it to tell staging and production apart. */
   SENTRY_ENVIRONMENT: optional(z.string().min(1)),
   /** Share of requests traced for performance (0 to 1). Errors are always reported. */
