@@ -91,6 +91,22 @@ describe('loadConfig', () => {
       ).toThrow(/DEMO_MAIL_ALLOWLIST/);
     });
 
+    it('refuses a whole public mail domain, which would reopen the demo to any address on it', () => {
+      for (const entry of ['@gmail.com', ' @Outlook.com ']) {
+        expect(() =>
+          loadConfig({
+            ...demo,
+            DEMO_MAIL_ALLOWLIST: `farah@portfolio.example,${entry}`,
+          }),
+        ).toThrow(/public mail domain.*list exact addresses instead/);
+      }
+      // An exact address on a public service is fine: it reaches one mailbox.
+      expect(
+        loadConfig({ ...demo, DEMO_MAIL_ALLOWLIST: 'Farah@Gmail.com' }).demo
+          .mailAllowList,
+      ).toEqual(['farah@gmail.com']);
+    });
+
     it('refuses staff MFA, because the published staff accounts are shared', () => {
       expect(() => loadConfig({ ...demo, STAFF_MFA_REQUIRED: 'true' })).toThrow(
         /must be false in demo mode.*\n.*at STAFF_MFA_REQUIRED/,

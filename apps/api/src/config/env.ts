@@ -38,6 +38,34 @@ const demoModeFlag = z
     }
   });
 
+/**
+ * Public mail services where anyone can open an address. A domain entry for one of them would let any
+ * visitor send the demo's quote acknowledgements to any address on it, so only exact addresses on them
+ * are accepted. The list covers large services only: it guards against the obvious mistake and is not
+ * a complete register, which is why .env.example asks for exact addresses.
+ */
+export const PUBLIC_MAIL_DOMAINS: ReadonlySet<string> = new Set([
+  'aol.com',
+  'gmail.com',
+  'googlemail.com',
+  'gmx.com',
+  'gmx.net',
+  'hotmail.com',
+  'icloud.com',
+  'live.com',
+  'mac.com',
+  'mail.com',
+  'me.com',
+  'msn.com',
+  'outlook.com',
+  'proton.me',
+  'protonmail.com',
+  'yahoo.com',
+  'yandex.com',
+  'ymail.com',
+  'zoho.com',
+]);
+
 /** An exact address (`name@example.com`) or a whole domain (`@example.com`), compared in lower case. */
 const mailAllowListEntry = z
   .string()
@@ -45,7 +73,15 @@ const mailAllowListEntry = z
     /^[^\s@,]*@[^\s@,]+\.[^\s@,]+$/,
     'entries must be email addresses (name@example.com) or domains (@example.com)',
   )
-  .transform((entry) => entry.toLowerCase());
+  .transform((entry) => entry.toLowerCase())
+  .refine(
+    (entry) =>
+      !(entry.startsWith('@') && PUBLIC_MAIL_DOMAINS.has(entry.slice(1))),
+    {
+      message:
+        'a whole public mail domain (such as @gmail.com) would let visitors send demo email to any address on it: list exact addresses instead',
+    },
+  );
 
 /**
  * Default per-client rate limits: requests per window, and the window. A public demo may make them
