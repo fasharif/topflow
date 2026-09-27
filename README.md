@@ -156,16 +156,16 @@ infra/scripts/check-terraform.sh        # fmt, validate, terraform test, tflint,
 - **Infrastructure tests** cover the deploy script (18 cases against a fake AWS CLI, including a web rollout that fails and a deploy that stopped half-way), the Terraform module and bootstrap (`terraform test`, mocked provider), the smoke test, the env generator, the cost estimate and the backup restore drill.
 - **CI** (`.github/workflows/ci.yml`) runs all of the above except the Terraform checks, which run in `infra.yml`, plus the restore drill end to end. **Containers** (`containers.yml`) builds and scans the images, starts the production-like stack and runs the smoke test. These workflows have not run on GitHub yet, because this branch has not been pushed; every job's commands were run locally in Linux containers (see Limitations).
 
-The smoke test against the Compose stack, on 26 September 2026 (images from commit `4725a2e`, Docker Desktop on Windows 11), passed all 11 checks:
+The smoke test against the Compose stack, on 28 September 2026 (images from commit `7d2e7df`, Docker Desktop on Windows 11), passed all 11 checks:
 
 | Result | Check | Detail |
 | --- | --- | --- |
-| pass | web: liveness (/health) | ok, version sha-4725a2e |
-| pass | api: liveness (/health) | ok, version sha-4725a2e |
+| pass | web: liveness (/health) | ok, version sha-7d2e7df |
+| pass | api: liveness (/health) | ok, version sha-7d2e7df |
 | pass | api: database readiness (/health/ready) | database up |
 | pass | auth: Supabase Auth health | ok, v2.196.0 |
 | pass | web: robots.txt uses the runtime site URL | Sitemap: https://localhost:55843/sitemap.xml |
-| pass | web: home page renders | 273583 bytes of HTML |
+| pass | web: home page renders | 273333 bytes of HTML |
 | pass | web: marked as a portfolio project, not indexed | portfolio notice shown, X-Robots-Tag noindex |
 | pass | auth: password sign-in | session for buyer@desertbloom.ae |
 | pass | api: GET /auth/me with the Supabase token | role CUSTOMER, 1 organization(s) |

@@ -38,12 +38,12 @@ docker build -f apps/api/Dockerfile --target migrate -t topflow-hub-migrate .
 docker build -f apps/web/Dockerfile                  -t topflow-hub-web .
 ```
 
-Sizes, as printed by `infra/scripts/image-sizes.sh` on 26 September 2026 for linux/amd64 images built from commit `4725a2e` (Docker Engine 29.8.0 in Docker Desktop on Windows 11). MB means 10^6 bytes; the application files column is the disk usage of `/app` (`du -sk`).
+Sizes, as printed by `infra/scripts/image-sizes.sh` on 28 September 2026 for linux/amd64 images built from commit `7d2e7df` (Docker Engine 29.8.0 in Docker Desktop on Windows 11). MB means 10^6 bytes; the application files column is the disk usage of `/app` (`du -sk`).
 
 | Image | Image size (MB) | Application files in /app (MB, disk usage) |
 | --- | ---: | ---: |
 | `topflow-hub-api` | 276.9 | 30.4 |
-| `topflow-hub-web` | 328.4 | 67.2 |
+| `topflow-hub-web` | 328.3 | 67.2 |
 | `topflow-hub-migrate` | 623.5 | 305.0 |
 | base `public.ecr.aws/docker/library/node:24.21.0-alpine3.24`, for comparison | 241.5 | — |
 
