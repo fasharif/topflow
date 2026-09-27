@@ -17,12 +17,12 @@ The container images are pinned in [compose.yaml](compose.yaml), so nothing need
 | Spec | Scenarios |
 | --- | --- |
 | `e2e/auth.setup.ts` | Signs in every demo account through the sign-in form and keeps its session |
-| `e2e/retail-checkout.spec.ts` | Money path 1: a customer buys from the catalogue; the order carries the catalogue price, delivery and VAT, and the tracker shows it as confirmed. A price lowered while the customer is at checkout: the first attempt is refused with the new total, the second is charged at it |
+| `e2e/retail-checkout.spec.ts` | Money path 1: a customer buys from the catalogue; the order carries the catalogue price, delivery and VAT (also compared with totals worked out by hand), and the tracker shows it as confirmed. A price lowered while the customer is at checkout: the first attempt is refused with the new total, the second is charged at it |
 | `e2e/procurement-approval.spec.ts` | Money path 2: RFQ, quotation with the trade discount, acceptance above the buyer's limit, approver sign-off, order on credit terms |
 | `e2e/company-verification-fulfilment.spec.ts` | Money path 3: business sign-up with email confirmation (Mailpit), KYC by sales, credit terms, acceptance, picking, dispatch with stock deduction, delivery |
 | `e2e/security.spec.ts` | Tenant isolation, the warehouse role's limits, the back office closed to customers, cross-site writes refused, tampered prices ignored (the test checks that its tampering happened) |
 | `e2e/accessibility.spec.ts` | axe scans of 41 storefront, checkout, account, trade-portal and back-office pages, at desktop and phone size |
-| `e2e/layout.spec.ts` | At 1280 × 720, five order and quotation pages show every line total without a sideways scroll |
+| `e2e/layout.spec.ts` | At 1280 × 720, six order and quotation pages show every line total without a sideways scroll; the customer's orders table is a tab stop and a named region only while it scrolls (at 412 px) |
 
 Journeys act through the user interface. Assertions that a page does not show (an order's saved totals, a status code) go through the web app's `/api` handler with the same user's cookies, which is the path the browser uses. The journeys run one at a time because they share the seeded organisations. The demo accounts' addresses and password come from `@topflow/shared` (`DEMO_ACCOUNTS`), the list the seed and the demo's sign-in page use.
 
@@ -49,7 +49,8 @@ npm run start -w web &
 npx -w @topflow/system-tests playwright install chromium   # once
 npm run e2e -w @topflow/system-tests
 npm run load -w @topflow/system-tests                      # k6 smoke profile
-npm run contract -w @topflow/system-tests
+npm run load:check -w @topflow/system-tests                # the load profile's p95 thresholds (no stack needed)
+npm run contract -w @topflow/system-tests                  # local stack only
 npm run e2e:report -w @topflow/system-tests                # open the HTML report
 ```
 
@@ -72,7 +73,7 @@ npm run walkthrough:gif -w @topflow/system-tests  # docs/screenshots/walkthrough
 
 ### Environment variables
 
-The defaults match the commands above; set these to test another stack.
+The defaults match the commands above; set these to test another stack. Schemathesis refuses a stack that is not on this machine (below).
 
 | Variable | Default | Used by |
 | --- | --- | --- |
@@ -86,6 +87,7 @@ The defaults match the commands above; set these to test another stack.
 | `SCHEMATHESIS_MAX_EXAMPLES`, `SCHEMATHESIS_SEED` | `50`, `20260926` | Schemathesis |
 | `SCHEMATHESIS_PASSES` | `customer staff trade` | Schemathesis: which passes to run |
 | `SCHEMATHESIS_UPDATE_BASELINE` | unset | `1` records the current findings in the pass's baseline and drops entries no longer seen |
+| `SCHEMATHESIS_ALLOW_REMOTE` | unset | `1` lets Schemathesis run against a stack that is not on this machine; only for a disposable one |
 | `TOOL_USER` | the calling user on Linux, `0:0` elsewhere | User the tool containers run as, so reports belong to whoever ran them |
 | `COMPOSE_PROJECT_NAME` | `topflow-system-tests` | Docker Compose project of the tool containers |
 
@@ -95,9 +97,11 @@ The defaults match the commands above; set these to test another stack.
 
 | Pass | Operations | Account and test data |
 | --- | --- | --- |
-| `customer` | all | `fuzz.<run>@e2e.topflow.test`, with a saved address and one order whose ids `schemathesis.toml` gives to the operations that read, change or cancel them |
+| `customer` | all except the trade portal (`/org/...`), which refuses a customer before any code behind it runs | `fuzz.<run>@e2e.topflow.test`, with a saved address and one order whose ids `schemathesis.toml` gives to the operations that read, change or cancel them |
 | `staff` | `GET /admin/...` only | `staff.<run>@e2e.topflow.test`, promoted to Administrator by the demo administrator. Back-office writes are not fuzzed, because they would change the shared demo catalogue, users and companies |
 | `trade` | `/org/...` | `trade.<run>@e2e.topflow.test`, owner of a new company ("Fuzz Trading …") waiting for verification, whose id goes in the `x-organization-id` header |
+
+**Safety.** The passes create accounts, one of them promoted to Administrator, and a company, an address and an order, so the script runs only when `E2E_API_URL` and `E2E_SUPABASE_URL` point at this machine (`localhost`, `127.0.0.1`, `[::1]` or `host.docker.internal`), unless `SCHEMATHESIS_ALLOW_REMOTE=1`. Each run gives its accounts a new random password, which is never printed, and builds its JSON bodies with Node, so any `SEED_DEMO_PASSWORD` works. When the script exits, even after a failure, the demo administrator deactivates the three accounts (demoting the promoted one first) and their sign-ins are deleted from Supabase Auth. The company, address and order stay in the database. `bash tests/scripts/common.test.sh` tests the check of the addresses.
 
 Each pass has its own baseline (`contract/baseline.json`, `baseline-staff.json`, `baseline-trade.json`) and writes a JUnit and a JSON report. `node tests/scripts/schemathesis-summary.mts tests/reports/schemathesis` prints, per pass, the operations tested, the test cases, new and known failures, and Schemathesis's warnings about operations it could not reach (only 401/403, repeated 404, mostly rejected input). The triage is in [BUGS-FOUND.md](../docs/testing/BUGS-FOUND.md#schemathesis-triage).
 
@@ -107,7 +111,7 @@ The suite needs the demo profile of `npm run db:seed`. Every run adds data, and 
 
 - orders from the demo customer, an RFQ, quotation and order for Desert Bloom, and a new company with its owner (`owner.<id>@e2e.topflow.test`) and one order, whose delivery lowers the stock of `AX-EFS-002` by 12;
 - one order from the changed-price journey, which lowers the price of `AX-EFS-005` by AED 8.00 and restores it afterwards;
-- quote requests from k6, and the three Schemathesis accounts per run plus whatever they create.
+- quote requests from k6, and per Schemathesis run three deactivated accounts (their sign-ins are deleted) with the company, address, order and other data they created.
 
 The procurement journey computes the expected release from Desert Bloom's credit position, so it stays correct as earlier runs use credit. To start again from a clean state, run `npx supabase db reset`, which recreates the local database including its sign-ins, then `npm run db:deploy && npm run db:seed`.
 
@@ -123,6 +127,8 @@ Everything is written to `tests/reports/` and `tests/test-results/` (both git-ig
 | *Sign-in as … did not complete* | The database was seeded without Supabase credentials, or with a different `SEED_DEMO_PASSWORD` |
 | *… was asked for a second factor* | The API runs with `STAFF_MFA_REQUIRED=true` |
 | *The demo administrator could not promote the staff account* | The same: the Schemathesis staff pass needs `STAFF_MFA_REQUIRED=false` |
+| *Refusing to fuzz …* | `E2E_API_URL` or `E2E_SUPABASE_URL` points at another machine; Schemathesis runs only against a local stack |
+| *No email to … with subject "Confirm your Top Flow account"*, and Mailpit received another subject | Supabase did not load the templates in `supabase/templates`, for example because Docker could not read the folder the stack was started from. Start the stack from a folder Docker can read |
 | *No portfolio demo banner* while capturing | The web app was not built with `NEXT_PUBLIC_DEMO_MODE=true` |
 | 429 responses in a report | The API's rate limits were not raised for the browser suite |
 | Docker cannot find `host.docker.internal` | Docker Engine older than 20.10; the tool containers rely on `host-gateway` |

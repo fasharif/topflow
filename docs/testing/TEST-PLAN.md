@@ -13,18 +13,19 @@ TopFlow Hub is a portfolio project built with Top Flow's permission; every accou
 | Shared domain rules (`@topflow/shared`): money and VAT, state machines, permissions, request schemas, purchase approval | Unit tests |
 | API (NestJS): guards, workflows, pricing, credit release, OpenAPI description | Unit tests, end-to-end tests over HTTP against PostgreSQL |
 | Web app (Next.js): storefront, customer account, trade portal, back office, the `/api` backend-for-frontend | Unit tests of the basket and the order tracker; Playwright against the running stack, Chromium at desktop and phone size |
+| Mobile app (Expo): the cart's totals and price refresh, and the order request | Unit tests with Node's test runner (`apps/mobile/src/lib/cart-pricing.spec.ts`) |
 | Identity with Supabase Auth: sign-in, sign-up with email confirmation, sessions in httpOnly cookies | Playwright against a real local Supabase Auth; token verification in the API suites |
 | Accessibility and layout | axe-core scans (WCAG 2.2 A and AA rules); a layout check at 1280 × 720 |
 | Performance of key API endpoints | k6 load test with p95 thresholds |
-| API contract | Schemathesis against the published OpenAPI description, in three passes (customer, staff, trade) |
+| API contract | Schemathesis against the published OpenAPI description, in three passes (customer, staff, trade), on a local stack only |
 | Database lockdown (Row Level Security) | API end-to-end test |
 
 **Out of scope for now**
 
 | Area | Reason, and what covers it today |
 | --- | --- |
-| Mobile app on devices (for example Maestro flows on an Android emulator or iOS simulator) | Needs emulators or devices in CI. The app shares `@topflow/shared` and the API with the web app, both tested above, and CI type-checks it |
-| Firefox and WebKit | The storefront uses no browser-specific APIs; Chromium keeps the run short. Another browser is one more project in `tests/playwright.config.ts` |
+| Mobile app on devices (for example Maestro flows on an Android emulator or iOS simulator) | Needs emulators or devices in CI. The app shares `@topflow/shared` and the API with the web app, both tested above; CI type-checks it and runs the unit tests of its cart pricing. Its screens, including the checkout's handling of a changed price, have no automated test |
+| Firefox and WebKit | Not run yet: a decision to keep the run short, not evidence that the pages behave the same in those browsers. Another browser is one more project in `tests/playwright.config.ts` |
 | Real email delivery (Resend) and SMTP | The API uses the console transport and Supabase sends to Mailpit; templates are checked by reading Mailpit |
 | Online card payments | Not offered (payment on delivery, bank transfer and credit only) |
 | Fuzzing the back office's writes | Schemathesis would change the shared demo catalogue, users and companies; the API end-to-end suite covers these operations |
@@ -33,33 +34,44 @@ TopFlow Hub is a portfolio project built with Top Flow's permission; every accou
 
 ## 2. Risks
 
-Likelihood and impact are rated Low, Medium or High; the level is the higher of the two when either is High, otherwise Medium.
+Likelihood and impact are each scored 1 (low), 2 (medium) or 3 (high). The score is their product, and the level follows from it: 1 or 2 is Low, 3 or 4 is Medium, 6 or 9 is High. Risks are listed by score, and the tests for the High ones were written first. The likelihood of R10 is an assumption until the load test has been measured.
 
-| ID | Risk | Likelihood | Impact | Level | Tests that address it |
-| --- | --- | --- | --- | --- | --- |
-| R1 | A customer is charged, or shown, a price other than the catalogue or quoted price | Medium | High | High | Retail checkout journey; changed-price journey; tampered-price check; API checkout tests (server pricing, changed total refused); decision tables; BUG-02 |
-| R2 | A purchase above a buyer's limit becomes an order without an approver, or someone approves their own purchase | Low | High | High | Decision table A (unit and HTTP); procurement journey |
-| R3 | Goods are released on credit beyond a company's credit limit, including by orders released at the same moment | Medium | High | High | Decision table B (unit and HTTP); two simultaneous acceptances against one limit (API, five rounds); procurement and company journeys; BUG-13 |
-| R4 | One company sees or acts on another company's quotations or orders | Low | High | High | Tenant-isolation checks in the browser path; API isolation test |
-| R5 | A staff role does more than its permissions (warehouse approving a company, a purchase or a payment; a customer in the back office) | Low | High | High | Role checks in the browser path; API RBAC tests |
-| R6 | Stock is deducted twice, never, or at the wrong step | Medium | Medium | Medium | Company journey (stock unchanged at picking, lower by the quantity at dispatch); API fulfilment test |
-| R7 | VAT or rounding differs between preview, document and invoice | Low | High | High | Money unit tests; totals asserted in the journeys |
-| R8 | Keyboard or screen-reader users cannot complete a task | Medium | Medium | Medium | axe scans of 41 pages at two sizes; tracker announcements; BUG-01, BUG-11, BUG-12 |
-| R9 | Clients rely on an API description that does not match the API | Medium | Medium | Medium | Schemathesis (three passes); OpenAPI end-to-end test; BUG-03 to BUG-07, BUG-15, BUG-16 |
-| R10 | Key pages slow down under load | Unknown until measured | Medium | Medium | k6 thresholds; measured run pending |
-| R11 | Sign-up, confirmation or sign-in breaks with a Supabase change | Low | High | High | Company journey (real sign-up and Mailpit confirmation); sign-in of every demo account; API token tests |
-| R12 | Cross-site request forgery on state-changing calls | Low | High | High | Cross-site write check; Origin check in the `/api` handler |
-| R13 | A customer or trade user is shown wrong or hidden information about an order (its status, its totals) | Medium | Medium | Medium | Order tracker unit tests and journey check; layout check at 1280 × 720; BUG-12, BUG-14 |
+| ID | Risk | Likelihood | Impact | Score | Level | Tests that address it |
+| --- | --- | ---: | ---: | ---: | --- | --- |
+| R1 | A customer is charged, or shown, a price other than the catalogue or quoted price | 2 | 3 | 6 | High | Retail checkout journey (with totals worked out by hand); changed-price journey; tampered-price check; API checkout tests (server pricing, changed total refused); mobile order request unit tests; decision tables; BUG-02 |
+| R3 | Goods are released on credit beyond a company's credit limit, including by orders released at the same moment | 2 | 3 | 6 | High | Decision table B (unit and HTTP); two simultaneous acceptances against one limit (API, five rounds, a new company each); mutation check; procurement and company journeys; BUG-13 |
+| R6 | Stock is deducted twice, never, or at the wrong step | 2 | 2 | 4 | Medium | Company journey (stock unchanged at picking, lower by the quantity at dispatch); API fulfilment test |
+| R8 | Keyboard or screen-reader users cannot complete a task | 2 | 2 | 4 | Medium | axe scans of 41 pages at two sizes; the tab-stop check of scrolling tables; tracker announcements; BUG-01, BUG-11, BUG-12 |
+| R9 | Clients rely on an API description that does not match the API | 2 | 2 | 4 | Medium | Schemathesis (three passes); OpenAPI end-to-end test; BUG-03 to BUG-07, BUG-15, BUG-16 |
+| R10 | Key pages slow down under load | 2 (assumed) | 2 | 4 | Medium | k6 thresholds, checked in CI; measured run pending |
+| R13 | A customer or trade user is shown wrong or hidden information about an order (its status, its totals) | 2 | 2 | 4 | Medium | Order tracker unit tests and journey check; layout check at 1280 × 720; BUG-12, BUG-14 |
+| R2 | A purchase above a buyer's limit becomes an order without an approver, or someone approves their own purchase | 1 | 3 | 3 | Medium | Decision table A (unit and HTTP); mutation check; procurement journey |
+| R4 | One company sees or acts on another company's quotations or orders | 1 | 3 | 3 | Medium | Tenant-isolation checks in the browser path; API isolation test; Schemathesis trade pass |
+| R5 | A staff role does more than its permissions (warehouse approving a company, a purchase or a payment; a customer in the back office) | 1 | 3 | 3 | Medium | Role checks in the browser path; API RBAC tests |
+| R7 | VAT or rounding differs between preview, document and invoice | 1 | 3 | 3 | Medium | Money unit tests; totals asserted in the journeys, once against totals worked out by hand |
+| R11 | Sign-up, confirmation or sign-in breaks with a Supabase change | 1 | 3 | 3 | Medium | Company journey (real sign-up and Mailpit confirmation); sign-in of every demo account; API token tests |
+| R12 | Cross-site request forgery on state-changing calls | 1 | 3 | 3 | Medium | Cross-site write check; Origin check in the `/api` handler |
+| R14 | One account floods the KYC queue with trade account applications | 2 | 1 | 2 | Low | None yet: BUG-17 is open |
 
 ## 3. Approach
 
-The levels form a pyramid: many fast tests of rules at the bottom, fewer slow tests of whole journeys at the top.
+The levels form a pyramid: many fast tests of rules at the bottom, fewer slow tests of whole journeys at the top. The counts are from the run in section 9.
+
+```mermaid
+flowchart TB
+  SYS["System: 31 Playwright tests, 41 pages scanned by axe at two sizes<br/>k6 smoke run · Schemathesis, three passes"]
+  E2E["API end-to-end: 53 tests against PostgreSQL<br/>workflows, decision tables, concurrency, OpenAPI"]
+  UNIT["Unit: 254 tests<br/>money and VAT, state machines, permissions, schemas, decision tables, cart pricing"]
+  STATIC["Static: TypeScript strict, ESLint, Prettier, shellcheck, actionlint"]
+  SYS --- E2E --- UNIT --- STATIC
+```
 
 | Level | Tool | Where | What it proves |
 | --- | --- | --- | --- |
 | Static | TypeScript strict, ESLint, Prettier, shellcheck, actionlint | Every push (`ci.yml`) | Contracts compile, scripts and workflows are sound |
-| Unit | Jest | `packages/shared`, `apps/api/src`, `apps/web/lib` | Rules in isolation, including every row of decision tables A and B |
+| Unit | Jest; Node's test runner for the mobile app | `packages/shared`, `apps/api/src`, `apps/web/lib`, `apps/mobile/src/lib` | Rules in isolation, including every row of decision tables A and B |
 | API end-to-end | Jest, Supertest, PostgreSQL, simulated Supabase Auth | `apps/api/test` | The real middleware stack, workflows, boundaries and concurrency over HTTP |
+| Mutation check | `tests/scripts/mutation-check.mts` | CI end-to-end job | The decision-table and concurrency tests fail when the rule they guard is broken |
 | System | Playwright (Chromium) against the running stack | `tests/e2e` | Journeys, security, accessibility and layout as users meet them |
 | Load | k6 | `tests/load` | Latency targets per endpoint |
 | Contract | Schemathesis | `tests/contract` | Responses and validation match the published description |
@@ -71,17 +83,17 @@ The levels form a pyramid: many fast tests of rules at the bottom, fewer slow te
 - *Equivalence partitioning* of roles: platform roles (customer, sales, warehouse, admin) and organisation roles (owner, approver, buyer), each with the demo account that represents it.
 - *State transitions*: order and quotation state machines in unit tests; the order tracker for every status; the journeys walk the main paths end to end.
 - *Negative and abuse cases*: foreign tenants, missing permissions, cross-site writes, tampered prices, a price changed during checkout, generated invalid input.
-- *Test oracles* that restate a rule where the expected outcome depends on data from earlier runs: the procurement journey computes the expected credit release from the company's current exposure.
+- *Test oracles* that restate a rule where the expected outcome depends on data from earlier runs: the procurement journey computes the expected credit release from the company's current exposure. The retail oracle uses the shared money maths, which the API uses too, so money path 1 also compares its order with totals worked out by hand.
 - *Checks that the check happened*: tests that tamper with something first assert that the tampering took place, so a renamed key or path cannot turn them green by accident.
 
-**Test data.** The demo profile of `npm run db:seed` provides the accounts (published in `@topflow/shared`), two companies and fixed-number documents. Tests that change state create their own data with unique names (`@e2e.topflow.test` addresses, run ids in project references); the decision tables use a new company each; the journeys run one at a time; a test that changes a catalogue price restores it. Details in [tests/README.md](../../tests/README.md).
+**Test data.** The demo profile of `npm run db:seed` provides the accounts (published in `@topflow/shared`), two companies and fixed-number documents. Tests that change state create their own data with unique names (`@e2e.topflow.test` addresses, run ids in project references); the decision tables use a new company per table and per concurrency round; the journeys run one at a time; a test that changes a catalogue price restores it. Details in [tests/README.md](../../tests/README.md).
 
 ## 4. Environments
 
 | Environment | Stack | Used for |
 | --- | --- | --- |
 | Developer machine | Supabase CLI stack (PostgreSQL 17, Auth, Mailpit), API and web app from production builds or `npm run dev`, Docker for k6, Schemathesis and ffmpeg | All suites; the README media, from a web build with `NEXT_PUBLIC_DEMO_MODE=true` |
-| CI, `ci.yml` (every push and pull request) | GitHub-hosted Ubuntu runner, Node 24; PostgreSQL 17 service container for the API suites | Static checks, unit tests with coverage, builds, API end-to-end tests with coverage |
+| CI, `ci.yml` (every push and pull request) | GitHub-hosted Ubuntu runner, Node 24; PostgreSQL 17 service container for the API suites | Static checks, unit tests with coverage, builds, the k6 threshold check, API end-to-end tests with coverage, the mutation check |
 | CI, `system-tests.yml` (pull requests and `develop`) | Same runner with the Supabase CLI stack, the API and the web app started from production builds, Chromium from Playwright 1.63 | Playwright with axe and the layout check, k6 smoke run, Schemathesis (three passes) |
 | Quiet machine (manual) | As the developer machine, nothing else running | Measured k6 load runs only |
 
@@ -116,16 +128,16 @@ Features as listed in the README's *Features*, with the tests that cover them.
 | --- | --- | --- |
 | Catalogue and price ranges | Retail price includes 5 % VAT; ranges shown to consumers | API: *exposes indicative price ranges…*; system: retail checkout; axe: storefront pages; k6: catalogue, search, product |
 | Website quote requests | Products or a 20-character description; contact details validated; public and rate limited | API: website quote request tests; k6: `quote`; Schemathesis: `POST /quote-requests` |
-| Retail checkout (B2C) | Server prices every line; delivery AED 25 below AED 500 net; VAT per line and on delivery; an order whose total changed since checkout opened is refused | System: retail checkout, changed price, tampered price; API: *prices checkout on the server…*, *refuses an order whose total differs…*; unit: money tests, `cart.spec.ts` |
+| Retail checkout (B2C) | Server prices every line; delivery AED 25 below AED 500 net; VAT per line and on delivery; an order whose total changed since checkout opened is refused; the web and mobile apps send the total they show | System: retail checkout (with hand-worked totals), changed price, tampered price; API: *prices checkout on the server…*, *refuses an order whose total differs…*; unit: money tests, `cart.spec.ts` (web), `cart-pricing.spec.ts` (mobile) |
 | Order tracking | The tracker shows how far the order got; money columns visible on desktop | Unit: `order-progress.spec.ts`; system: retail checkout (tracker), `layout.spec.ts` |
-| Procurement: RFQ, quotations, approval | Decision table A; nobody approves their own purchase | Unit: `approval.spec.ts`; API: `decision-tables.e2e-spec.ts` table A, *routes purchases above the buyer limit…*; system: procurement journey |
-| Credit terms | Decision table B; releases for one organisation one at a time | Unit: `order-writer.service.spec.ts`; API: `decision-tables.e2e-spec.ts` table B and the concurrency rounds; system: procurement oracle, company journey |
+| Procurement: RFQ, quotations, approval | Decision table A; nobody approves their own purchase | Unit: `approval.spec.ts`; API: `decision-tables.e2e-spec.ts` table A, *routes purchases above the buyer limit…*; mutation check; system: procurement journey |
+| Credit terms | Decision table B; releases for one organisation one at a time | Unit: `order-writer.service.spec.ts`; API: `decision-tables.e2e-spec.ts` table B and the concurrency rounds; mutation check; system: procurement oracle, company journey |
 | Multi-tenancy | Membership verified per request; organisation id from the header only | System: tenant isolation; API: *isolates organizations from each other*; Schemathesis trade pass |
 | Company verification (KYC) | Only sales and admin review; pending companies cannot accept | System: company journey, warehouse limits; API: table B row B0 |
 | Fulfilment and stock | Each step's permission; stock deducted at dispatch; cash on delivery marked paid on delivery | System: company journey; API: retail fulfilment test; system: warehouse cannot record payments |
 | Refunds (ADR-020) | Paid orders cancelled by staff; refund recorded once | API: *leaves a paid order for Top Flow to cancel…* |
 | Identity and security | Supabase tokens verified; MFA for staff; httpOnly sessions; cross-site writes refused | System: sign-in of every demo account, sign-up with confirmation, cross-site write; API: authentication tests; Schemathesis: `ignored_auth` check |
-| Accessibility | WCAG 2.2 A and AA | System: `accessibility.spec.ts` (41 pages, two sizes) |
+| Accessibility | WCAG 2.2 A and AA; a table is a tab stop only while it scrolls | System: `accessibility.spec.ts` (41 pages, two sizes), `layout.spec.ts` |
 | API description | Validation rules, error statuses per operation, UUID ids and header, money and email formats, valid OpenAPI 3.0 | API: the OpenAPI end-to-end tests; unit: `openapi.spec.ts`, schema tests; Schemathesis (three passes) |
 
 ## 7. Decision tables and boundary values
@@ -180,18 +192,26 @@ The unit table covers every rule, with boundary rows one fils below the limit (B
 | 4 | Order 2 cancelled, order 3 paid; 1,000.01 + 50.00 = 1,050.01 | 0.00 | Pending payment (a single order above the limit) |
 | 5 | Terms changed to prepaid; 0.21 | — | Pending payment (B2) |
 | 6 | Net 60 with a zero limit; 0.21 | — | Pending payment (B6) |
-| Concurrency | Two orders of 1,050.00 accepted at the same moment, five rounds | 0.00 | Exactly one confirmed on credit, the other pending payment |
+| Concurrency | Two orders of 1,050.00 accepted at the same moment; five rounds, each on a new company with the same terms | 0.00 | Exactly one confirmed on credit, the other pending payment |
 
-**Evidence that the tables bite.** On 26 September 2026, changing `>` to `>=` in `requiresApproval` failed 3 of the 16 tests of the unit table (`npm test -w @topflow/shared -- approval`), and changing `<=` to `<` in the credit check failed 3 of the 15 OrderWriter tests (the three at-limit B4 rows; `npm test -w @topflow/api -- order-writer`). Both changes were reverted. Without the row lock, all five concurrency rounds released both orders on credit (`npm run test:e2e -w @topflow/api -- -t concurrency test/decision-tables`).
+**Evidence that the tables bite.** `node tests/scripts/mutation-check.mts --with-db` breaks each rule in turn, runs the tests that guard it (after checking that they pass unchanged), and restores the code; CI runs it after the end-to-end suites. On 27 September 2026, against PostgreSQL 17 prepared as in CI:
+
+| Mutant | Tests run | Failed | Result |
+| --- | ---: | --- | --- |
+| Table A: `>` becomes `>=` in `requiresApproval` | 16 | 3 | killed |
+| Table B: `<=` becomes `<` in the OrderWriter credit check | 15 | 3 | killed |
+| BUG-13: `FOR UPDATE` removed from the credit release | 5 | 5; 5 rounds that released both orders on credit | killed |
+
+The three failures of table A are the three rows exactly at a limit, out of its 13 rows (`approval.spec.ts` also holds three tests of who may approve); the three of table B are its three at-limit B4 rows. Without the row lock, all five concurrency rounds released both orders on credit, in each of three runs. Each round now uses its own company, so no round inherits another's orders: an earlier version shared one company, and after a failing round the later ones started from its leftover exposure.
 
 **Observations.** The two rules compare different amounts (net for approval, gross for credit), and orders waiting for payment keep counting against the credit limit until paid or cancelled. Both look intentional and are listed for review in BUGS-FOUND.md.
 
 ## 8. Non-functional testing
 
 - **Accessibility.** axe-core 4.13 with the tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa` and `wcag22aa` on 41 pages, as the audience of each page, at 1280 × 720 (Desktop Chrome) and on a Pixel 7 profile: the storefront and sign-in pages, the basket, checkout with an item, the order confirmation, the customer's account, the trade portal's lists and its RFQ, quotation and order pages, and the back office's lists, fulfilment, KYC review, RFQ triage and quotation editor. Serious and critical violations fail; all findings are attached to the report. Automated rules cannot judge reading order, meaningful alternative text or focus management in flows, hence the manual pass in the release criteria.
-- **Layout.** `layout.spec.ts` opens five order and quotation pages at 1280 × 720 and fails if a line total is hidden behind a sideways scroll or ends outside the window.
+- **Layout.** `layout.spec.ts` opens six order and quotation pages at 1280 × 720 (two customer orders, a trade quotation and order, a back-office order and quotation) and fails if a line total is hidden behind a sideways scroll or ends outside the window. It also checks that the customer's orders table is a plain box while it fits and a focusable, named region while it scrolls (at 412 px).
 - **Performance.** k6 targets and profiles are in PERFORMANCE.md. Only functional smoke runs have been made so far; they fail on errors and failed checks, not on timings. No timing is published until a measured run on a quiet machine.
-- **API contract.** Schemathesis 4.28 with every check, 50 examples per operation and a fixed seed, in three passes: all 82 operations as a new customer (with a saved address and an order as test data), the 13 back-office read operations as a new administrator, and the 24 trade-portal operations as the owner of a new company. Back-office writes are not fuzzed (section 1). Deliberate differences are in `tests/contract/schemathesis.toml`, known findings in one baseline per pass; the triage and the coverage warnings Schemathesis reports are in BUGS-FOUND.md.
+- **API contract.** Schemathesis 4.28 with every check, 50 examples per operation and a fixed seed, in three passes: the 58 operations outside the trade portal as a new customer (with a saved address and an order as test data), the 13 back-office read operations as a new administrator, and the 24 trade-portal operations as the owner of a new company. Back-office writes are not fuzzed (section 1). The passes run only against a stack on the same machine, and their accounts are deactivated and their sign-ins deleted afterwards. Deliberate differences are in `tests/contract/schemathesis.toml`, known findings in one baseline per pass; the triage and the coverage warnings Schemathesis reports are in BUGS-FOUND.md. Those warnings matter when reading the case counts: many generated requests are refused by rules across fields or find no test data, and the counts vary a little between runs with the same seed.
 - **Security.** Tenant isolation, role limits, cross-site writes and tampered prices are checked through the browser path; token verification, MFA, suspension and Row Level Security in the API suite; Schemathesis's `ignored_auth` check confirms protected operations refuse anonymous calls.
 
 ## 9. Results of this cycle
