@@ -37,8 +37,8 @@ locals {
   # its deployments ("Production"), and not the one Terraform applies run in ("aws-<env>-infra").
   github_environment = "aws-${var.environment}"
 
-  # SSM parameter paths. Terraform creates each parameter with a placeholder; operators set the real
-  # values with `aws ssm put-parameter --overwrite` (docs/OPERATIONS.md), so they never reach the
-  # Terraform state.
+  # SSM parameter paths. Terraform does not create the secret parameters (secrets.tf): it grants
+  # access to these names and lists them, and an operator creates each SecureString once with
+  # `aws ssm put-parameter`, so the values never reach the Terraform state.
   parameter_prefix = "/${var.project}/${var.environment}"
 }
