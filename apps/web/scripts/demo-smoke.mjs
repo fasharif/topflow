@@ -65,6 +65,20 @@ async function run() {
     check(html.includes(DEMO_BANNER_TEXT) === EXPECT_DEMO, `${path} ${EXPECT_DEMO ? 'shows' : 'does not show'} the demo banner`);
     const noindex = /<meta name="robots" content="noindex, nofollow"/.test(html);
     check(noindex === EXPECT_DEMO, `${path} ${EXPECT_DEMO ? 'asks' : 'does not ask'} search engines not to index it`);
+
+    // A shared link is often seen only as a title or a preview card, without the banner.
+    const title = /<title>([^<]*)<\/title>/.exec(html)?.[1] ?? '';
+    const previewTitle = /<meta property="og:title" content="([^"]*)"/.exec(html)?.[1] ?? '';
+    const previewText = /<meta property="og:description" content="([^"]*)"/.exec(html)?.[1] ?? '';
+    check(/portfolio demo/i.test(title) === EXPECT_DEMO, `${path}: the page title "${title}" ${EXPECT_DEMO ? 'says' : 'does not say'} "portfolio demo"`);
+    check(
+      /portfolio demo/i.test(previewTitle) === EXPECT_DEMO,
+      `${path}: the link preview title "${previewTitle}" ${EXPECT_DEMO ? 'says' : 'does not say'} "portfolio demo"`,
+    );
+    check(
+      previewText.startsWith(DEMO_BANNER_TEXT) === EXPECT_DEMO,
+      `${path}: the link preview text ${EXPECT_DEMO ? 'starts' : 'does not start'} with the banner text`,
+    );
   }
 
   const robots = await page('/robots.txt');
