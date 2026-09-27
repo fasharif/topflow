@@ -133,7 +133,7 @@ npm run supabase:stop       # when finished (data is kept in Docker volumes)
 
 ## 10. Production-like stack (Docker Compose)
 
-`docker-compose.prod.yml` runs the container images with production settings — HTTPS through Caddy, staff MFA, read-only containers, the release step before the API — next to PostgreSQL 17, Supabase Auth (GoTrue) and Mailpit. CI starts it for every change and runs the smoke test with a real sign-in.
+`docker-compose.prod.yml` runs the container images with production settings — HTTPS through Caddy, staff MFA, read-only containers, the release step before the API — next to PostgreSQL 17, Supabase Auth (GoTrue) and Mailpit. The Containers workflow is set up to start it for every change and run the smoke test with a real sign-in (it has not run on GitHub yet; the same commands pass locally).
 
 ```bash
 node infra/compose/generate-env.mts            # secrets and Supabase keys → infra/compose/.env
