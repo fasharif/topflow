@@ -1,9 +1,10 @@
 /**
  * k6 load test for the TopFlow Hub API (runs in the grafana/k6 container, see run-k6.sh).
  *
- *   K6_PROFILE=smoke  one virtual user, a few iterations: proves the script, the endpoints and the
- *                     thresholds work. It fails on errors and failed checks, not on timings: a p95
- *                     of three requests is the slowest single request, which says nothing.
+ *   K6_PROFILE=smoke  one virtual user per scenario (three in all, running at the same time), a few
+ *                     iterations: proves the script, the endpoints and the thresholds work. It fails
+ *                     on errors and failed checks, not on timings: a p95 of three requests is the
+ *                     slowest single request, which says nothing.
  *   K6_PROFILE=load   shoppers browsing, signed-in customers and quote requests at a steady rate;
  *                     the p95 targets are thresholds, so a missed target fails the run (exit 99)
  *
@@ -63,27 +64,18 @@ const SCENARIOS: Record<string, NonNullable<Options['scenarios']>> = {
 const scenarios = SCENARIOS[PROFILE];
 if (!scenarios) throw new Error(`Unknown K6_PROFILE "${PROFILE}" (use smoke or load)`);
 
-/** p95 targets in milliseconds per endpoint tag (docs/testing/PERFORMANCE.md). */
-const P95_TARGETS_MS: Record<string, number> = {
-  health: 200,
-  categories: 500,
-  catalogue: 500,
-  search: 500,
-  product: 500,
-  me: 500,
-  'my-orders': 500,
-  'quote-request': 1000,
-};
+/**
+ * p95 targets in milliseconds per endpoint tag, from targets.json, which the results table
+ * (scripts/k6-summary-table.mts) and the threshold check (scripts/k6-thresholds.mts) read too.
+ */
+const TARGETS = JSON.parse(open('./targets.json')) as { endpoints: Array<{ tag: string; p95Ms: number }> };
 
 /**
  * The load profile gates on the p95 targets. The smoke profile only guards against a request that
  * hangs (30 s); the threshold still makes k6 report each endpoint separately in the summary.
  */
 const durationThresholds = Object.fromEntries(
-  Object.entries(P95_TARGETS_MS).map(([endpoint, target]) => [
-    `http_req_duration{endpoint:${endpoint}}`,
-    [PROFILE === 'load' ? `p(95)<${target}` : 'max<30000'],
-  ]),
+  TARGETS.endpoints.map(({ tag, p95Ms }) => [`http_req_duration{endpoint:${tag}}`, [PROFILE === 'load' ? `p(95)<${p95Ms}` : 'max<30000']]),
 );
 
 export const options: Options = {

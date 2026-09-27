@@ -1,0 +1,13 @@
+{
+  "$comment": "p95 targets per endpoint tag, in milliseconds, in the order api-load.ts calls the endpoints. api-load.ts turns them into thresholds of the load profile; scripts/k6-summary-table.mts compares measured results with them; scripts/k6-thresholds.mts checks that the load profile gates on each. See docs/testing/PERFORMANCE.md.",
+  "endpoints": [
+    { "tag": "health", "label": "GET /health/ready", "p95Ms": 200 },
+    { "tag": "categories", "label": "GET /catalog/categories", "p95Ms": 500 },
+    { "tag": "catalogue", "label": "GET /catalog/products (page)", "p95Ms": 500 },
+    { "tag": "search", "label": "GET /catalog/products?search=", "p95Ms": 500 },
+    { "tag": "product", "label": "GET /catalog/products/{slug}", "p95Ms": 500 },
+    { "tag": "me", "label": "GET /auth/me", "p95Ms": 500 },
+    { "tag": "my-orders", "label": "GET /me/orders", "p95Ms": 500 },
+    { "tag": "quote-request", "label": "POST /quote-requests", "p95Ms": 1000 }
+  ]
+}

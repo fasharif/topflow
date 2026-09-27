@@ -103,9 +103,12 @@ jobs:
           npm run check-types -w @topflow/system-tests
           shellcheck -x tests/load/*.sh tests/contract/run-schemathesis.sh tests/scripts/*.sh
 
-      # The guard that keeps Schemathesis off shared stacks.
-      - name: System tests — script guards
-        run: bash tests/scripts/common.test.sh
+      # The script guard that keeps Schemathesis off shared stacks, and the load profile's p95 gates,
+      # which CI's smoke runs never evaluate (k6 inspect in the pinned container; no stack needed).
+      - name: System tests — script guards and the k6 load profile's thresholds
+        run: |
+          bash tests/scripts/common.test.sh
+          npm run load:check -w @topflow/system-tests
 
   e2e:
     name: API end-to-end tests (PostgreSQL)

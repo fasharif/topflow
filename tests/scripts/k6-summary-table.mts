@@ -4,7 +4,9 @@
  *
  *   node tests/scripts/k6-summary-table.mts tests/reports/k6/summary-load.json
  *
- * Without a file it prints the table with every measurement marked as pending.
+ * Without a file it prints the table with every measurement marked as pending. For a smoke run the
+ * Result column says "not judged (smoke)": its p95 is the slowest of a few requests, and the smoke
+ * profile has no p95 thresholds (load/api-load.ts).
  */
 import { readFileSync } from 'node:fs';
 
@@ -14,6 +16,8 @@ interface TrendMetric {
   'p(95)': number;
   max: number;
   count: number;
+  /** The metric's thresholds as k6 evaluated them, keyed by expression. */
+  thresholds?: Record<string, boolean>;
 }
 
 interface RateMetric {
@@ -28,30 +32,26 @@ interface SummaryExport {
 }
 
 /**
- * Endpoints in the order the load test calls them, with the p95 target in milliseconds from
- * P95_TARGETS_MS in load/api-load.ts. The result column compares the measured p95 with the target
- * itself, because only the load profile turns the targets into thresholds.
+ * Endpoints in the order the load test calls them, with their p95 targets in milliseconds, from the
+ * file load/api-load.ts reads too. The result column compares the measured p95 with the target.
  */
-export const ENDPOINTS: ReadonlyArray<{ tag: string; label: string; targetMs: number }> = [
-  { tag: 'health', label: 'GET /health/ready', targetMs: 200 },
-  { tag: 'categories', label: 'GET /catalog/categories', targetMs: 500 },
-  { tag: 'catalogue', label: 'GET /catalog/products (page)', targetMs: 500 },
-  { tag: 'search', label: 'GET /catalog/products?search=', targetMs: 500 },
-  { tag: 'product', label: 'GET /catalog/products/{slug}', targetMs: 500 },
-  { tag: 'me', label: 'GET /auth/me', targetMs: 500 },
-  { tag: 'my-orders', label: 'GET /me/orders', targetMs: 500 },
-  { tag: 'quote-request', label: 'POST /quote-requests', targetMs: 1000 },
-];
+export const ENDPOINTS = (
+  JSON.parse(readFileSync(new URL('../load/targets.json', import.meta.url), 'utf8')) as {
+    endpoints: ReadonlyArray<{ tag: string; label: string; p95Ms: number }>;
+  }
+).endpoints;
 
 const ms = (value: number): string => `${value.toFixed(0)} ms`;
 
 export function summaryTable(summary: SummaryExport | null): string {
-  const rows = ENDPOINTS.map(({ tag, label, targetMs }) => {
+  const rows = ENDPOINTS.map(({ tag, label, p95Ms }) => {
     const metric = summary?.metrics[`http_req_duration{endpoint:${tag}}`] as TrendMetric | undefined;
-    const goal = `< ${targetMs} ms`;
+    const goal = `< ${p95Ms} ms`;
     if (!metric) return `| ${label} | pending | pending | pending | pending | ${goal} | pending |`;
-    const met = metric['p(95)'] < targetMs;
-    return `| ${label} | ${metric.count} | ${ms(metric.med)} | ${ms(metric['p(90)'])} | ${ms(metric['p(95)'])} | ${goal} | ${met ? 'met' : 'missed'} |`;
+    // Only the load profile gates on p95 (a p(95)< threshold); a smoke run's timings are not judged.
+    const judged = Object.keys(metric.thresholds ?? {}).some((expression) => expression.startsWith('p(95)<'));
+    const result = judged ? (metric['p(95)'] < p95Ms ? 'met' : 'missed') : 'not judged (smoke)';
+    return `| ${label} | ${metric.count} | ${ms(metric.med)} | ${ms(metric['p(90)'])} | ${ms(metric['p(95)'])} | ${goal} | ${result} |`;
   });
   const failed = summary?.metrics.http_req_failed as RateMetric | undefined;
   const errors = failed ? `${(failed.value * 100).toFixed(2)} % of ${failed.passes + failed.fails} requests` : 'pending';
