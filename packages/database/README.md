@@ -25,7 +25,7 @@ All commands read `DATABASE_URL` from the environment or `packages/database/.env
 
 ## Resetting the public demo
 
-`scripts/demo-reset.ts` returns the public portfolio demo to its seeded state every night ([ADR-021](../../docs/DECISIONS.md), [operations runbook](../../docs/OPERATIONS.md#10-public-demo)). It:
+`scripts/demo-reset.ts` returns the public portfolio demo to its seeded state every night ([ADR-021](../../docs/DECISIONS.md), [operations runbook](../../docs/OPERATIONS.md#public-demo)). It:
 
 1. refuses to start unless `DEMO_MODE=true` and `--confirm` are given for the run (a `DEMO_MODE` found only in `.env` is refused, so a forgotten file value never empties a database), `NODE_ENV` is not `production` and no production seed setting is present, or when `SUPABASE_URL` and `DATABASE_URL` name different Supabase projects;
 2. refuses any database that holds accounts the demo seed does not create but not the demo data set (the fictional Desert Bloom Landscaping LLC), and changes nothing. The seed creates Desert Bloom before any account, so a seed that stops part-way never locks the next reset out;

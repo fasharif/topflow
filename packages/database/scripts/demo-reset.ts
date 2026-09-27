@@ -1,5 +1,5 @@
 /**
- * Nightly reset of the public portfolio demo (ADR-021, docs/OPERATIONS.md section 10):
+ * Nightly reset of the public portfolio demo (ADR-021, docs/OPERATIONS.md, "Public demo"):
  *
  *   DEMO_MODE=true npm run demo:reset -- --confirm
  *

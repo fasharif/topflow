@@ -38,13 +38,13 @@ From the repository root, once `npm run supabase:start` is running: `npm run set
 ## Tests
 
 ```bash
-npm test -w web                                    # Server Action unit tests (Jest)
-npm run build -w web && npm run test:demo -w web   # a build made with NEXT_PUBLIC_DEMO_MODE=true
-npm run build -w web && npm run test:demo -w web -- --off   # an ordinary build
+npm test -w web                                                               # unit tests (Jest)
+NEXT_PUBLIC_DEMO_MODE=true npm run build -w web && npm run test:demo -w web   # the demo build (bash)
+npm run build -w web && npm run test:demo -w web -- --off                     # an ordinary build
 ```
 
-`lib/auth/actions.spec.ts` replaces Supabase with a recorder and checks every authentication Server Action in and out of demo mode; a new action fails the suite until it is given a demo-mode decision. `scripts/demo-smoke.mjs` starts the production build and checks over HTTP what a visitor and a search engine receive.
+`lib/auth/actions.spec.ts` replaces Supabase with a recorder and checks every authentication Server Action in and out of demo mode; a new action fails the suite until it is given a demo-mode decision. `lib/site-metadata.spec.ts` checks the page titles and link previews of both builds. `scripts/demo-smoke.mjs` starts the production build and checks over HTTP what a visitor, a search engine and a link preview receive.
 
 ## Demo mode
 
-`NEXT_PUBLIC_DEMO_MODE=true` builds the public portfolio demo ([ADR-021](../../docs/DECISIONS.md)). Every page shows the banner *"Portfolio demo: data resets every night. This is not Top Flow's official store."*, the sign-in page lists the demo accounts, robots.txt and page metadata keep the site out of search engines, and messages say that the demo sends no email where they would otherwise say one was sent. Because the demo accounts are shared, the Server Actions refuse sign-up, confirmation and password reset emails, password changes (the set-password page accepts only an invitation or recovery link for an account that is not a demo account) and adding or removing an authenticator, and a sign-out never ends other visitors' sessions. Next.js inlines the value at build time, on the server as well as in the browser, so changing it needs a new build. It is checked while the pages are prerendered: anything other than `true` or `false` fails the build.
+`NEXT_PUBLIC_DEMO_MODE=true` builds the public portfolio demo ([ADR-021](../../docs/DECISIONS.md)). Every page shows the banner *"Portfolio demo: data resets every night. This is not Top Flow's official store."*, every page title and link preview (`lib/site-metadata.ts`) names the site "TopFlow Hub portfolio demo", the contact page and the footer say that Top Flow's contact details are real but that nothing done in the demo is passed to Top Flow, the sign-in page lists the demo accounts, robots.txt and page metadata keep the site out of search engines, and messages say that the demo does not email visitors where they would otherwise say an email was sent. Because the demo accounts are shared, the Server Actions refuse sign-up, confirmation and password reset emails, password changes (the set-password page accepts only an invitation or recovery link for an account that is not a demo account) and adding or removing an authenticator, and a sign-out never ends other visitors' sessions. Next.js inlines the value at build time, on the server as well as in the browser, so changing it needs a new build. It is checked while the pages are prerendered: anything other than `true` or `false` fails the build.

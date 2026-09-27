@@ -1,7 +1,8 @@
 /**
  * `npm run setup`: prepares a local checkout once `npm run supabase:start` is running (README, Quick start).
  *
- * 1. Copies each .env.example to the file its app reads, unless that file already exists.
+ * 1. Copies the API, web and database .env.example files to the files those apps read, unless they
+ *    already exist (the mobile app's is left to the developer).
  * 2. Fills in empty values only: the local Supabase keys, read from `npx supabase status -o env`, and one
  *    random INTERNAL_API_SECRET shared by the API and the web app. Values already set are never changed.
  * 3. Applies the migrations and loads the demo data (`npm run db:deploy`, then `npm run db:seed`), but only
