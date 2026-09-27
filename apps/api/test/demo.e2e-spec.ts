@@ -109,6 +109,63 @@ describe('Public demo mode (e2e)', () => {
         .expect(201)
     ).body as WebsiteQuoteReceiptDto;
 
+  /**
+   * What the demo guards protect: Desert Bloom's KYC status, trading terms and identifiers, its
+   * members, and the published accounts' role and access, as the seed left them.
+   */
+  const readDemoState = async () => {
+    const organization = await prisma.organization.findUniqueOrThrow({
+      where: { trn: DEMO_ORGANIZATION.trn },
+      select: {
+        id: true,
+        status: true,
+        trn: true,
+        tradeLicenseNumber: true,
+        paymentTerms: true,
+        creditLimit: true,
+        discountRate: true,
+        verifiedAt: true,
+      },
+    });
+    const members = await prisma.organizationMember.findMany({
+      where: { organizationId: organization.id },
+      select: {
+        id: true,
+        organizationId: true,
+        userId: true,
+        role: true,
+        approvalLimit: true,
+      },
+    });
+    const accounts = await prisma.user.findMany({
+      where: { email: { in: DEMO_ACCOUNTS.map((account) => account.email) } },
+      select: { id: true, role: true, isActive: true },
+    });
+    return { organization, members, accounts };
+  };
+  let seeded: Awaited<ReturnType<typeof readDemoState>>;
+
+  /**
+   * Every test starts from the seeded demo state and an empty record of delivered mail. With the
+   * guards on nothing changes either; with a guard broken, only the test for that guard fails, instead
+   * of every later test that signs in as a published account, works inside Desert Bloom or checks
+   * that Top Flow's inbox received nothing.
+   */
+  const restoreDemoState = async () => {
+    const { id, ...organization } = seeded.organization;
+    await prisma.organization.update({ where: { id }, data: organization });
+    for (const { id: memberId, ...member } of seeded.members) {
+      await prisma.organizationMember.upsert({
+        where: { id: memberId },
+        update: { role: member.role, approvalLimit: member.approvalLimit },
+        create: { id: memberId, ...member },
+      });
+    }
+    for (const { id: userId, ...account } of seeded.accounts) {
+      await prisma.user.update({ where: { id: userId }, data: account });
+    }
+  };
+
   beforeAll(async () => {
     const realFetch = globalThis.fetch;
     jest.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
@@ -144,6 +201,12 @@ describe('Public demo mode (e2e)', () => {
     await app.init();
     prisma = app.get(PrismaService);
     mail = app.get(MailService);
+    seeded = await readDemoState();
+  });
+
+  beforeEach(async () => {
+    delivered.length = 0;
+    await restoreDemoState();
   });
 
   afterAll(async () => {
