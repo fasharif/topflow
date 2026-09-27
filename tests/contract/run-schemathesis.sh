@@ -4,9 +4,10 @@
 # signed in as a throwaway account created for the run, so the demo accounts the browser journeys
 # rely on are never changed:
 #
-#   customer  every operation, as a new customer with a saved address and one order (the ids are
-#             supplied to the operations that need them); the back office and the trade portal
-#             must refuse it
+#   customer  every operation outside the trade portal, as a new customer with a saved address and
+#             one order (the ids are supplied to the operations that need them); the back office
+#             must refuse it. The trade portal (/org/...) is left to the trade pass: a customer has
+#             no company, so every request there is refused before it reaches the code
 #   staff     the back office's read-only operations (GET /admin/...), as a new account that the
 #             demo administrator promotes to Administrator. Back-office writes are not fuzzed: they
 #             would change the shared demo catalogue, users and companies. The API end-to-end suite
@@ -162,7 +163,7 @@ if [[ " $passes " == *" customer "* ]]; then
   # The saved address and the order are the only ones this customer has: the operations that read,
   # change or cancel them by id get real ids (schemathesis.toml reads these variables).
   export FUZZ_ADDRESS_ID="$address" FUZZ_ORDER_ID="$order"
-  run_pass customer baseline.json -H "Authorization: Bearer $token"
+  run_pass customer baseline.json -H "Authorization: Bearer $token" --exclude-path-regex '^/org'
 fi
 
 if [[ " $passes " == *" staff "* ]]; then

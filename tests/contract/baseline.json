@@ -3,51 +3,6 @@
   "schemathesis_version": "4.28.0",
   "entries": [
     {
-      "id": "ab0ed6",
-      "operation": "DELETE /org/addresses/{id}",
-      "check": "positive_data_acceptance",
-      "failure": "RejectedPositiveData",
-      "signature": "400",
-      "first_seen": "2026-09-25",
-      "last_seen": "2026-09-26"
-    },
-    {
-      "id": "b8b6ab",
-      "operation": "GET /org/orders/{id}",
-      "check": "positive_data_acceptance",
-      "failure": "RejectedPositiveData",
-      "signature": "400",
-      "first_seen": "2026-09-25",
-      "last_seen": "2026-09-26"
-    },
-    {
-      "id": "197a9c",
-      "operation": "GET /org/quotations/{id}",
-      "check": "positive_data_acceptance",
-      "failure": "RejectedPositiveData",
-      "signature": "400",
-      "first_seen": "2026-09-25",
-      "last_seen": "2026-09-26"
-    },
-    {
-      "id": "42c09f",
-      "operation": "GET /org/quotations/{id}/pdf",
-      "check": "positive_data_acceptance",
-      "failure": "RejectedPositiveData",
-      "signature": "400",
-      "first_seen": "2026-09-25",
-      "last_seen": "2026-09-26"
-    },
-    {
-      "id": "693fcb",
-      "operation": "GET /org/rfqs/{id}",
-      "check": "positive_data_acceptance",
-      "failure": "RejectedPositiveData",
-      "signature": "400",
-      "first_seen": "2026-09-25",
-      "last_seen": "2026-09-26"
-    },
-    {
       "id": "925fbb",
       "operation": "PATCH /me",
       "check": "positive_data_acceptance",
@@ -77,15 +32,6 @@
     {
       "id": "f9ec40",
       "operation": "POST /me/quotations/{id}/respond",
-      "check": "positive_data_acceptance",
-      "failure": "RejectedPositiveData",
-      "signature": "400",
-      "first_seen": "2026-09-25",
-      "last_seen": "2026-09-26"
-    },
-    {
-      "id": "1ac129",
-      "operation": "POST /org/rfqs/{id}/cancel",
       "check": "positive_data_acceptance",
       "failure": "RejectedPositiveData",
       "signature": "400",
