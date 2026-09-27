@@ -1301,6 +1301,35 @@ describe('TopFlow Hub API (e2e)', () => {
       );
     });
 
+    it('applies one of two copies of an event that arrive at the same moment', async () => {
+      const order = await retailOrder('DISPATCHED');
+      const event = dispatchEvent('delivery.completed', order.orderNumber);
+
+      // The second copy waits for the first transaction (order row lock, then the event's key).
+      const [first, second] = await Promise.all([
+        send(event).expect(200),
+        send(event).expect(200),
+      ]);
+      expect(
+        [first, second]
+          .map((r) => (r.body as DispatchEventReceiptDto).outcome)
+          .sort(),
+      ).toEqual(['APPLIED', 'DUPLICATE']);
+      const after = await orderById(order.id);
+      expect(
+        after.events.filter((e) => e.toStatus === 'DELIVERED'),
+      ).toHaveLength(1);
+      expect(
+        await prisma.auditLog.count({
+          where: {
+            entityId: order.id,
+            action: 'orders.status_changed',
+            details: { path: ['to'], equals: 'DELIVERED' },
+          },
+        }),
+      ).toBe(1);
+    });
+
     it('never dates a delivery before dispatch, whatever the phone clock says', async () => {
       const order = await retailOrder('DISPATCHED');
       const dayAgo = new Date(Date.now() - 24 * 3_600_000).toISOString();
