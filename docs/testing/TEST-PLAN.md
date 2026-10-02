@@ -34,7 +34,7 @@ TopFlow Hub is a portfolio project built with Top Flow's permission; every accou
 
 ## 2. Risks
 
-Likelihood and impact are each scored 1 (low), 2 (medium) or 3 (high). The score is their product, and the level follows from it: 1 or 2 is Low, 3 or 4 is Medium, 6 or 9 is High. Risks are listed by score, and the tests for the High ones were written first. The likelihood of R10 is an assumption until the load test has been measured.
+Likelihood and impact are each scored 1 (low), 2 (medium) or 3 (high). The score is their product, and the level follows from it: 1 or 2 is Low, 3 or 4 is Medium, 6 or 9 is High. Risks are listed by score, and the tests for the High ones were written first. The likelihood of R10 rests on the measured load runs of 3 October 2026 (PERFORMANCE.md), which cover the API on a laptop but not the pages or a hosted deployment, so it stays at 2.
 
 | ID | Risk | Likelihood | Impact | Score | Level | Tests that address it |
 | --- | --- | ---: | ---: | ---: | --- | --- |
@@ -43,7 +43,7 @@ Likelihood and impact are each scored 1 (low), 2 (medium) or 3 (high). The score
 | R6 | Stock is deducted twice, never, or at the wrong step | 2 | 2 | 4 | Medium | Company journey (stock unchanged at picking, lower by the quantity at dispatch); API fulfilment test |
 | R8 | Keyboard or screen-reader users cannot complete a task | 2 | 2 | 4 | Medium | axe scans of 41 pages at two sizes; the tab-stop check of scrolling tables; tracker announcements; BUG-01, BUG-11, BUG-12 |
 | R9 | Clients rely on an API description that does not match the API | 2 | 2 | 4 | Medium | Schemathesis (three passes); OpenAPI end-to-end test; BUG-03 to BUG-07, BUG-15, BUG-16 |
-| R10 | Key pages slow down under load | 2 (assumed) | 2 | 4 | Medium | k6 thresholds, checked in CI; measured run pending |
+| R10 | Key pages slow down under load | 2 | 2 | 4 | Medium | k6 load profile with p95 thresholds set from four measured runs (API only); smoke run and threshold check in CI |
 | R13 | A customer or trade user is shown wrong or hidden information about an order (its status, its totals) | 2 | 2 | 4 | Medium | Order tracker unit tests and journey check; layout check at 1280 × 720; BUG-12, BUG-14 |
 | R2 | A purchase above a buyer's limit becomes an order without an approver, or someone approves their own purchase | 1 | 3 | 3 | Medium | Decision table A (unit and HTTP); mutation check; procurement journey |
 | R4 | One company sees or acts on another company's quotations or orders | 1 | 3 | 3 | Medium | Tenant-isolation checks in the browser path; API isolation test; Schemathesis trade pass |
@@ -59,7 +59,7 @@ The levels form a pyramid: many fast tests of rules at the bottom, fewer slow te
 
 ```mermaid
 flowchart TB
-  SYS["System: 31 Playwright tests, 41 pages scanned by axe at two sizes<br/>k6 smoke run · Schemathesis, three passes"]
+  SYS["System: 31 Playwright tests, 41 pages scanned by axe at two sizes<br/>k6 smoke and load runs · Schemathesis, three passes"]
   E2E["API end-to-end: 53 tests against PostgreSQL<br/>workflows, decision tables, concurrency, OpenAPI"]
   UNIT["Unit: 254 tests<br/>money and VAT, state machines, permissions, schemas, decision tables, cart pricing"]
   STATIC["Static: TypeScript strict, ESLint, Prettier, shellcheck, actionlint"]
@@ -73,7 +73,7 @@ flowchart TB
 | API end-to-end | Jest, Supertest, PostgreSQL, simulated Supabase Auth | `apps/api/test` | The real middleware stack, workflows, boundaries and concurrency over HTTP |
 | Mutation check | `tests/scripts/mutation-check.mts` | CI end-to-end job | The decision-table and concurrency tests fail when the rule they guard is broken |
 | System | Playwright (Chromium) against the running stack | `tests/e2e` | Journeys, security, accessibility and layout as users meet them |
-| Load | k6 | `tests/load` | Latency targets per endpoint |
+| Load | k6 | `tests/load` | Latency and failed-request thresholds per endpoint |
 | Contract | Schemathesis | `tests/contract` | Responses and validation match the published description |
 
 **Test design techniques**
@@ -117,7 +117,7 @@ Differences from production, deliberately: staff two-factor authentication is of
 
 **Additional exit for a public release**
 
-- a measured k6 load run on a quiet machine meets the p95 targets in PERFORMANCE.md;
+- a measured k6 load run on a quiet machine meets the p95 thresholds in PERFORMANCE.md;
 - a manual keyboard and screen-reader pass of checkout, quotation acceptance and approval.
 
 ## 6. Traceability
@@ -210,7 +210,7 @@ The three failures of table A are the three rows exactly at a limit, out of its 
 
 - **Accessibility.** axe-core 4.13 with the tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa` and `wcag22aa` on 41 pages, as the audience of each page, at 1280 × 720 (Desktop Chrome) and on a Pixel 7 profile: the storefront and sign-in pages, the basket, checkout with an item, the order confirmation, the customer's account, the trade portal's lists and its RFQ, quotation and order pages, and the back office's lists, fulfilment, KYC review, RFQ triage and quotation editor. Serious and critical violations fail; all findings are attached to the report. Automated rules cannot judge reading order, meaningful alternative text or focus management in flows, hence the manual pass in the release criteria.
 - **Layout.** `layout.spec.ts` opens six order and quotation pages at 1280 × 720 (two customer orders, a trade quotation and order, a back-office order and quotation) and fails if a line total is hidden behind a sideways scroll or ends outside the window. It also checks that the customer's orders table is a plain box while it fits and a focusable, named region while it scrolls (at 412 px).
-- **Performance.** k6 targets and profiles are in PERFORMANCE.md. Only functional smoke runs have been made so far; they fail on errors and failed checks, not on timings. No timing is published until a measured run on a quiet machine.
+- **Performance.** k6 profiles, thresholds and results are in PERFORMANCE.md. The smoke profile, which CI runs, fails on errors and failed checks, not on timings. The load profile was measured four times on 3 October 2026 on a laptop with nothing else running in Docker: every endpoint's p95 was between 3 and 20 ms at about 90 requests a second, and 1 of 97,905 requests failed, on the connection from the k6 container to the host. The p95 thresholds were set from those runs at four times the highest p95. The runs say nothing about a hosted deployment, the web app's pages or the API's capacity.
 - **API contract.** Schemathesis 4.28 with every check, 50 examples per operation and a fixed seed, in three passes: the 58 operations outside the trade portal as a new customer (with a saved address and an order as test data), the 13 back-office read operations as a new administrator, and the 24 trade-portal operations as the owner of a new company. Back-office writes are not fuzzed (section 1). The passes run only against a stack on the same machine, and their accounts are deactivated and their sign-ins deleted afterwards. Deliberate differences are in `tests/contract/schemathesis.toml`, known findings in one baseline per pass; the triage and the coverage warnings Schemathesis reports are in BUGS-FOUND.md. Those warnings matter when reading the case counts: many generated requests are refused by rules across fields or find no test data, and the counts vary a little between runs with the same seed.
 - **Security.** Tenant isolation, role limits, cross-site writes and tampered prices are checked through the browser path; token verification, MFA, suspension and Row Level Security in the API suite; Schemathesis's `ignored_auth` check confirms protected operations refuse anonymous calls.
 
@@ -250,6 +250,19 @@ Schemathesis 4.28.0, seed 20260926. An hour earlier, the same command against th
 
 API coverage from the same runs (statements, excluding specs and entry points): end-to-end suites 80.8 % (1,842 of 2,281; branches 65.0 %), unit suite 19.9 % (453 of 2,281). CI prints both in its job summary.
 
-**Not run here.** The GitHub Actions workflows (`ci.yml`, `system-tests.yml`, `test-report-pages.yml`) have not run on a GitHub runner, because nothing can be pushed from this machine; each step was run locally as above, except the Pages deployment. The one behaviour that differs on a Linux runner, the ownership of files the tool containers write, was reproduced on a Linux-native Docker mount on 26 September 2026: a summary written by a container running as root could not be rewritten by user 1000, one written as user 1000 could, which is why the containers run as the calling user on Linux. Measured k6 results are pending a quiet machine (PERFORMANCE.md).
+**Not run here.** The GitHub Actions workflows (`ci.yml`, `system-tests.yml`, `test-report-pages.yml`) have not run on a GitHub runner, because nothing can be pushed from this machine; each step was run locally as above, except the Pages deployment. The one behaviour that differs on a Linux runner, the ownership of files the tool containers write, was reproduced on a Linux-native Docker mount on 26 September 2026: a summary written by a container running as root could not be rewritten by user 1000, one written as user 1000 could, which is why the containers run as the calling user on Linux. The measured k6 load runs of 3 October 2026 are below.
 
 Seventeen defects are recorded in BUGS-FOUND.md: sixteen fixed (thirteen on this branch, each with a regression test, and three on `feature/demo-mode`) and BUG-17 (Low) open until a product decision is made.
+
+### Measured load runs and a Playwright rerun, 3 October 2026
+
+On 3 October 2026 the same laptop ran only this stack: a Supabase CLI 2.117 stack (Auth, PostgreSQL 17 and Mailpit, under its own project id) seeded with the demo profile, and the API and the web app from production builds of `6faa66b`, run with Node 24.19 on the Windows host. Nothing else ran in Docker. The environment, the commands and every number are in PERFORMANCE.md.
+
+| Suite | Command | Result |
+| --- | --- | --- |
+| k6 smoke, twice before the load runs | `npm run load -w @topflow/system-tests` | 25 of 25 checks passed and 0 of 27 requests failed, both times |
+| k6 load profile, four runs | `K6_PROFILE=load npm run load -w @topflow/system-tests` | All four passed. Each endpoint's p95 was between 3.2 and 20 ms, at about 90 requests a second and 24,352 to 24,532 requests per run. One request failed in run 1 (a connection from the k6 container to the host that did not open) and none in runs 2 to 4. Run 4 passed the thresholds set from runs 1 to 3 |
+| Load thresholds | `npm run load:check -w @topflow/system-tests` | The load profile gates on checks, on failed requests overall and for each of the 8 endpoints, and on the 8 p95 thresholds. Fed the smoke profile instead, the check reported the 8 p95 thresholds missing and exited with 1 |
+| Playwright | `CI=1 npm run e2e -w @topflow/system-tests`, with the API's raised rate limits | 31 passed in 2.7 minutes, none retried, on the data the k6 runs had left |
+
+The flaky retry of money path 3 seen on 28 September did not recur on the quiet machine. During the Playwright run the API logged one warning from the PostgreSQL driver, `Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0`; no request failed, and the k6 runs did not trigger it. Whether it comes from the API's own code or from Prisma's PostgreSQL adapter has not been traced; it needs an answer before the driver is upgraded to pg 9.

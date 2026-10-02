@@ -49,7 +49,8 @@ npm run start -w web &
 npx -w @topflow/system-tests playwright install chromium   # once
 npm run e2e -w @topflow/system-tests
 npm run load -w @topflow/system-tests                      # k6 smoke profile
-npm run load:check -w @topflow/system-tests                # the load profile's p95 thresholds (no stack needed)
+K6_PROFILE=load npm run load -w @topflow/system-tests      # measured run (5 min): API with default rate limits, E2E_INTERNAL_API_SECRET set; see docs/testing/PERFORMANCE.md
+npm run load:check -w @topflow/system-tests                # the load profile's thresholds (no stack needed)
 npm run contract -w @topflow/system-tests                  # local stack only
 npm run e2e:report -w @topflow/system-tests                # open the HTML report
 ```
