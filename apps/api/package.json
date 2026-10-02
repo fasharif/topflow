@@ -60,7 +60,7 @@
     "@types/supertest": "^7.0.0",
     "@vercel/nft": "^1.11.0",
     "esbuild": "^0.28.2",
-    "eslint": "^9.18.0",
+    "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.2",
     "globals": "^17.12.0",
