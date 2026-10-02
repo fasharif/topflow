@@ -199,6 +199,8 @@ describe('Public demo mode (e2e)', () => {
     app = moduleRef.createNestApplication();
     configureApp(app, app.get<AppConfig>(APP_CONFIG));
     await app.init();
+    // Listen once, as in app.e2e-spec.ts: SuperTest 7.3 closes servers it starts itself.
+    await app.listen(0, '127.0.0.1');
     prisma = app.get(PrismaService);
     mail = app.get(MailService);
     seeded = await readDemoState();
