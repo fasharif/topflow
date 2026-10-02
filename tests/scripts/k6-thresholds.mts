@@ -1,8 +1,8 @@
 /**
- * Checks that the k6 load profile fails a run on every p95 target in load/targets.json, and on
- * failed requests and checks. CI runs only the smoke profile, which has no p95 thresholds, so this
- * is what keeps the load profile's gates from disappearing unnoticed. Reads the options that
- * `k6 inspect` prints for the load profile (load/check-thresholds.sh runs both):
+ * Checks that the k6 load profile fails a run on every p95 threshold in load/targets.json, on failed
+ * requests overall and per endpoint, and on checks. CI runs only the smoke profile, which has no
+ * p95 thresholds, so this is what keeps the load profile's gates from disappearing unnoticed. Reads
+ * the options that `k6 inspect` prints for the load profile (load/check-thresholds.sh runs both):
  *
  *   k6 inspect -e K6_PROFILE=load api-load.ts | node tests/scripts/k6-thresholds.mts
  */
@@ -21,6 +21,7 @@ export function expectedThresholds(endpoints: readonly Target[]): Array<[metric:
   return [
     ['http_req_failed', 'rate<0.01'],
     ['checks', 'rate>0.99'],
+    ...endpoints.map(({ tag }): [string, string] => [`http_req_failed{endpoint:${tag}}`, 'rate<0.01']),
     ...endpoints.map(({ tag, p95Ms }): [string, string] => [`http_req_duration{endpoint:${tag}}`, `p(95)<${p95Ms}`]),
   ];
 }
@@ -39,4 +40,6 @@ if (missing.length > 0) {
   console.error(`The k6 load profile does not gate on:\n${missing.map((line) => `  ${line}`).join('\n')}`);
   process.exit(1);
 }
-console.log(`The k6 load profile gates on failed requests, checks and ${targets.length} p95 targets.`);
+console.log(
+  `The k6 load profile gates on checks, on failed requests overall and for each of the ${targets.length} endpoints, and on their ${targets.length} p95 thresholds.`,
+);

@@ -78,11 +78,20 @@ const durationThresholds = Object.fromEntries(
   TARGETS.endpoints.map(({ tag, p95Ms }) => [`http_req_duration{endpoint:${tag}}`, [PROFILE === 'load' ? `p(95)<${p95Ms}` : 'max<30000']]),
 );
 
+/**
+ * Failed requests per endpoint, in both profiles. The overall rate alone would let a rarely called
+ * endpoint fail outright: the load profile sends one quote request for every few hundred other
+ * requests, so even if all of them failed, the overall rate would stay below 1 %. These thresholds
+ * also make k6 report each endpoint's failure rate in the summary.
+ */
+const failureThresholds = Object.fromEntries(TARGETS.endpoints.map(({ tag }) => [`http_req_failed{endpoint:${tag}}`, ['rate<0.01']]));
+
 export const options: Options = {
   scenarios,
   thresholds: {
     http_req_failed: ['rate<0.01'],
     checks: ['rate>0.99'],
+    ...failureThresholds,
     ...durationThresholds,
   },
   summaryTrendStats: ['avg', 'med', 'p(90)', 'p(95)', 'max', 'count'],
