@@ -29,6 +29,21 @@ updates:
       # hand, all in one change.
       - dependency-name: prisma
       - dependency-name: "@prisma/*"
+      # NestJS 12 is blocked by nestjs-zod, whose latest release (5.5.0) supports @nestjs/common 10-11
+      # and @nestjs/swagger up to 11 only. Minor and patch updates still come through; the major
+      # upgrade is a deliberate migration once nestjs-zod supports it (or it is replaced).
+      - dependency-name: "@nestjs/common"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/core"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/platform-express"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/testing"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/swagger"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/mapped-types"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
