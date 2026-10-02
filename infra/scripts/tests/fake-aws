@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+# A stand-in for the AWS CLI, used by deploy-ecs.test.sh. It records every call in $FAKE_AWS_LOG,
+# keeps parameters, task definition revisions (with their images) and services in $FAKE_AWS_STATE,
+# and answers with JSON shaped like the real CLI's.
+#
+#   FAKE_MIGRATION_EXIT     exit code of the release step's container (default 0)
+#   FAKE_ROLLOUT_STATE      FAILED makes every service deployment fail: the circuit breaker keeps
+#                           the previous task definition (default COMPLETED)
+#   FAKE_FAILING_SERVICES   space-separated service names whose deployments fail in the same way
+#   FAKE_MIN_CAPACITY       auto scaling minimum of every service (default 2)
+#
+# State files: image_<family>_<revision> (revision 1 defaults to an old image), revision_<family>
+# (latest revision), service_<service> (serving task definition ARN, default revision 1 of the
+# family with the service's name), desired_<service> (default 1), param_<name>.
+set -Eeuo pipefail
+
+state="${FAKE_AWS_STATE:?}"
+echo "$*" >>"${FAKE_AWS_LOG:?}"
+account="arn:aws:ecs:ap-south-1:123456789012"
+
+# Value of the option named $1 in the remaining arguments.
+option() {
+  local wanted="$1"
+  shift
+  while (($# > 0)); do
+    if [[ "$1" == "$wanted" ]]; then
+      echo "${2:-}"
+      return
+    fi
+    shift
+  done
+}
+
+has_flag() {
+  local wanted="$1"
+  shift
+  for argument in "$@"; do [[ "$argument" == "$wanted" ]] && return 0; done
+  return 1
+}
+
+key() { tr -c 'A-Za-z0-9_-' '_' <<<"$1"; }
+
+failing() {
+  [[ "${FAKE_ROLLOUT_STATE:-COMPLETED}" == FAILED ]] && return 0
+  [[ " ${FAKE_FAILING_SERVICES:-} " == *" $1 "* ]]
+}
+
+case "$1 $2" in
+  "ssm get-parameter")
+    file="$state/param_$(key "$(option --name "$@")")"
+    value="$(cat "$file" 2>/dev/null || echo none)"
+    jq -n --arg value "$value" '{Parameter: {Value: $value}}'
+    ;;
+  "ssm put-parameter")
+    option --value "$@" >"$state/param_$(key "$(option --name "$@")")"
+    echo '{"Version": 2}'
+    ;;
+  "ecs describe-task-definition")
+    wanted="$(option --task-definition "$@")"
+    if [[ "$wanted" == arn:* ]]; then
+      family="${wanted##*/}"
+      revision="${family##*:}"
+      family="${family%:*}"
+    else
+      family="$wanted"
+      revision="$(cat "$state/revision_$family" 2>/dev/null || echo 1)"
+    fi
+    image="$(cat "$state/image_${family}_$revision" 2>/dev/null || echo ghcr.io/fasharif/old:sha-0000000)"
+    jq -n --arg family "$family" --argjson revision "$revision" --arg image "$image" --arg account "$account" '{taskDefinition: {
+      taskDefinitionArn: "\($account):task-definition/\($family):\($revision)",
+      family: $family, revision: $revision, status: "ACTIVE", cpu: "512", memory: "1024",
+      requiresAttributes: [{name: "ecs.capability.secrets.ssm.environment-variables"}],
+      compatibilities: ["EC2", "FARGATE"], registeredAt: "2026-09-26T00:00:00Z", registeredBy: "terraform",
+      containerDefinitions: [{name: "app", image: $image}]}}'
+    ;;
+  "ecs register-task-definition")
+    input="$(option --cli-input-json "$@")"
+    input="${input#file://}"
+    family="$(jq -r '.family' "$input")"
+    revision=$(($(cat "$state/revision_$family" 2>/dev/null || echo 1) + 1))
+    echo "$revision" >"$state/revision_$family"
+    jq -r '.containerDefinitions[0].image' "$input" >"$state/image_${family}_$revision"
+    cp "$input" "$state/registered_$family.json"
+    jq -n --arg family "$family" --argjson revision "$revision" --arg account "$account" \
+      '{taskDefinition: {taskDefinitionArn: "\($account):task-definition/\($family):\($revision)"}}'
+    ;;
+  "ecs describe-services")
+    service="$(option --services "$@")"
+    serving="$(cat "$state/service_$service" 2>/dev/null || echo "$account:task-definition/$service:1")"
+    rollout="$(cat "$state/rollout_$service" 2>/dev/null || echo COMPLETED)"
+    desired="$(cat "$state/desired_$service" 2>/dev/null || echo 1)"
+    jq -n --arg serving "$serving" --arg rollout "$rollout" --argjson desired "$desired" '{services: [{
+      desiredCount: $desired,
+      networkConfiguration: {awsvpcConfiguration: {subnets: ["subnet-a", "subnet-b"], securityGroups: ["sg-tasks"], assignPublicIp: "ENABLED"}},
+      deployments: [{status: "PRIMARY", taskDefinition: $serving, rolloutState: $rollout}]}]}'
+    ;;
+  "ecs update-service")
+    service="$(option --service "$@")"
+    if failing "$service"; then
+      # The circuit breaker rolled the deployment back: the previous revision keeps serving.
+      echo FAILED >"$state/rollout_$service"
+    else
+      option --task-definition "$@" >"$state/service_$service"
+      echo COMPLETED >"$state/rollout_$service"
+    fi
+    count="$(option --desired-count "$@")"
+    if [[ -n "$count" ]]; then echo "$count" >"$state/desired_$service"; fi
+    if has_flag --force-new-deployment "$@"; then echo "$service" >>"$state/restarted"; fi
+    echo '{"service": {}}'
+    ;;
+  "application-autoscaling describe-scalable-targets")
+    jq -n --argjson minimum "${FAKE_MIN_CAPACITY:-2}" --arg id "$(option --resource-ids "$@")" \
+      '{ScalableTargets: [{ResourceId: $id, MinCapacity: $minimum, MaxCapacity: 4}]}'
+    ;;
+  "ecs run-task")
+    echo '{"tasks": [{"taskArn": "arn:aws:ecs:ap-south-1:123456789012:task/topflow-hub-staging/0123456789abcdef"}], "failures": []}'
+    ;;
+  "ecs wait")
+    ;;
+  "ecs describe-tasks")
+    jq -n --argjson code "${FAKE_MIGRATION_EXIT:-0}" '{tasks: [{lastStatus: "STOPPED",
+      stoppedReason: "Essential container in task exited", containers: [{name: "migrate", exitCode: $code}]}]}'
+    ;;
+  "logs get-log-events")
+    echo '{"events": [{"message": "Error: P1001: Can'"'"'t reach database server"}]}'
+    ;;
+  *)
+    echo "fake aws: unexpected call: $*" >&2
+    exit 1
+    ;;
+esac

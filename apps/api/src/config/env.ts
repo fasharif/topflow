@@ -1,5 +1,6 @@
 import { parseDemoModeFlag } from '@topflow/shared';
 import { z } from 'zod';
+import { sentryEnvShape } from '../observability/sentry-config';
 
 /**
  * Environment contract, validated once at boot and again by the release preflight. A
@@ -158,6 +159,8 @@ export const envSchema = z
     COMPANY_EMAIL: z.string().default('info@topflow.ae'),
     COMPANY_WEBSITE: z.string().default('www.topflow.ae'),
     COMPANY_BANK_DETAILS: z.string().optional(),
+
+    ...sentryEnvShape,
   })
   .superRefine((env, ctx) => {
     if (env.DEMO_MODE) {

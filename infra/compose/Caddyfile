@@ -1,0 +1,59 @@
+# Reverse proxy of the production-like stack (docker-compose.prod.yml).
+#
+#   https://{$WEB_HOST}:{$HTTPS_PORT}    web app (storefront, trade portal, back office)
+#   https://{$API_HOST}:{$HTTPS_PORT}    REST API, for the mobile app and API clients
+#   https://{$AUTH_HOST}:{$HTTPS_PORT}   Supabase Auth under /auth/v1, the path a Supabase project uses
+#
+# Certificates come from Caddy's own local certificate authority: nothing is requested from the
+# internet. The API and web containers trust that authority through NODE_EXTRA_CA_CERTS; browsers
+# and curl need its root certificate (see docs/OPERATIONS.md) or show a warning.
+# Caddy listens on the published ports themselves, so redirects and Host headers stay correct.
+{
+	https_port {$HTTPS_PORT}
+	http_port {$HTTP_PORT}
+	local_certs
+	skip_install_trust
+	admin 127.0.0.1:2019
+	# The redirect below keeps the HTTPS port, which the automatic one leaves out.
+	auto_https disable_redirects
+}
+
+http:// {
+	redir https://{host}:{$HTTPS_PORT}{uri} permanent
+}
+
+(common) {
+	encode zstd gzip
+	header -Server
+	log {
+		output stdout
+		format json
+	}
+}
+
+{$WEB_HOST} {
+	import common
+	reverse_proxy web:3000
+}
+
+{$API_HOST} {
+	import common
+	reverse_proxy api:3000
+}
+
+{$AUTH_HOST} {
+	import common
+	handle_path /auth/v1/* {
+		reverse_proxy auth:9999
+	}
+	handle {
+		respond 404
+	}
+}
+
+# Internal only (the port is not published): Supabase Auth downloads the branded email templates
+# of supabase/templates from here, so this stack sends the same emails as a Supabase project.
+http://:8088 {
+	root * /srv/email-templates
+	file_server
+}

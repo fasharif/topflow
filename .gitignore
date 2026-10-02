@@ -55,3 +55,12 @@ packages/database/generated/
 **/.windsurf/
 **/skills-lock.json
 *.tsbuildinfo
+
+# Terraform: lock files and the environments' terraform.tfvars (no secrets) are committed; state
+# and plans are not, nor the bootstrap's terraform.tfvars, which lists the budget email addresses
+infra/terraform/bootstrap/terraform.tfvars
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log

@@ -24,8 +24,36 @@ updates:
       - dependency-name: react-native
       - dependency-name: react-native-*
       - dependency-name: "@react-native/*"
+      # Prisma's CLI and client are pinned together by "overrides" (and their install scripts by
+      # "allowScripts") in the root package.json, which Dependabot does not update. Upgrade them by
+      # hand, all in one change.
+      - dependency-name: prisma
+      - dependency-name: "@prisma/*"
 
   - package-ecosystem: github-actions
     directory: /
+    schedule:
+      interval: weekly
+
+  # Base images of apps/api/Dockerfile and apps/web/Dockerfile (tag and digest). Dependabot reads
+  # literal FROM lines only, so each Dockerfile names its base once, in the node-base stage.
+  - package-ecosystem: docker
+    directories: [/apps/api, /apps/web]
+    schedule:
+      interval: weekly
+
+  # Images of the production-like stack (docker-compose.prod.yml).
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+
+  # The AWS provider of every Terraform root and module (lock files included).
+  - package-ecosystem: terraform
+    directories:
+      - /infra/terraform/bootstrap
+      - /infra/terraform/environments/staging
+      - /infra/terraform/environments/production
+      - /infra/terraform/modules/hub
     schedule:
       interval: weekly

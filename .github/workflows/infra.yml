@@ -1,0 +1,196 @@
+name: Infrastructure
+
+# Terraform in infra/terraform. Every change is checked without AWS: fmt, validate, terraform test
+# with a mocked provider, tflint and Trivy's misconfiguration scan (infra/scripts/check-terraform.sh).
+#
+# Plans and applies need an AWS account. They run only when the repository variables
+# AWS_TERRAFORM_PLAN_ROLE_ARN / AWS_TERRAFORM_APPLY_ROLE_ARN and TF_STATE_BUCKET exist (outputs of
+# infra/terraform/bootstrap) and the environment has a terraform.tfvars; otherwise they skip with a
+# notice. Plans run for pull requests and on develop, the only two subjects the plan role trusts
+# (bootstrap/main.tf); a push to a feature branch gets the checks only. Applies are manual, run from
+# develop, wait for the reviewers of the aws-<environment>-infra GitHub environment and apply
+# exactly the plan saved by the same run, which the reviewers read in the plan job's summary.
+# The alarm address comes from the ALARM_EMAIL repository variable, not the committed
+# terraform.tfvars, and is a sensitive variable, so the plan in the job summary does not show it.
+
+on:
+  push:
+    branches: [develop, "feature/**"]
+    paths:
+      - "infra/terraform/**"
+      - "infra/scripts/check-terraform.sh"
+      - ".github/workflows/infra.yml"
+  pull_request:
+    branches: [develop]
+    paths:
+      - "infra/terraform/**"
+      - "infra/scripts/check-terraform.sh"
+      - ".github/workflows/infra.yml"
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: Environment to apply (plans always run)
+        type: choice
+        options: [none, staging, production]
+        default: none
+
+concurrency:
+  group: infra-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  TERRAFORM_VERSION: 1.16.4
+  AWS_REGION: ${{ vars.AWS_REGION || 'ap-south-1' }}
+
+jobs:
+  checks:
+    name: fmt · validate · test · tflint · Trivy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Terraform checks (in containers)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: infra/scripts/check-terraform.sh
+
+  plan:
+    name: Plan (${{ matrix.environment }})
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [staging, production]
+    defaults:
+      run:
+        working-directory: infra/terraform/environments/${{ matrix.environment }}
+    env:
+      ROLE_ARN: ${{ vars.AWS_TERRAFORM_PLAN_ROLE_ARN }}
+      STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+      EVENT: ${{ github.event_name }}
+      ALARM_EMAIL: ${{ vars.ALARM_EMAIL }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check configuration
+        id: config
+        run: |
+          if [ -z "$ROLE_ARN" ] || [ -z "$STATE_BUCKET" ]; then
+            echo "::notice::Terraform plan skipped: set the AWS_TERRAFORM_PLAN_ROLE_ARN and TF_STATE_BUCKET repository variables (infra/README.md)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT" != pull_request ] && [ "$GITHUB_REF" != refs/heads/develop ]; then
+            echo "::notice::Terraform plan skipped: plans run for pull requests and on develop, the subjects the plan role trusts."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          elif [ ! -f terraform.tfvars ]; then
+            echo "::notice::Terraform plan skipped: commit infra/terraform/environments/${{ matrix.environment }}/terraform.tfvars."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        if: steps.config.outputs.ready == 'true'
+        with:
+          role-to-assume: ${{ env.ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v4
+        if: steps.config.outputs.ready == 'true'
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Plan
+        if: steps.config.outputs.ready == 'true'
+        run: |
+          if [ -n "$ALARM_EMAIL" ]; then export TF_VAR_alarm_email="$ALARM_EMAIL"; fi
+          terraform init -input=false -lockfile=readonly -backend-config="bucket=$STATE_BUCKET"
+          terraform plan -input=false -lock-timeout=5m -no-color -out=plan.tfplan
+          {
+            echo "### Terraform plan: ${{ matrix.environment }}"
+            echo '```'
+            terraform show -no-color plan.tfplan
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # The apply job applies this file, not a new plan. Plans hold identifiers (account, ARNs,
+      # host names) but no secrets: none pass through Terraform (secrets.tf). Like every plan file,
+      # it holds sensitive values such as the alarm address in plain text, and anyone signed in to
+      # GitHub can download a public repository's artifacts for the five days it is kept.
+      - uses: actions/upload-artifact@v7
+        if: steps.config.outputs.ready == 'true'
+        with:
+          name: plan-${{ matrix.environment }}
+          path: infra/terraform/environments/${{ matrix.environment }}/plan.tfplan
+          retention-days: 5
+          if-no-files-found: error
+
+  apply:
+    name: Apply (${{ inputs.apply }})
+    needs: [checks, plan]
+    # Runs even when the other environment's plan failed; it needs only its own plan's file.
+    if: ${{ !cancelled() && needs.checks.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.apply != 'none' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # The environment's required reviewers approve before this job starts.
+    environment: aws-${{ inputs.apply }}-infra
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: infra/terraform/environments/${{ inputs.apply }}
+    env:
+      ROLE_ARN: ${{ vars.AWS_TERRAFORM_APPLY_ROLE_ARN }}
+      STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check configuration
+        id: config
+        run: |
+          if [ -z "$ROLE_ARN" ] || [ -z "$STATE_BUCKET" ] || [ ! -f terraform.tfvars ]; then
+            echo "::notice::Terraform apply skipped: set AWS_TERRAFORM_APPLY_ROLE_ARN and TF_STATE_BUCKET, and commit terraform.tfvars (infra/README.md)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_REF" != refs/heads/develop ]; then
+            echo "::error::Applies run from develop only."
+            exit 1
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Fails when this environment's plan did not succeed in this run: there is nothing to apply.
+      - uses: actions/download-artifact@v8
+        if: steps.config.outputs.ready == 'true'
+        with:
+          name: plan-${{ inputs.apply }}
+          path: infra/terraform/environments/${{ inputs.apply }}
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        if: steps.config.outputs.ready == 'true'
+        with:
+          role-to-assume: ${{ env.ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v4
+        if: steps.config.outputs.ready == 'true'
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      # Applying a saved plan changes exactly what it lists; Terraform refuses it if the state
+      # changed since the plan was made, and a new run has to plan again.
+      - name: Apply the reviewed plan
+        if: steps.config.outputs.ready == 'true'
+        run: |
+          terraform init -input=false -lockfile=readonly -backend-config="bucket=$STATE_BUCKET"
+          terraform apply -input=false -lock-timeout=5m -no-color plan.tfplan
