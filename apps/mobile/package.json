@@ -5,7 +5,7 @@
   "license": "MIT",
   "dependencies": {
     "@expo/ui": "~57.0.21",
-    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-async-storage/async-storage": "3.1.1",
     "@supabase/supabase-js": "^2.117.2",
     "@topflow/shared": "*",
     "aes-js": "^3.1.2",
