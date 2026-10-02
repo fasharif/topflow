@@ -1,6 +1,6 @@
 {
   "name": "topflow-hub",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "license": "MIT",
   "description": "TopFlow Hub — B2B/B2C irrigation & flow-control commerce platform for Top Flow (Turborepo monorepo)",
@@ -40,7 +40,7 @@
     "supabase": "^2.118.0",
     "tsx": "^4.23.13",
     "turbo": "^2.11.5",
-    "typescript": "~7.0.2"
+    "typescript": "~6.0.3"
   },
   "engines": {
     "node": ">=22"
