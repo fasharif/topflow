@@ -38,13 +38,13 @@
     "prisma": "^7.10.0"
   },
   "devDependencies": {
-    "@supabase/supabase-js": "^2.117.0",
+    "@supabase/supabase-js": "^2.117.2",
     "@topflow/shared": "*",
     "@types/jest": "^30.0.0",
     "@types/node": "^26.6.3",
     "@types/pg": "^8.23.1",
     "jest": "^30.0.0",
-    "ts-jest": "^29.2.5",
+    "ts-jest": "^29.4.14",
     "tsx": "^4.23.15"
   },
   "jest": {
