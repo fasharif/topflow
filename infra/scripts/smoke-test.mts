@@ -255,7 +255,8 @@ export async function runSmokeTest(options: SmokeOptions, client: HttpClient): P
 }
 
 export function formatResults(results: CheckResult[]): string {
-  const cell = (text: string) => text.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
+  // Backslashes first, so an input backslash cannot combine with the escape added for a pipe.
+  const cell = (text: string) => text.replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
   const rows = results.map((result) => `| ${result.ok ? 'pass' : 'FAIL'} | ${cell(result.name)} | ${cell(result.detail)} |`);
   return ['| Result | Check | Detail |', '| --- | --- | --- |', ...rows].join('\n');
 }

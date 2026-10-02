@@ -213,4 +213,9 @@ describe('smoke test', () => {
     assert.match(table, /^\| Result \| Check \| Detail \|/);
     assert.ok(table.includes('| FAIL | api: pipe \\| in detail | a \\| b |'), table);
   });
+
+  it('escapes backslashes so they cannot swallow a cell border', () => {
+    const table = formatResults([{ name: 'ca: C:\\certs\\ca.pem', ok: false, detail: 'ends with \\' }]);
+    assert.ok(table.includes('| FAIL | ca: C:\\\\certs\\\\ca.pem | ends with \\\\ |'), table);
+  });
 });
