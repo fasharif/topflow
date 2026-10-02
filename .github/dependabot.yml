@@ -44,6 +44,15 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "@nestjs/mapped-types"
         update-types: ["version-update:semver-major"]
+      # TypeScript 7 (the native compiler) breaks ts-jest, which runs the API's unit tests. Move to a
+      # new TypeScript major deliberately, once ts-jest, typescript-eslint, Next.js and the NestJS CLI
+      # support it.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      # The web app stays on ESLint 9: eslint-config-next brings eslint-plugin-react 7, which ESLint 10
+      # cannot load (context.getFilename was removed). The API already runs ESLint 10.
+      - dependency-name: eslint
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
