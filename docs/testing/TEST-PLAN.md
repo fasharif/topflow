@@ -221,7 +221,7 @@ Run on 28 September 2026 on a Windows 11 laptop with Docker Desktop (16 CPUs, 7.
 | Suite | Command | Result |
 | --- | --- | --- |
 | Static checks | `npx turbo run lint check-types`; shellcheck 0.9.0 and 0.11.0 on the tool scripts; actionlint 1.7.12 | All passed; no finding in the 7 workflows |
-| Script guards and load thresholds | `bash tests/scripts/common.test.sh`; `npm run load:check -w @topflow/system-tests` | 18 address checks passed; the load profile gates on all 8 p95 targets, failed requests and checks |
+| Script guards and load thresholds | `bash tests/scripts/common.test.sh`; `npm run load:check -w @topflow/system-tests` | 17 address checks passed; the load profile gates on all 8 p95 targets, failed requests and checks |
 | Shared unit tests | `npm test -w @topflow/shared` | 91 passed |
 | API unit tests | `npm run test:cov -w @topflow/api` | 84 passed |
 | Web unit tests | `npm test -w web` | 30 passed |
