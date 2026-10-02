@@ -32,7 +32,7 @@ Secrets live only in the Vercel project settings, GitHub Actions secrets and Sup
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Web | Publishable key (`sb_publishable_…`) |
 | `NEXT_PUBLIC_SITE_URL` | Web | Public origin used in email redirects and page metadata; behind a reverse proxy (the container images) the only way the server knows it |
 | `API_INTERNAL_URL` | Web | API origin |
-| `NEXT_PUBLIC_DEMO_MODE` | Web (build) | `true` only for the public demo; inlined at build time, so a demo container image is a separate build |
+| `NEXT_PUBLIC_DEMO_MODE` | Web (build) | `true` only for the public demo; inlined at build time. The web image takes it as a build argument (`false` unless set), so a demo image is a separate build with `--build-arg NEXT_PUBLIC_DEMO_MODE=true`, and setting it on a running container changes nothing |
 | `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `SENTRY_TRACES_SAMPLE_RATE` | API **and** web (optional) | Server errors go to Sentry when `SENTRY_DSN` is set; without it nothing is sent |
 | `APP_VERSION` | API and web (set by the container images) | Reported by `/health`, so a deployment can be checked |
 | `SUPABASE_DB_URL` (secret), `BACKUP_AGE_RECIPIENT`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `API_HEALTH_URL` (variables) | GitHub Actions | Nightly backup and keep-alive |
@@ -225,7 +225,7 @@ The seed also creates `owner@alwaha.example`, the owner of a company waiting in 
    ```
 
 4. Deploy the API with the production settings of [section 2](#2-configuration) for the demo project, plus `DEMO_MODE=true`, `STAFF_MFA_REQUIRED=false` and, if the maintainer wants to receive the demo's emails, `DEMO_MAIL_ALLOWLIST=<their address>`. Without an allow-list, set `MAIL_TRANSPORT=console` and no `RESEND_API_KEY`, so the demo has no way to send business email. With one, set a `MAIL_FROM` that names the portfolio demo on a domain the maintainer controls, not Top Flow's `no-reply@topflow.ae`. Leave `THROTTLE_*` at their defaults or make them stricter (lower limits, a longer `THROTTLE_TTL_MS`); the API refuses anything looser.
-5. Build the web app with `NEXT_PUBLIC_DEMO_MODE=true` and the demo project's `NEXT_PUBLIC_SUPABASE_*` values.
+5. Build the web app with `NEXT_PUBLIC_DEMO_MODE=true` and the demo project's `NEXT_PUBLIC_SUPABASE_*` values. For a container image, that is `--build-arg NEXT_PUBLIC_DEMO_MODE=true`, with the `NEXT_PUBLIC_SUPABASE_*` values set on the running container.
 6. In GitHub, add the secrets `DEMO_DATABASE_URL` (the connection string from step 3) and `DEMO_SUPABASE_SECRET_KEY`, and the variable `DEMO_SUPABASE_URL`. Run the *Demo reset* workflow once from the Actions tab.
 7. Check the result, starting with the API:
    - `GET /` on the demo API answers `"demo": true`;
