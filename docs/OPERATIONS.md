@@ -149,7 +149,7 @@ To try demo mode locally, set `DEMO_MODE=true` and `STAFF_MFA_REQUIRED=false` in
 
 ## 10. Production-like stack (Docker Compose)
 
-`docker-compose.prod.yml` runs the container images with production settings — HTTPS through Caddy, staff MFA, read-only containers, the release step before the API — next to PostgreSQL 17, Supabase Auth (GoTrue) and Mailpit. The Containers workflow starts it for every change and runs the smoke test with a real sign-in (on GitHub since this branch's pull request; its last run before the merge with the demo mode passed on 2 October 2026).
+`docker-compose.prod.yml` runs the container images with production settings — HTTPS through Caddy, staff MFA, read-only containers, the release step before the API — next to PostgreSQL 17, Supabase Auth (GoTrue) and Mailpit. The Containers workflow starts it for every change and runs the smoke test with a real sign-in (on GitHub since PR #14; it passed on `develop` after that pull request was merged on 2 October 2026).
 
 ```bash
 node infra/compose/generate-env.mts            # secrets and Supabase keys → infra/compose/.env
