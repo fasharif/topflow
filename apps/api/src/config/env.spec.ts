@@ -1,3 +1,5 @@
+import { sentryOptions } from '../observability/sentry-config';
+import { DEFAULT_APP_VERSION } from './app-version';
 import { loadConfig } from './env';
 
 const production = {
@@ -58,6 +60,19 @@ describe('loadConfig', () => {
         SENTRY_DSN: 'https://key@o1.ingest.sentry.io/1',
       }),
     ).not.toThrow();
+  });
+
+  it('reports one release at /health and to Sentry, with or without APP_VERSION', () => {
+    const base = {
+      DATABASE_URL: 'postgres://db',
+      SENTRY_DSN: 'https://key@o1.ingest.sentry.io/1',
+    };
+    expect(loadConfig(base).app.version).toBe(DEFAULT_APP_VERSION);
+    expect(sentryOptions(base)?.release).toBe(DEFAULT_APP_VERSION);
+
+    const tagged = { ...base, APP_VERSION: 'sha-1a2b3c4' };
+    expect(loadConfig(tagged).app.version).toBe('sha-1a2b3c4');
+    expect(sentryOptions(tagged)?.release).toBe('sha-1a2b3c4');
   });
 
   describe('demo mode', () => {

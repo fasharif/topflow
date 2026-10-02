@@ -1,13 +1,16 @@
 # TopFlow Hub web app (Next.js standalone server). Build from the repository root:
 #
 #   docker build -f apps/web/Dockerfile -t topflow-hub-web .
+#   docker build -f apps/web/Dockerfile --build-arg NEXT_PUBLIC_DEMO_MODE=true -t topflow-hub-web-demo .
 #
 # One image serves every environment. NEXT_PUBLIC_* variables are deliberately absent at build
 # time, so Next.js does not inline them: the server reads NEXT_PUBLIC_SUPABASE_URL,
 # NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY and NEXT_PUBLIC_SITE_URL from its environment at runtime
 # (Supabase runs only on the server, ADR-013). The exception is NEXT_PUBLIC_DEMO_MODE, which a
-# client component reads: it is fixed at build time, so a demo image is a separate build. See
-# ADR-023 in docs/DECISIONS.md.
+# client component reads: the build argument of the same name is always inlined, `false` unless
+# set, so a demo image is a separate build (the second command above, ADR-021) and setting the
+# variable on a running container changes nothing. A value other than true or false fails the
+# build. See ADR-023 in docs/DECISIONS.md.
 #
 # Runs as the unprivileged `node` user without npm, from the ECR Public mirror of the Docker
 # Official Node.js image (no Docker Hub pull limits), pinned by digest. There is no `# syntax=`
@@ -33,6 +36,10 @@ COPY --from=prune /repo/out/json/ ./
 RUN --mount=type=cache,target=/root/.npm,sharing=locked \
     npm ci --no-audit --no-fund
 COPY --from=prune /repo/out/full/ ./
+# Declared after the install, so a demo build reuses the cached dependencies. turbo.json passes
+# NEXT_PUBLIC_* through to the build and includes it in the cache key.
+ARG NEXT_PUBLIC_DEMO_MODE=false
+ENV NEXT_PUBLIC_DEMO_MODE=${NEXT_PUBLIC_DEMO_MODE}
 RUN npx turbo run build --filter=web
 
 FROM node-base AS runtime

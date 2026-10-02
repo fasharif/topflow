@@ -1,6 +1,7 @@
 // Type-only import: erased at compile time, so the release preflight never loads the SDK.
 import type { NodeOptions } from '@sentry/nestjs';
 import { z } from 'zod';
+import { DEFAULT_APP_VERSION } from '../config/app-version';
 
 /** Treats an empty variable (`SENTRY_DSN=` in an env file or compose) as unset. */
 const optional = <T extends z.ZodType>(schema: T) =>
@@ -39,7 +40,7 @@ export const sentryEnvShape = {
 const sentryEnvSchema = z.object({
   ...sentryEnvShape,
   NODE_ENV: z.string().default('development'),
-  APP_VERSION: z.string().default('3.0.0'),
+  APP_VERSION: z.string().default(DEFAULT_APP_VERSION),
 });
 
 type DataCollection = NonNullable<NodeOptions['dataCollection']>;
