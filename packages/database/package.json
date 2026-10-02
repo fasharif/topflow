@@ -37,7 +37,7 @@
   "devDependencies": {
     "@supabase/supabase-js": "^2.117.0",
     "@topflow/shared": "*",
-    "@types/node": "^22.20.2",
+    "@types/node": "^26.6.3",
     "@types/pg": "^8.23.1",
     "tsx": "^4.23.15"
   }
