@@ -35,7 +35,7 @@
     "@vercel/functions": "^3.9.9",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
-    "dotenv": "^17.2.3",
+    "dotenv": "^18.0.4",
     "helmet": "^8.3.0",
     "jose": "^6.2.12",
     "nestjs-zod": "^5.5.0",
