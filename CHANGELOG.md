@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.1](https://github.com/fasharif/topflow/compare/v1.0.0...v1.0.1) (2026-10-02)
+
+
+### Bug fixes
+
+* **compose:** keep the stack's PostgreSQL on 17, as in production ([5b0e718](https://github.com/fasharif/topflow/commit/5b0e71858ccd0648ff883b7c6e35070a0e78a7ef))
+* **deps:** return to TypeScript 5/6 and ESLint 9 for the web app ([0e0566e](https://github.com/fasharif/topflow/commit/0e0566e44ffb6a8a0670f9c6bb3f45c6401fdbbf))
+
 ## 1.0.0 (2026-10-02)
 
 
