@@ -16,11 +16,6 @@ function resolveSiteUrl(): string {
 
 export const SITE_URL = resolveSiteUrl();
 
-/** "https://hub.example.com/products" from "/products". */
-export function absoluteUrl(path: string): string {
-  return `${SITE_URL}${path.startsWith('/') ? path : `/${path}`}`;
-}
-
 /** The origin of a configured site URL, or null when it is empty or invalid. */
 export function originOf(value: string | undefined): string | null {
   const configured = value?.trim();
