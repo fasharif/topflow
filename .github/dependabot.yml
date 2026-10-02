@@ -9,6 +9,21 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    # Each Expo SDK pins React, React Native and their native libraries for the mobile app.
+    # Dependabot moved them past SDK 57 in #8 and broke the mobile build, so they are upgraded
+    # together with the SDK instead (npx expo install --fix in apps/mobile). The web app's React
+    # moves with them.
+    ignore:
+      - dependency-name: expo
+      - dependency-name: expo-*
+      - dependency-name: "@expo/*"
+      - dependency-name: react
+      - dependency-name: react-dom
+      - dependency-name: "@types/react"
+      - dependency-name: "@types/react-dom"
+      - dependency-name: react-native
+      - dependency-name: react-native-*
+      - dependency-name: "@react-native/*"
 
   - package-ecosystem: github-actions
     directory: /
