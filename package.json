@@ -36,10 +36,10 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.2",
-    "prettier": "^3.7.4",
+    "prettier": "^3.9.8",
     "supabase": "^2.117.0",
     "tsx": "^4.23.13",
-    "turbo": "^2.10.11",
+    "turbo": "^2.11.2",
     "typescript": "~6.0.3"
   },
   "engines": {
