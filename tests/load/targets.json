@@ -1,13 +1,13 @@
 {
-  "$comment": "p95 targets per endpoint tag, in milliseconds, in the order api-load.ts calls the endpoints. api-load.ts turns them into thresholds of the load profile; scripts/k6-summary-table.mts compares measured results with them; scripts/k6-thresholds.mts checks that the load profile gates on each. See docs/testing/PERFORMANCE.md.",
+  "$comment": "p95 thresholds per endpoint tag, in milliseconds, in the order api-load.ts calls the endpoints. Set on 3 October 2026 from three measured load runs: four times the highest p95 of the three, rounded up to a multiple of 10 ms, and at least 20 ms (docs/testing/PERFORMANCE.md). api-load.ts turns them into thresholds of the load profile; scripts/k6-summary-table.mts compares measured results with them; scripts/k6-thresholds.mts checks that the load profile gates on each.",
   "endpoints": [
-    { "tag": "health", "label": "GET /health/ready", "p95Ms": 200 },
-    { "tag": "categories", "label": "GET /catalog/categories", "p95Ms": 500 },
-    { "tag": "catalogue", "label": "GET /catalog/products (page)", "p95Ms": 500 },
-    { "tag": "search", "label": "GET /catalog/products?search=", "p95Ms": 500 },
-    { "tag": "product", "label": "GET /catalog/products/{slug}", "p95Ms": 500 },
-    { "tag": "me", "label": "GET /auth/me", "p95Ms": 500 },
-    { "tag": "my-orders", "label": "GET /me/orders", "p95Ms": 500 },
-    { "tag": "quote-request", "label": "POST /quote-requests", "p95Ms": 1000 }
+    { "tag": "health", "label": "GET /health/ready", "p95Ms": 20 },
+    { "tag": "categories", "label": "GET /catalog/categories", "p95Ms": 30 },
+    { "tag": "catalogue", "label": "GET /catalog/products (page)", "p95Ms": 60 },
+    { "tag": "search", "label": "GET /catalog/products?search=", "p95Ms": 70 },
+    { "tag": "product", "label": "GET /catalog/products/{slug}", "p95Ms": 30 },
+    { "tag": "me", "label": "GET /auth/me", "p95Ms": 80 },
+    { "tag": "my-orders", "label": "GET /me/orders", "p95Ms": 80 },
+    { "tag": "quote-request", "label": "POST /quote-requests", "p95Ms": 60 }
   ]
 }
