@@ -71,6 +71,11 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # PostgreSQL follows production: Supabase runs major version 17 (supabase/config.toml), and CI
+    # tests against postgres:17. A new major also needs a different volume layout and pg_upgrade.
+    ignore:
+      - dependency-name: docker/library/postgres
+        update-types: ["version-update:semver-major"]
 
   # The AWS provider of every Terraform root and module (lock files included).
   - package-ecosystem: terraform
