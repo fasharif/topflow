@@ -124,7 +124,17 @@ jobs:
           SENTRY_DSN: https://public@sentry.invalid/1
         run: |
           node infra/compose/generate-env.mts
-          docker compose -f docker-compose.prod.yml --env-file infra/compose/.env up -d --no-build --wait --wait-timeout 300
+          # ECR Public throttles anonymous pulls from shared runner addresses ("Rate exceeded"), and
+          # Compose pulls every service at once. Pull the third-party images one at a time, with
+          # back-off, so a busy registry slows the job down instead of failing it.
+          for image in $(docker compose -f docker-compose.prod.yml --env-file infra/compose/.env --profile demo config --images | grep -v '^topflow-hub-' | sort -u); do
+            for attempt in 1 2 3 4 5; do
+              docker pull --quiet "$image" && break
+              if [ "$attempt" -eq 5 ]; then echo "::error::could not pull $image"; exit 1; fi
+              sleep $((attempt * 15))
+            done
+          done
+          docker compose -f docker-compose.prod.yml --env-file infra/compose/.env up -d --no-build --pull never --wait --wait-timeout 300
           docker compose -f docker-compose.prod.yml --env-file infra/compose/.env --profile demo run --rm seed
           docker compose -f docker-compose.prod.yml --env-file infra/compose/.env cp proxy:/data/caddy/pki/authorities/local/root.crt "$RUNNER_TEMP/caddy-root.crt"
 
