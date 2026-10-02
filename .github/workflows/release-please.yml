@@ -1,0 +1,33 @@
+name: Release Please
+
+# Keeps a release pull request open against develop, built from the Conventional Commits merged
+# there: it bumps the version in package.json and writes CHANGELOG.md. The first release is v1.0.0
+# (initial-version in release-please-config.json). Nothing is tagged or released until a maintainer
+# merges that pull request. Runbook: docs/OPERATIONS.md, section 3.
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    name: Release pull request
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: googleapis/release-please-action@v5
+        with:
+          target-branch: develop
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

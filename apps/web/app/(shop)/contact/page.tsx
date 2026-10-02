@@ -1,8 +1,9 @@
 import { Building, FileText } from 'lucide-react';
 import type { Metadata } from 'next';
 import { CompanyLocation, ContactOptions } from '@/components/contact-options';
-import { Card, Container, LinkButton, PageHeader } from '@/components/ui';
+import { Alert, Card, Container, LinkButton, PageHeader } from '@/components/ui';
 import { organizationJsonLd } from '@/lib/company';
+import { DEMO_CONTACT_NOTE, DEMO_MODE } from '@/lib/demo';
 
 export const metadata: Metadata = {
   title: 'Contact',
@@ -24,6 +25,12 @@ export default function ContactPage() {
         title="Talk to our sales team"
         description={<p className="max-w-2xl">Call, message us on WhatsApp or email Top Flow about products, quotations, deliveries and trade accounts.</p>}
       />
+
+      {DEMO_MODE && (
+        <Alert tone="warning" title="Portfolio demo" className="mb-6">
+          {DEMO_CONTACT_NOTE}
+        </Alert>
+      )}
 
       <section aria-labelledby="contact-channels-heading">
         <h2 id="contact-channels-heading" className="sr-only">

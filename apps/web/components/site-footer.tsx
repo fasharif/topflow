@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { Logo } from '@/components/brand/logo';
 import { ContactOptions, ServiceArea } from '@/components/contact-options';
 import { COMPANY, MAIN_CATEGORIES } from '@/lib/company';
+import { DEMO_CONTACT_NOTE, DEMO_MODE } from '@/lib/demo';
 import { FREE_DELIVERY_LABEL, VAT_LABEL } from '@/lib/format';
 import { Container } from './ui';
 
@@ -40,10 +41,16 @@ export function SiteFooter() {
       <Container className="grid gap-12 py-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-16">
         <div>
           <Logo tone="inverse" />
-          <p className="mt-5 max-w-sm leading-relaxed">
-            {COMPANY.productName} is {COMPANY.name}’s supply platform for irrigation and flow-control products, for contractors, farms, landscapers,
-            facilities teams and homeowners.
-          </p>
+          {DEMO_MODE ? (
+            <p className="mt-5 max-w-sm leading-relaxed">
+              {COMPANY.productName} is Farah Sharif’s portfolio project, built with {COMPANY.name}’s permission. {DEMO_CONTACT_NOTE}
+            </p>
+          ) : (
+            <p className="mt-5 max-w-sm leading-relaxed">
+              {COMPANY.productName} is {COMPANY.name}’s supply platform for irrigation and flow-control products, for contractors, farms, landscapers,
+              facilities teams and homeowners.
+            </p>
+          )}
           <div className="mt-6 space-y-3">
             <ContactOptions tone="dark" layout="column" />
             <ServiceArea tone="dark" />

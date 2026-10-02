@@ -1,7 +1,8 @@
 name: Uptime
 
-# Liveness of the web app and the API, database readiness, robots.txt, the rendered home page and
-# its portfolio notice (infra/scripts/smoke-test.mts). Every check is tried up to three times,
+# Liveness of the web app and the API, database readiness, the runtime site URL in email links, the
+# rendered home page with its portfolio notice (or a demo build's banner), noindex and robots.txt
+# (infra/scripts/smoke-test.mts). Every check is tried up to three times,
 # 10 seconds apart, so a single slow response is not an outage.
 #
 # Nothing is hosted yet, so the 15-minute schedule is off: every run would only print a notice.

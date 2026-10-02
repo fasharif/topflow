@@ -58,7 +58,7 @@ node infra/compose/generate-env.mts            # secrets, Supabase keys and URLs
 docker compose -f docker-compose.prod.yml --env-file infra/compose/.env up -d --build --wait
 docker compose -f docker-compose.prod.yml --env-file infra/compose/.env --profile demo run --rm --build seed
 docker compose -f docker-compose.prod.yml --env-file infra/compose/.env cp proxy:/data/caddy/pki/authorities/local/root.crt caddy-root.crt
-SMOKE_PASSWORD='TopFlow2026!' node infra/scripts/smoke-test.mts --web https://localhost:8443 --api https://api.localhost:8443 --auth https://auth.localhost:8443 --ca caddy-root.crt --sign-in buyer@desertbloom.ae
+SMOKE_PASSWORD='TopFlow2026!' node infra/scripts/smoke-test.mts --web https://localhost:8443 --api https://api.localhost:8443 --auth https://auth.localhost:8443 --ca caddy-root.crt --sign-in buyer@desertbloom.example
 ```
 
 | Service | URL |
@@ -85,7 +85,7 @@ SMOKE_PASSWORD='TopFlow2026!' node infra/scripts/smoke-test.mts --web https://lo
 | Terraform: fmt, validate, `terraform test` (mocked provider), tflint, Trivy | `infra/scripts/check-terraform.sh` | Docker |
 | Shell scripts | `docker run --rm -v "$PWD:/mnt:ro" -w /mnt koalaman/shellcheck:v0.11.0 infra/scripts/*.sh infra/scripts/tests/*.sh infra/scripts/tests/fake-aws infra/compose/initdb/*.sh apps/api/docker/*.sh` | Docker |
 
-CI is set up to run all of them ([ci.yml](../.github/workflows/ci.yml), [infra.yml](../.github/workflows/infra.yml)), plus the Compose stack with the smoke test ([containers.yml](../.github/workflows/containers.yml)). Those workflows have not run on GitHub yet (see [Not run yet](#not-run-yet)); each command in this table was run locally in Linux containers.
+CI is set up to run all of them ([ci.yml](../.github/workflows/ci.yml), [infra.yml](../.github/workflows/infra.yml)), plus the Compose stack with the smoke test ([containers.yml](../.github/workflows/containers.yml)). Those workflows run on GitHub for this branch's pull request, and their last runs before the merge with the demo mode passed on 2 October 2026; each command in this table was also run locally in Linux containers.
 
 ## AWS (prepared, not applied)
 
@@ -242,4 +242,3 @@ The earlier build of this branch reports a run on 26 September 2026 against a du
 | The Uptime workflow | needs public URLs; its schedule is off until then | set `UPTIME_WEB_URL` and `UPTIME_API_URL`, and uncomment the schedule |
 | The restore drill on a real nightly backup | no hosted database yet (the backup workflow skips) | download a backup artifact and run the drill with the offline key. Check the `auth` schema first: on 28 September 2026 a Supabase CLI dump of the Compose stack's database (GoTrue v2.196.0) did not restore into the default image, whose built-in `auth.audit_log_entries` has no `ip_address` column |
 | Sentry event delivery | needs a Sentry project | set `SENTRY_DSN`; what the SDK would send is checked by unit tests that run the real SDK with a recording transport, and the Compose smoke test starts both servers with a DSN |
-| The CI, Containers and Infrastructure workflows on GitHub's runners | this branch has not been pushed | push it; every job's commands were run locally in Linux containers with the same scripts and images |

@@ -17,6 +17,7 @@ import { ClientThrottlerGuard } from './common/throttle';
 import { APP_CONFIG, ConfigModule } from './config/config.module';
 import type { AppConfig } from './config/env';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { DemoModule } from './demo/demo-policy';
 import { HealthController } from './health/health.controller';
 import { MailModule } from './mail/mail.service';
 import { OrdersModule } from './orders/orders.module';
@@ -45,6 +46,7 @@ import { UsersModule } from './users/users.module';
       ],
     }),
     MailModule,
+    DemoModule,
     AuditModule,
     NumberingModule,
     AuthModule,

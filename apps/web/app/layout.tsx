@@ -3,9 +3,11 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 import { LucideProvider } from 'lucide-react';
 import type { Metadata, Viewport } from 'next';
 import { IBM_Plex_Mono, IBM_Plex_Sans } from 'next/font/google';
+import { DemoBanner } from '@/components/demo-banner';
 import { PortfolioNotice } from '@/components/portfolio-notice';
 import { SessionBootstrap } from '@/components/session-bootstrap';
 import { SITE_URL } from '@/lib/site';
+import { siteMetadata } from '@/lib/site-metadata';
 import { onVercel } from '@/lib/vercel';
 import './globals.css';
 
@@ -13,21 +15,10 @@ import './globals.css';
 const plexSans = IBM_Plex_Sans({ variable: '--font-plex-sans', subsets: ['latin'], display: 'swap' });
 const plexMono = IBM_Plex_Mono({ variable: '--font-plex-mono', subsets: ['latin'], weight: ['400', '500', '600'], display: 'swap' });
 
-const TITLE = 'Top Flow Hub — Irrigation & flow-control supplies, UAE';
-const DESCRIPTION =
-  'A portfolio project by Farah Sharif, built with Top Flow’s permission: a supply platform for irrigation and flow-control products in the UAE, with electrofusion and HDPE fittings, sprinklers and rotors, drip irrigation, valves and controllers, filtration, pumps, fertigation, greenhouse supplies and hoses. Not Top Flow’s official store.';
-
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
-  title: { default: TITLE, template: '%s · Top Flow Hub' },
-  description: DESCRIPTION,
-  applicationName: 'TopFlow Hub',
-  openGraph: { type: 'website', siteName: 'Top Flow Hub', locale: 'en_AE', title: TITLE, description: DESCRIPTION },
-  twitter: { card: 'summary', title: TITLE, description: DESCRIPTION },
-  // A portfolio project stays out of search results (lib/portfolio.ts); next.config.ts also sends
-  // the X-Robots-Tag header, which covers responses that are not HTML pages.
-  robots: { index: false, follow: false },
-};
+// Every build describes itself as a portfolio project in its description and link previews (a demo build
+// also names itself a portfolio demo in every title), and asks not to be indexed (lib/site-metadata.ts,
+// ADR-021, ADR-023).
+export const metadata: Metadata = siteMetadata(SITE_URL);
 
 export const viewport: Viewport = {
   themeColor: '#ffffff',
@@ -43,6 +34,8 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
         >
           Skip to main content
         </a>
+        {/* One notice per page: the demo banner in a demo build, the portfolio notice in every other. */}
+        <DemoBanner />
         <PortfolioNotice />
         <SessionBootstrap />
         <LucideProvider strokeWidth={1.75}>{children}</LucideProvider>

@@ -1,6 +1,7 @@
 import { Global, Injectable, Logger, Module } from '@nestjs/common';
 import { InjectConfig } from '../config/config.module';
 import type { AppConfig } from '../config/env';
+import { mailRoute, maskEmail } from './mail-guard';
 
 export interface MailMessage {
   to: string;
@@ -12,11 +13,13 @@ export interface MailMessage {
  * Transactional email behind a tiny interface: `console` for development and tests,
  * Resend's HTTP API in production (no SDK dependency). Outside production the last
  * messages are kept in memory so end-to-end tests can follow verification links.
+ * In demo mode, messages to addresses outside DEMO_MAIL_ALLOWLIST are withheld (mail-guard.ts).
  */
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
   private readonly sent: MailMessage[] = [];
+  private withheldCount = 0;
 
   constructor(@InjectConfig() private readonly config: AppConfig) {}
 
@@ -24,6 +27,16 @@ export class MailService {
     if (!this.config.isProduction) {
       this.sent.push(message);
       if (this.sent.length > 100) this.sent.shift();
+    }
+
+    if (mailRoute(this.config.demo, message.to) === 'withhold') {
+      this.withheldCount++;
+      if (this.config.env !== 'test') {
+        this.logger.log(
+          `Demo mode: withheld "${message.subject}" to ${maskEmail(message.to)} (not on DEMO_MAIL_ALLOWLIST)`,
+        );
+      }
+      return;
     }
 
     if (this.config.mail.transport === 'console') {
@@ -51,6 +64,11 @@ export class MailService {
     if (!response.ok) {
       throw new Error(`Mail provider responded with HTTP ${response.status}`);
     }
+  }
+
+  /** Messages kept from their recipients by demo mode since the process started. */
+  get withheld(): number {
+    return this.withheldCount;
   }
 
   /** Development/test helper: most recent message sent to an address. */

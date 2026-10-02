@@ -59,7 +59,7 @@ flowchart LR
 
 ### Container images (ADR-023)
 
-The same code also runs as three images: `topflow-hub-api` (the compiled API and only the files it loads), `topflow-hub-migrate` (the release step: environment preflight, then `prisma migrate deploy`) and `topflow-hub-web` (the Next.js standalone server). One web image serves every environment: `NEXT_PUBLIC_*` values are read at runtime on the server (except `NEXT_PUBLIC_DEMO_MODE`, fixed at build time), and behind a proxy the app takes its public origin from `NEXT_PUBLIC_SITE_URL`. Every page says the site is a portfolio project and asks search engines not to index it. `docker-compose.prod.yml` runs them as below, with Supabase Auth's own server standing in for a Supabase project:
+The same code also runs as three images: `topflow-hub-api` (the compiled API and only the files it loads), `topflow-hub-migrate` (the release step: environment preflight, then `prisma migrate deploy`) and `topflow-hub-web` (the Next.js standalone server). One web image serves every environment: `NEXT_PUBLIC_*` values are read at runtime on the server (except `NEXT_PUBLIC_DEMO_MODE`, fixed at build time), and behind a proxy the app takes its public origin from `NEXT_PUBLIC_SITE_URL`. Every page of every build says the site is a portfolio project (a demo build through its demo banner, ADR-021) and asks search engines not to index it. `docker-compose.prod.yml` runs them as below, with Supabase Auth's own server standing in for a Supabase project:
 
 ```mermaid
 flowchart LR
@@ -221,8 +221,8 @@ sequenceDiagram
 | Level | Tooling | Focus |
 | --- | --- | --- |
 | Static | TypeScript strict, ESLint (type-aware), compile-time Prisma ↔ shared enum parity | Contract drift, unsafe code |
-| Unit | Jest | Money/VAT, state machines, permissions, schemas, Supabase token verification, guards, error mapping, config |
-| End-to-end | Jest + Supertest against PostgreSQL | Real middleware stack with simulated Supabase Auth: provisioning, MFA, invitations, RBAC, tenant isolation, procurement and fulfilment journeys, RLS lockdown |
+| Unit | Jest, `node:test` | Money/VAT, state machines, permissions, schemas, Supabase token verification, guards, error mapping, config, error reporting, the demo mail guard and demo policy, the demo reset's safety checks, the web app's authentication Server Actions in and out of demo mode, its notices, page titles and noindex in both builds, the local setup script |
+| End-to-end | Jest + Supertest against PostgreSQL; `next start` over HTTP | Real middleware stack with simulated Supabase Auth: provisioning, MFA, invitations, RBAC, tenant isolation, procurement and fulfilment journeys, RLS lockdown; a second suite in demo mode; the web app's demo and ordinary production builds |
 | Delivery | GitHub Actions | Every push lints, type-checks, tests and builds every workspace; nightly encrypted backups |
 | Containers | Docker, Trivy, Docker Compose | Images built and scanned (critical vulnerabilities fail the build); the production-like stack started and smoke-tested with a real Supabase sign-in, `/auth/me` and a quotation PDF |
 | Infrastructure | `terraform test` (mocked provider), tflint, Trivy, ShellCheck | Secrets only through SSM, read-only containers, HTTPS, deploy-role trust, alarms, input validation; the deploy script against a fake AWS CLI; the backup restore drill end to end |
@@ -237,3 +237,4 @@ sequenceDiagram
 - **Tracing:** every response carries `x-request-id`, also included in error bodies and server logs.
 - **Rate limiting:** per-client limits, stricter on public forms. The web app's server forwards the shopper's IP with a shared secret (`INTERNAL_API_SECRET`); server-rendered catalogue fetches carry the secret without an IP and are not limited. The store is in memory per instance — move it to a shared store if abuse patterns require global limits.
 - **Backups:** a nightly GitHub Actions job dumps roles, schema and data with the Supabase CLI and uploads an age-encrypted archive. Restore steps are in [OPERATIONS.md](OPERATIONS.md); `infra/scripts/restore-drill.sh` rehearses them against a disposable container and checks every row count.
+- **Public demo:** `DEMO_MODE=true` (API) and `NEXT_PUBLIC_DEMO_MODE=true` (web) turn a deployment into the portfolio demo. `MailService` delivers business email only to `DEMO_MAIL_ALLOWLIST`, `DemoPolicy` refuses Supabase invitations and changes to the published demo accounts and the demo organisation, and the web app shows the demo banner in place of the portfolio notice, names itself a portfolio demo in page titles and link previews, and refuses password and two-factor changes on the shared accounts. `npm run demo:reset` empties and reseeds the demo every night (ADR-021, [OPERATIONS.md, *Public demo*](OPERATIONS.md#public-demo)).

@@ -1,6 +1,6 @@
 /**
- * Absolute origin of the storefront (no trailing slash), used for metadata, the sitemap,
- * robots.txt and structured data. Set NEXT_PUBLIC_SITE_URL in each deployment.
+ * Absolute origin of the storefront (no trailing slash), used for page metadata and links in
+ * emails. Set NEXT_PUBLIC_SITE_URL in each deployment.
  */
 function resolveSiteUrl(): string {
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();

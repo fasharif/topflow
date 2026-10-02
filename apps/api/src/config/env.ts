@@ -1,3 +1,4 @@
+import { parseDemoModeFlag } from '@topflow/shared';
 import { z } from 'zod';
 import { sentryEnvShape } from '../observability/sentry-config';
 
@@ -19,13 +20,86 @@ const csv = z.string().transform((value) =>
     .filter(Boolean),
 );
 
+/**
+ * DEMO_MODE is read exactly as the web app and `npm run demo:reset` read it (parseDemoModeFlag):
+ * unset or empty is off, `true`/`1` and `false`/`0` in any case, anything else stops the API.
+ */
+const demoModeFlag = z
+  .string()
+  .optional()
+  .transform((value, ctx) => {
+    try {
+      return parseDemoModeFlag(value);
+    } catch {
+      ctx.addIssue({
+        code: 'custom',
+        message: `must be "true" or "false" (got "${value}")`,
+      });
+      return z.NEVER;
+    }
+  });
+
+/**
+ * Public mail services where anyone can open an address. A domain entry for one of them would let any
+ * visitor send the demo's quote acknowledgements to any address on it, so only exact addresses on them
+ * are accepted. The list covers large services only: it guards against the obvious mistake and is not
+ * a complete register, which is why .env.example asks for exact addresses.
+ */
+export const PUBLIC_MAIL_DOMAINS: ReadonlySet<string> = new Set([
+  'aol.com',
+  'gmail.com',
+  'googlemail.com',
+  'gmx.com',
+  'gmx.net',
+  'hotmail.com',
+  'icloud.com',
+  'live.com',
+  'mac.com',
+  'mail.com',
+  'me.com',
+  'msn.com',
+  'outlook.com',
+  'proton.me',
+  'protonmail.com',
+  'yahoo.com',
+  'yandex.com',
+  'ymail.com',
+  'zoho.com',
+]);
+
+/** An exact address (`name@example.com`) or a whole domain (`@example.com`), compared in lower case. */
+const mailAllowListEntry = z
+  .string()
+  .regex(
+    /^[^\s@,]*@[^\s@,]+\.[^\s@,]+$/,
+    'entries must be email addresses (name@example.com) or domains (@example.com)',
+  )
+  .transform((entry) => entry.toLowerCase())
+  .refine(
+    (entry) =>
+      !(entry.startsWith('@') && PUBLIC_MAIL_DOMAINS.has(entry.slice(1))),
+    {
+      message:
+        'a whole public mail domain (such as @gmail.com) would let visitors send demo email to any address on it: list exact addresses instead',
+    },
+  );
+
+/**
+ * Default per-client rate limits: requests per window, and the window. A public demo may make them
+ * stricter (fewer requests or a longer window), never looser.
+ */
+export const DEFAULT_THROTTLE_LIMIT = 300;
+export const DEFAULT_AUTH_THROTTLE_LIMIT = 10;
+export const DEFAULT_THROTTLE_TTL_MS = 60_000;
+
 export const envSchema = z
   .object({
     NODE_ENV: z
       .enum(['development', 'test', 'production'])
       .default('development'),
     PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
-    APP_VERSION: z.string().default('3.0.0'),
+    // The release number: release-please sets it in each release pull request.
+    APP_VERSION: z.string().default('0.0.0'), // x-release-please-version
     APP_PUBLIC_URL: z.url().default('http://localhost:3002'),
 
     DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
@@ -48,9 +122,29 @@ export const envSchema = z
     TRUST_PROXY: booleanFlag.default(false),
     SWAGGER_ENABLED: booleanFlag.optional(),
 
-    THROTTLE_TTL_MS: z.coerce.number().int().min(1000).default(60_000),
-    THROTTLE_LIMIT: z.coerce.number().int().min(1).default(300),
-    AUTH_THROTTLE_LIMIT: z.coerce.number().int().min(1).default(10),
+    THROTTLE_TTL_MS: z.coerce
+      .number()
+      .int()
+      .min(1000)
+      .default(DEFAULT_THROTTLE_TTL_MS),
+    THROTTLE_LIMIT: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .default(DEFAULT_THROTTLE_LIMIT),
+    AUTH_THROTTLE_LIMIT: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .default(DEFAULT_AUTH_THROTTLE_LIMIT),
+
+    /**
+     * Public portfolio demo (ADR-021): business email reaches only allow-listed addresses, Supabase
+     * invitations are refused, and the published demo accounts and demo organisation stay fixed.
+     */
+    DEMO_MODE: demoModeFlag,
+    /** Addresses or @domains that still receive email (and invitations) in demo mode. */
+    DEMO_MAIL_ALLOWLIST: csv.pipe(z.array(mailAllowListEntry)).default([]),
 
     MAIL_TRANSPORT: z.enum(['console', 'resend']).default('console'),
     MAIL_FROM: z.string().default('Top Flow <no-reply@topflow.ae>'),
@@ -69,6 +163,38 @@ export const envSchema = z
     ...sentryEnvShape,
   })
   .superRefine((env, ctx) => {
+    if (env.DEMO_MODE) {
+      if (env.STAFF_MFA_REQUIRED) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['STAFF_MFA_REQUIRED'],
+          message:
+            'must be false in demo mode: the published staff accounts are shared, so no visitor can hold their authenticator app',
+        });
+      }
+      if (env.THROTTLE_LIMIT > DEFAULT_THROTTLE_LIMIT) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['THROTTLE_LIMIT'],
+          message: `must not exceed ${DEFAULT_THROTTLE_LIMIT} in demo mode: rate limits stay on for the public demo`,
+        });
+      }
+      if (env.AUTH_THROTTLE_LIMIT > DEFAULT_AUTH_THROTTLE_LIMIT) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['AUTH_THROTTLE_LIMIT'],
+          message: `must not exceed ${DEFAULT_AUTH_THROTTLE_LIMIT} in demo mode: rate limits stay on for the public demo`,
+        });
+      }
+      if (env.THROTTLE_TTL_MS < DEFAULT_THROTTLE_TTL_MS) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['THROTTLE_TTL_MS'],
+          message: `must be at least ${DEFAULT_THROTTLE_TTL_MS} in demo mode: a shorter window would let each client send more requests`,
+        });
+      }
+    }
+
     if (env.NODE_ENV !== 'production') return;
     if (!env.SUPABASE_URL.startsWith('https://')) {
       ctx.addIssue({
@@ -133,6 +259,12 @@ export interface AppConfig {
     from: string;
     resendApiKey?: string;
   };
+  /** Public portfolio demo (ADR-021). */
+  demo: {
+    enabled: boolean;
+    /** Lower-case addresses (`name@example.com`) and domains (`@example.com`). */
+    mailAllowList: string[];
+  };
   company: {
     legalName: string;
     trn?: string;
@@ -187,6 +319,10 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       transport: env.MAIL_TRANSPORT,
       from: env.MAIL_FROM,
       resendApiKey: env.RESEND_API_KEY,
+    },
+    demo: {
+      enabled: env.DEMO_MODE,
+      mailAllowList: env.DEMO_MAIL_ALLOWLIST,
     },
     company: {
       legalName: env.COMPANY_LEGAL_NAME,

@@ -34,6 +34,7 @@ import {
 } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { clearCart, removeFromCart, setQuantity, useCart, useCartHydrated } from '@/lib/cart';
+import { DEMO_MODE, DEMO_NO_EMAIL } from '@/lib/demo';
 import { apiFieldErrors, zodFieldErrors, type FieldErrors } from '@/lib/forms';
 import { pluralize, todayInDubai } from '@/lib/format';
 import { useSession } from '@/lib/session';
@@ -235,11 +236,18 @@ export default function QuotePage() {
             </h1>
             <p className="mt-6 text-sm text-slate-600">Your reference number</p>
             <p className="mt-1 font-mono text-2xl font-semibold tracking-wide text-ink-900">{sent.receipt.number}</p>
-            <p className="mx-auto mt-5 max-w-lg text-sm leading-relaxed text-slate-600">
-              We emailed a confirmation to <strong className="font-medium text-ink-900">{sent.email}</strong>. Our sales team will review{' '}
-              {sent.enquiry ? 'your project details' : `your ${pluralize(sent.receipt.lineCount, 'item')}`} and reply with a formal quotation. Please
-              mention your reference number if you contact us.
-            </p>
+            {DEMO_MODE ? (
+              <p className="mx-auto mt-5 max-w-lg text-sm leading-relaxed text-slate-600">
+                {DEMO_NO_EMAIL} Nobody at Top Flow will reply to this request: it is waiting in the demo&apos;s sales inbox. Sign in with the Top Flow
+                sales demo account to review it and build a quotation.
+              </p>
+            ) : (
+              <p className="mx-auto mt-5 max-w-lg text-sm leading-relaxed text-slate-600">
+                We emailed a confirmation to <strong className="font-medium text-ink-900">{sent.email}</strong>. Our sales team will review{' '}
+                {sent.enquiry ? 'your project details' : `your ${pluralize(sent.receipt.lineCount, 'item')}`} and reply with a formal quotation.
+                Please mention your reference number if you contact us.
+              </p>
+            )}
             <p className="mt-3 text-xs text-slate-600">Your basket has been cleared.</p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <LinkButton href="/products" size="lg">

@@ -17,6 +17,7 @@ import {
   type RegisterInput,
 } from '@topflow/shared';
 import { headers } from 'next/headers';
+import { DEMO_MODE, DEMO_NOTICES, demoAllowsPasswordChoice } from '@/lib/demo';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { safeNextPath } from './redirects';
 
@@ -24,6 +25,10 @@ import { safeNextPath } from './redirects';
  * Authentication runs in Server Actions with Supabase Auth. Sessions are written to httpOnly
  * cookies on this server, so the browser never handles tokens. Every action validates its input
  * again with the shared schemas: client-side validation is only a convenience.
+ *
+ * In the portfolio demo (ADR-021) the actions that would make Supabase send an email, or that would
+ * lock other visitors out of the shared demo accounts, are refused here on the server. Every exported
+ * action is listed in actions.spec.ts with its demo-mode behaviour, so a new one needs a decision.
  */
 
 export type ActionResult<T = void> =
@@ -82,6 +87,10 @@ function authErrorMessage(error: AuthError): string {
   }
 }
 
+function demoRestricted(message: string): { ok: false; error: string; code: string } {
+  return { ok: false, error: message, code: 'demo_restricted' };
+}
+
 function failure(error: AuthError, field?: string): { ok: false; error: string; code?: string; fieldErrors?: Record<string, string> } {
   const message = authErrorMessage(error);
   return { ok: false, error: message, code: error.code, ...(field && { fieldErrors: { [field]: message } }) };
@@ -115,6 +124,7 @@ export async function signUp(input: {
   details: RegisterInput | RegisterBusinessInput;
   next?: string;
 }): Promise<ActionResult<{ email: string; needsConfirmation: boolean }>> {
+  if (DEMO_MODE) return demoRestricted(DEMO_NOTICES.signUp);
   const parsed =
     input.accountType === 'business' ? registerBusinessSchema.safeParse(input.details) : registerSchema.safeParse(input.details);
   if (!parsed.success) return invalid(parsed.error.issues);
@@ -145,10 +155,12 @@ export async function signUp(input: {
 
 export async function signOut(scope: 'local' | 'global' = 'local'): Promise<void> {
   const supabase = await createSupabaseServerClient();
-  await supabase.auth.signOut({ scope });
+  // A global sign-out would end every visitor's session on a shared demo account.
+  await supabase.auth.signOut({ scope: DEMO_MODE ? 'local' : scope });
 }
 
 export async function resendConfirmation(input: { email: string }): Promise<ActionResult> {
+  if (DEMO_MODE) return demoRestricted(DEMO_NOTICES.signUp);
   const parsed = forgotPasswordSchema.safeParse(input);
   if (!parsed.success) return invalid(parsed.error.issues);
 
@@ -164,6 +176,7 @@ export async function resendConfirmation(input: { email: string }): Promise<Acti
 }
 
 export async function requestPasswordReset(input: { email: string }): Promise<ActionResult> {
+  if (DEMO_MODE) return demoRestricted(DEMO_NOTICES.passwordReset);
   const parsed = forgotPasswordSchema.safeParse(input);
   if (!parsed.success) return invalid(parsed.error.issues);
 
@@ -185,14 +198,18 @@ export async function setNewPassword(input: NewPasswordInput): Promise<ActionRes
   if (!claims?.claims) {
     return { ok: false, error: 'This link has expired. Request a new password reset email.', code: 'session_missing' };
   }
+  // The demo's shared accounts reach this page with an ordinary sign-in; only an invitation or
+  // recovery link for an account of one's own may choose a password there.
+  if (!demoAllowsPasswordChoice(claims.claims)) return demoRestricted(DEMO_NOTICES.accountSecurity);
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
   if (error) return failure(error, 'password');
-  // A recovered password ends every other session.
-  await supabase.auth.signOut({ scope: 'others' });
+  // A recovered password ends every other session. The demo never ends other visitors' sessions.
+  if (!DEMO_MODE) await supabase.auth.signOut({ scope: 'others' });
   return { ok: true, data: undefined };
 }
 
 export async function changePassword(input: ChangePasswordInput): Promise<ActionResult> {
+  if (DEMO_MODE) return demoRestricted(DEMO_NOTICES.accountSecurity);
   const parsed = changePasswordSchema.safeParse(input);
   if (!parsed.success) return invalid(parsed.error.issues);
 
@@ -228,6 +245,7 @@ export async function getMfaStatus(): Promise<MfaStatus> {
 
 /** Starts enrolling an authenticator app: returns the QR code and the manual-entry secret. */
 export async function startTotpEnrollment(): Promise<ActionResult<{ factorId: string; qrCode: string; secret: string }>> {
+  if (DEMO_MODE) return demoRestricted(DEMO_NOTICES.accountSecurity);
   const supabase = await createSupabaseServerClient();
   const { data: factors } = await supabase.auth.mfa.listFactors();
   // Abandoned set-ups leave unverified factors behind; clear them so enrolment can start again.
@@ -246,6 +264,8 @@ export async function startTotpEnrollment(): Promise<ActionResult<{ factorId: st
 
 /** Verifies a TOTP code: completes an enrolment (factorId given) or a sign-in challenge. */
 export async function verifyTotp(input: { code: string; factorId?: string }): Promise<ActionResult> {
+  // Completing an enrolment would tie a shared demo account to one visitor's phone.
+  if (DEMO_MODE && input.factorId) return demoRestricted(DEMO_NOTICES.accountSecurity);
   const parsed = mfaCodeSchema.safeParse({ code: input.code });
   if (!parsed.success) return invalid(parsed.error.issues);
 
@@ -263,6 +283,7 @@ export async function verifyTotp(input: { code: string; factorId?: string }): Pr
 }
 
 export async function removeTotp(input: { factorId: string }): Promise<ActionResult> {
+  if (DEMO_MODE) return demoRestricted(DEMO_NOTICES.accountSecurity);
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.mfa.unenroll({ factorId: input.factorId });
   if (error) return failure(error);

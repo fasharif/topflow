@@ -1,11 +1,13 @@
 import { ExecutionContext, Injectable } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import { DEFAULT_AUTH_THROTTLE_LIMIT } from '../config/env';
 import type { AppRequest } from './request-context';
 
 /** Stricter per-client limit for unauthenticated writes such as public forms. */
 export const strictThrottle = {
   default: {
-    limit: () => Number(process.env.AUTH_THROTTLE_LIMIT ?? 10),
+    limit: () =>
+      Number(process.env.AUTH_THROTTLE_LIMIT ?? DEFAULT_AUTH_THROTTLE_LIMIT),
     ttl: 60_000,
   },
 };

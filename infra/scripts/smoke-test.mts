@@ -4,11 +4,12 @@
  *
  *   node infra/scripts/smoke-test.mts --web https://localhost:8443 --api https://api.localhost:8443 \
  *     [--auth https://auth.localhost:8443] [--ca caddy-root.crt] [--expect-version sha-1a2b3c4] \
- *     [--sign-in buyer@desertbloom.ae]   (password in SMOKE_PASSWORD, Supabase key in SMOKE_SUPABASE_KEY)
+ *     [--sign-in buyer@desertbloom.example]   (password in SMOKE_PASSWORD, Supabase key in SMOKE_SUPABASE_KEY)
  *
  * Checks: web and API liveness (and the deployed version), database readiness, Supabase Auth,
- * robots.txt built from the runtime site URL, the server-rendered home page, the portfolio notice
- * and noindex on it and, with --sign-in, a real session: Supabase password sign-in, GET /auth/me,
+ * email links that return to the runtime site URL, the server-rendered home page, the portfolio
+ * notice (or a demo build's banner) and noindex on it, a robots.txt that lets crawlers read that
+ * noindex and, with --sign-in, a real session: Supabase password sign-in, GET /auth/me,
  * the member's quotations and a quotation PDF. With --sign-in, an account without an organisation
  * or quotations fails those checks rather than skipping them. Every check is retried (--attempts,
  * --delay-ms), so the test can run while a rolling deployment settles, and one slow response is
@@ -110,8 +111,12 @@ function json(response: HttpResponse): Record<string, unknown> {
   }
 }
 
-/** The start of the notice every page of the web app shows (apps/web/lib/portfolio.ts). */
+/**
+ * The start of the notice every page of the web app shows (apps/web/lib/portfolio.ts), and of the
+ * demo banner that replaces it in a demo build (DEMO_BANNER_TEXT in packages/shared/src/demo.ts).
+ */
 export const PORTFOLIO_NOTICE = 'Portfolio project by Farah Sharif';
+export const DEMO_BANNER = 'Portfolio demo: data resets every night.';
 
 /** A whole number between min and max from a command-line option, or a clear error. */
 export function parseCount(name: string, value: string, min: number, max: number): number {
@@ -178,11 +183,15 @@ export async function runSmokeTest(options: SmokeOptions, client: HttpClient): P
       return `ok, ${String(json(response).version ?? 'version not reported')}`;
     });
   }
-  await check('web: robots.txt uses the runtime site URL', async () => {
-    const response = await client(`${web}/robots.txt`);
-    const expected = `Sitemap: ${web}/sitemap.xml`;
-    expect(response.status === 200 && response.body.toString('utf8').includes(expected), `expected "${expected}"`);
-    return expected;
+  // An email link without a valid token is sent to the sign-in page on the public origin, which the
+  // server takes from NEXT_PUBLIC_SITE_URL at runtime: a value baked in at build time, or none,
+  // would send visitors to the wrong host or scheme.
+  await check('web: email links return to the runtime site URL', async () => {
+    const response = await client(`${web}/auth/confirm`);
+    const location = String(response.headers.location ?? '');
+    const expected = `${web}/login?error=link`;
+    expect(response.status >= 300 && response.status < 400 && location === expected, `HTTP ${response.status} to "${location}", expected "${expected}"`);
+    return `Location: ${location}`;
   });
   let home: HttpResponse | undefined;
   await check('web: home page renders', async () => {
@@ -195,9 +204,16 @@ export async function runSmokeTest(options: SmokeOptions, client: HttpClient): P
   await check('web: marked as a portfolio project, not indexed', async () => {
     const response = home ?? (await client(`${web}/`));
     home = undefined;
-    expect(response.body.toString('utf8').includes(PORTFOLIO_NOTICE), `the page does not say "${PORTFOLIO_NOTICE}"`);
+    // An ordinary build shows the portfolio notice; a demo build shows its banner instead (ADR-021).
+    const html = response.body.toString('utf8');
+    const notice = html.includes(PORTFOLIO_NOTICE) ? 'portfolio notice' : html.includes(DEMO_BANNER) ? 'demo banner' : '';
+    expect(notice, `the page says neither "${PORTFOLIO_NOTICE}" nor "${DEMO_BANNER}"`);
     expect(String(response.headers['x-robots-tag'] ?? '').includes('noindex'), `X-Robots-Tag is "${String(response.headers['x-robots-tag'] ?? '')}"`);
-    return 'portfolio notice shown, X-Robots-Tag noindex';
+    // A crawler that robots.txt keeps out never reads the noindex (apps/web/app/robots.ts).
+    const robots = await client(`${web}/robots.txt`);
+    expect(robots.status === 200, `robots.txt answers HTTP ${robots.status}`);
+    expect(!/^Disallow:[ \t]*\/[ \t]*$/im.test(robots.body.toString('utf8')), 'robots.txt disallows the whole site, which hides its noindex from crawlers');
+    return `${notice} shown, X-Robots-Tag noindex, robots.txt open to crawlers`;
   });
 
   if (options.signIn && auth && api) {

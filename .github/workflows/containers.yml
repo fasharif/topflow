@@ -144,7 +144,7 @@ jobs:
         run: |
           node infra/scripts/smoke-test.mts --web https://localhost:8443 --api https://api.localhost:8443 \
             --auth https://auth.localhost:8443 --ca "$RUNNER_TEMP/caddy-root.crt" \
-            --expect-version "${{ steps.version.outputs.tag }}" --sign-in buyer@desertbloom.ae
+            --expect-version "${{ steps.version.outputs.tag }}" --sign-in buyer@desertbloom.example
 
       - name: Stack logs
         if: failure()

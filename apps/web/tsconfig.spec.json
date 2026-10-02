@@ -3,8 +3,9 @@
   "compilerOptions": {
     "module": "commonjs",
     "moduleResolution": "node10",
+    "incremental": false,
     "isolatedModules": true,
     "types": ["jest", "node"]
   },
-  "include": ["lib/**/*.ts"]
+  "include": ["lib/**/*.ts", "components/**/*.tsx", "app/**/*.ts", "next.config.ts"]
 }

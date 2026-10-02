@@ -5,11 +5,24 @@ import { after, before, beforeEach, describe, it } from 'node:test';
 import { createHttpClient, formatResults, parseCount, runSmokeTest, type SmokeOptions } from './smoke-test.mts';
 
 /** A fake deployment: web, API and Supabase Auth on one local server, with switches for failures. */
-const HEALTHY = { version: 'sha-1a2b3c4', database: 'up', readyFailuresLeft: 0, homeFailuresLeft: 0, portfolio: true, memberships: true, quotations: true };
-const state = { ...HEALTHY, sitemapHost: '' };
+const HEALTHY = {
+  version: 'sha-1a2b3c4',
+  database: 'up',
+  readyFailuresLeft: 0,
+  homeFailuresLeft: 0,
+  notice: 'portfolio' as 'portfolio' | 'demo' | 'none',
+  robots: 'User-Agent: *\nAllow: /\n',
+  memberships: true,
+  quotations: true,
+};
+const state = { ...HEALTHY, siteHost: '' };
 const ORG = '7f3c2a8e-0000-4000-8000-000000000001';
 const QUOTATION = '7f3c2a8e-0000-4000-8000-000000000002';
-const HOME = '<!doctype html><title>Top Flow Hub</title><aside>Portfolio project by Farah Sharif, built with Top Flow’s permission. This is not Top Flow’s official store.</aside>';
+const HOME = {
+  portfolio: '<!doctype html><title>Top Flow Hub</title><aside>Portfolio project by Farah Sharif, built with Top Flow’s permission. This is not Top Flow’s official store.</aside>',
+  demo: '<!doctype html><title>TopFlow Hub portfolio demo</title><aside>Portfolio demo: data resets every night. This is not Top Flow&#x27;s official store.</aside>',
+  none: '<!doctype html><title>Top Flow — official store</title>',
+};
 
 function send(response: ServerResponse, status: number, body: unknown, type = 'application/json', headers: Record<string, string> = {}): void {
   response.writeHead(status, { 'content-type': type, ...headers });
@@ -31,15 +44,17 @@ function handle(request: IncomingMessage, response: ServerResponse): void {
     case 'GET /auth/v1/health':
       return send(response, 200, { version: 'v2.196.0' });
     case 'GET /robots.txt':
-      return send(response, 200, `User-Agent: *\nSitemap: ${state.sitemapHost}/sitemap.xml\n`, 'text/plain');
+      return send(response, 200, state.robots, 'text/plain');
+    case 'GET /auth/confirm':
+      return send(response, 307, '', 'text/plain', { location: `${state.siteHost}/login?error=link` });
     case 'GET /':
       if (state.homeFailuresLeft > 0) {
         state.homeFailuresLeft -= 1;
         return send(response, 502, 'Bad gateway', 'text/plain');
       }
-      return state.portfolio
-        ? send(response, 200, HOME, 'text/html; charset=utf-8', { 'x-robots-tag': 'noindex, nofollow' })
-        : send(response, 200, '<!doctype html><title>Top Flow — official store</title>', 'text/html; charset=utf-8');
+      return state.notice === 'none'
+        ? send(response, 200, HOME.none, 'text/html; charset=utf-8')
+        : send(response, 200, HOME[state.notice], 'text/html; charset=utf-8', { 'x-robots-tag': 'noindex, nofollow' });
     case 'POST /auth/v1/token': {
       let raw = '';
       request.on('data', (chunk: Buffer) => (raw += chunk.toString()));
@@ -80,7 +95,7 @@ describe('smoke test', () => {
   before(async () => {
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
     base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-    state.sitemapHost = base;
+    state.siteHost = base;
   });
   after(() => {
     server.close();
@@ -103,7 +118,7 @@ describe('smoke test', () => {
         'api: liveness (/health)',
         'api: database readiness (/health/ready)',
         'auth: Supabase Auth health',
-        'web: robots.txt uses the runtime site URL',
+        'web: email links return to the runtime site URL',
         'web: home page renders',
         'web: marked as a portfolio project, not indexed',
         'auth: password sign-in',
@@ -115,11 +130,27 @@ describe('smoke test', () => {
   });
 
   it('fails when the site does not say it is a portfolio project', async () => {
-    state.portfolio = false;
+    state.notice = 'none';
     const results = await runSmokeTest(options({ attempts: 1 }), client);
     const notice = results.find((result) => result.name === 'web: marked as a portfolio project, not indexed');
     assert.equal(notice?.ok, false);
-    assert.match(notice?.detail ?? '', /does not say "Portfolio project by Farah Sharif"/);
+    assert.match(notice?.detail ?? '', /says neither "Portfolio project by Farah Sharif" nor "Portfolio demo: data resets every night\."/);
+  });
+
+  it('accepts the demo banner, which takes the portfolio notice\'s place in a demo build', async () => {
+    state.notice = 'demo';
+    const results = await runSmokeTest(options({ attempts: 1 }), client);
+    const notice = results.find((result) => result.name === 'web: marked as a portfolio project, not indexed');
+    assert.equal(notice?.ok, true);
+    assert.match(notice?.detail ?? '', /^demo banner shown, X-Robots-Tag noindex/);
+  });
+
+  it('fails when robots.txt keeps crawlers away from the noindex', async () => {
+    state.robots = 'User-Agent: *\nDisallow: /\n';
+    const results = await runSmokeTest(options({ attempts: 1 }), client);
+    const notice = results.find((result) => result.name === 'web: marked as a portfolio project, not indexed');
+    assert.equal(notice?.ok, false);
+    assert.match(notice?.detail ?? '', /robots\.txt disallows the whole site/);
   });
 
   it('retries every check, not only the health checks', async () => {
@@ -181,13 +212,15 @@ describe('smoke test', () => {
 
   it('catches a site URL baked in at build time', async () => {
     const results = await runSmokeTest(options({ web: `${base}/` }), client);
-    assert.equal(results.find((result) => result.name.includes('robots'))?.ok, true, 'a trailing slash is ignored');
-    state.sitemapHost = 'http://localhost:3002';
+    assert.equal(results.find((result) => result.name.includes('email links'))?.ok, true, 'a trailing slash is ignored');
+    state.siteHost = 'http://localhost:3002';
     try {
       const baked = await runSmokeTest(options(), client);
-      assert.equal(baked.find((result) => result.name.includes('robots'))?.ok, false);
+      const emailLinks = baked.find((result) => result.name.includes('email links'));
+      assert.equal(emailLinks?.ok, false);
+      assert.match(emailLinks?.detail ?? '', /HTTP 307 to "http:\/\/localhost:3002\/login\?error=link"/);
     } finally {
-      state.sitemapHost = base;
+      state.siteHost = base;
     }
   });
 
