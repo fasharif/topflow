@@ -254,7 +254,7 @@ API coverage from the same runs (statements, excluding specs and entry points): 
 
 Seventeen defects are recorded in BUGS-FOUND.md: sixteen fixed (thirteen on this branch, each with a regression test, and three on `feature/demo-mode`) and BUG-17 (Low) open until a product decision is made.
 
-### Measured load runs and a Playwright rerun, 3 October 2026
+### Measured load runs and reruns, 3 October 2026
 
 On 3 October 2026 the same laptop ran only this stack: a Supabase CLI 2.117 stack (Auth, PostgreSQL 17 and Mailpit, under its own project id) seeded with the demo profile, and the API and the web app from production builds of `6faa66b`, run with Node 24.19 on the Windows host. Nothing else ran in Docker. The environment, the commands and every number are in PERFORMANCE.md.
 
@@ -264,5 +264,6 @@ On 3 October 2026 the same laptop ran only this stack: a Supabase CLI 2.117 stac
 | k6 load profile, four runs | `K6_PROFILE=load npm run load -w @topflow/system-tests` | All four passed. Each endpoint's p95 was between 3.2 and 20 ms, at about 90 requests a second and 24,352 to 24,532 requests per run. One request failed in run 1 (a connection from the k6 container to the host that did not open) and none in runs 2 to 4. Run 4 passed the thresholds set from runs 1 to 3 |
 | Load thresholds | `npm run load:check -w @topflow/system-tests` | The load profile gates on checks, on failed requests overall and for each of the 8 endpoints, and on the 8 p95 thresholds. Fed the smoke profile instead, the check reported the 8 p95 thresholds missing and exited with 1 |
 | Playwright | `CI=1 npm run e2e -w @topflow/system-tests`, with the API's raised rate limits | 31 passed in 2.7 minutes, none retried, on the data the k6 runs had left |
+| Clean clone of `9e3423a` | `npm ci`; `npx turbo run lint check-types test`; `npm run test:scripts`; `bash tests/scripts/common.test.sh`; `npm run load:check`; then the API and the web app built and started from the clone, the k6 smoke run and Playwright with `CI=1`, against the same Supabase stack | All passed: unit tests 91, 84, 30, 8 and 35 (shared, API, web, mobile, database), the setup script's 6, the 17 address checks, the threshold check, 25 of 25 smoke checks with 0 of 27 requests failed, and 31 Playwright tests in 2.7 minutes, none retried |
 
-The flaky retry of money path 3 seen on 28 September did not recur on the quiet machine. During the Playwright run the API logged one warning from the PostgreSQL driver, `Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0`; no request failed, and the k6 runs did not trigger it. Whether it comes from the API's own code or from Prisma's PostgreSQL adapter has not been traced; it needs an answer before the driver is upgraded to pg 9.
+The flaky retry of money path 3 seen on 28 September did not recur on the quiet machine. During both Playwright runs the API logged one warning from the PostgreSQL driver, `Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0`; no request failed, and the k6 runs did not trigger it. Whether it comes from the API's own code or from Prisma's PostgreSQL adapter has not been traced; it needs an answer before the driver is upgraded to pg 9.
