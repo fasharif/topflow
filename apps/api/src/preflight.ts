@@ -10,7 +10,7 @@ import { loadConfig } from './config/env';
 try {
   const config = loadConfig();
   console.log(
-    `Environment OK: ${config.env}, API v${config.app.version} on port ${config.port}`,
+    `Environment OK: ${config.env}${config.demo.enabled ? ' (demo mode)' : ''}, API v${config.app.version} on port ${config.port}`,
   );
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);

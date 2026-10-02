@@ -17,6 +17,7 @@ import {
 import { useState, type FormEvent } from 'react';
 import { Alert, Button, Card, CardHeader, Field, Input, Textarea, cx } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
+import { DEMO_MODE, DEMO_NO_EMAIL } from '@/lib/demo';
 import { apiFieldErrors, zodFieldErrors, type FieldErrors } from '@/lib/forms';
 import { aed, formatDate, formatDateTime } from '@/lib/format';
 import { useOrg } from './use-org';
@@ -37,7 +38,9 @@ const RESPONSE_OPTIONS: Array<{ value: QuotationResponse; label: string }> = [
 function responseMessage(action: QuotationResponse, updated: QuotationDto, organizationName: string): string {
   if (action === QuotationResponse.ACCEPT) {
     return updated.status === QuotationStatus.PENDING_APPROVAL
-      ? `Sent for approval. Approvers at ${organizationName} have been notified by email.`
+      ? DEMO_MODE
+        ? `Sent for approval. Approvers at ${organizationName} will find it in the trade portal. ${DEMO_NO_EMAIL}`
+        : `Sent for approval. Approvers at ${organizationName} have been notified by email.`
       : `Quotation accepted${updated.orderNumber ? ` — sales order ${updated.orderNumber} has been created` : ''}.`;
   }
   if (action === QuotationResponse.REQUEST_REVISION) {

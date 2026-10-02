@@ -19,11 +19,17 @@ export class HealthController {
 
   @Public()
   @Get()
-  root(): { name: string; version: string; docs: string | null } {
+  root(): {
+    name: string;
+    version: string;
+    docs: string | null;
+    demo: boolean;
+  } {
     return {
       name: 'Top Flow API',
       version: this.config.app.version,
       docs: this.config.http.swaggerEnabled ? '/docs' : null,
+      demo: this.config.demo.enabled,
     };
   }
 

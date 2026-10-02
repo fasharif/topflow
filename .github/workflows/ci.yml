@@ -38,6 +38,14 @@ jobs:
       - name: Shared contracts — unit tests
         run: npm test -w @topflow/shared
 
+      - name: Local setup script — typecheck and unit tests
+        run: npm run test:scripts
+
+      - name: Database scripts — typecheck and unit tests (demo reset safety checks)
+        run: |
+          npm run check-types -w @topflow/database
+          npm test -w @topflow/database
+
       - name: API — lint, typecheck, unit tests, build
         run: |
           npm run lint -w @topflow/api
@@ -45,15 +53,32 @@ jobs:
           npm test -w @topflow/api
           npm run build -w @topflow/api
 
-      - name: Web — lint, typecheck and production build
+      # The smoke test starts the production build and checks, over HTTP, that an ordinary build carries
+      # no demo banner, noindex or demo notices.
+      - name: Web — lint, typecheck, unit tests, production build and smoke test
         run: |
           npm run lint -w web
           npm run check-types -w web
+          npm test -w web
           npm run build -w web
+          npm run test:demo -w web -- --off
         env:
           API_INTERNAL_URL: http://localhost:3000
           NEXT_PUBLIC_SITE_URL: http://localhost:3002
-          # Placeholders: the build never contacts Supabase.
+          # Placeholders: neither the build nor the smoke test contacts Supabase.
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+
+      # The public demo's build: the banner and noindex on every page checked, robots.txt disallowing
+      # everything, the sign-up and reset notices, and no password form without a session.
+      - name: Web — demo build and smoke test
+        run: |
+          npm run build -w web
+          npm run test:demo -w web
+        env:
+          NEXT_PUBLIC_DEMO_MODE: "true"
+          API_INTERNAL_URL: http://localhost:3000
+          NEXT_PUBLIC_SITE_URL: http://localhost:3002
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
 
@@ -97,6 +122,18 @@ jobs:
         run: |
           npm run db:deploy
           npm run db:seed
+
+      # Runs the nightly demo reset for real: every table is emptied and seeded again, and the
+      # suites below then run against the result.
+      - name: Reset the demo data set
+        run: npm run demo:reset -- --confirm
+        env:
+          DEMO_MODE: "true"
+
+      # The hosted demo's reset with its Supabase steps: a throw-away database with an auth.users table,
+      # and a stand-in for the Supabase Auth admin API backed by it (packages/database/scripts/auth-standin.ts).
+      - name: Rehearse the hosted demo's reset against a stand-in for Supabase Auth
+        run: npm run demo:rehearse -w @topflow/database
 
       # Supabase Auth is simulated inside the suite (locally signed test tokens), so no network is needed.
       - name: Run end-to-end suite

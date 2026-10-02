@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Alert, Badge, Button, Card, CardHeader, Field, Input, LinkButton } from '@/components/ui';
 import { changePassword, getMfaStatus, removeTotp, type MfaStatus } from '@/lib/auth/actions';
+import { DEMO_MODE, DEMO_NOTICES } from '@/lib/demo';
 import { zodFieldErrors, type FieldErrors } from '@/lib/forms';
 import { refreshSession, signOut } from '@/lib/session';
 
@@ -210,6 +211,18 @@ function SignOutEverywhere() {
 }
 
 export function SecurityCard({ email, mfaRequired = false }: { email: string; mfaRequired?: boolean }) {
+  if (DEMO_MODE) {
+    return (
+      <Card>
+        <CardHeader title="Password & security" description="Change your password, protect sign-in with an authenticator app, or end sessions on other devices." />
+        <div className="p-5">
+          <Alert tone="info" title="Portfolio demo">
+            {DEMO_NOTICES.accountSecurity}
+          </Alert>
+        </div>
+      </Card>
+    );
+  }
   return (
     <Card>
       <CardHeader title="Password & security" description="Change your password, protect sign-in with an authenticator app, or end sessions on other devices." />

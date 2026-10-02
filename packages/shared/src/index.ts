@@ -1,5 +1,6 @@
 export * from './commerce';
 export * from './constants';
+export * from './demo';
 export * from './enums';
 export * from './money';
 export * from './numbering';

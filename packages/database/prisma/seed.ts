@@ -30,6 +30,8 @@ import { appendFileSync, readFileSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
 import {
+  DEMO_ACCOUNT_PASSWORD,
+  DEMO_ORGANIZATION,
   bpsToPercent,
   calculateTotals,
   fromFils,
@@ -70,7 +72,7 @@ if (!connectionString) fail('DATABASE_URL is not set.');
 
 const PROFILE = process.env.SEED_PROFILE === 'production' ? 'production' : 'demo';
 const SEED_ACCOUNTS = process.env.SEED_ACCOUNTS !== 'false';
-const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? 'TopFlow2026!';
+const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? DEMO_ACCOUNT_PASSWORD;
 const RESET_PASSWORDS = process.env.SEED_RESET_PASSWORDS === 'true';
 const CREDENTIALS_FILE = process.env.SEED_CREDENTIALS_FILE ? resolve(process.env.SEED_CREDENTIALS_FILE) : null;
 const REPOSITORY_ROOT = resolve(__dirname, '..', '..', '..');
@@ -78,10 +80,13 @@ const DAY = 86_400_000;
 const daysAgo = (days: number) => new Date(Date.now() - days * DAY);
 
 const accountEmail = (variable: string, fallback: string) => (process.env[variable]?.trim() || fallback).toLowerCase();
+// Demo accounts use reserved example domains (RFC 2606), so their published password never looks like
+// the password of a real mailbox. A production run creates Top Flow's own staff addresses.
+const STAFF_DOMAIN = PROFILE === 'production' ? 'topflow.ae' : 'topflow.example';
 const ACCOUNT_EMAILS = {
-  admin: accountEmail('SEED_ADMIN_EMAIL', 'admin@topflow.ae'),
-  sales: accountEmail('SEED_SALES_EMAIL', 'sales@topflow.ae'),
-  warehouse: accountEmail('SEED_WAREHOUSE_EMAIL', 'warehouse@topflow.ae'),
+  admin: accountEmail('SEED_ADMIN_EMAIL', `admin@${STAFF_DOMAIN}`),
+  sales: accountEmail('SEED_SALES_EMAIL', `sales@${STAFF_DOMAIN}`),
+  warehouse: accountEmail('SEED_WAREHOUSE_EMAIL', `warehouse@${STAFF_DOMAIN}`),
   customer: accountEmail('SEED_CUSTOMER_EMAIL', 'customer@example.com'),
 };
 
@@ -326,6 +331,28 @@ async function seedProductionAccounts() {
 }
 
 async function seedDemoAccounts() {
+  // Desert Bloom comes first, before any account: `npm run demo:reset` recognises the demo database by
+  // it, so a run that fails part-way (a Supabase Auth outage while the accounts are created, say)
+  // still leaves a database that the next reset accepts.
+  const organization = await prisma.organization.upsert({
+    where: { trn: DEMO_ORGANIZATION.trn },
+    update: {},
+    create: {
+      name: DEMO_ORGANIZATION.name,
+      legalName: 'Desert Bloom Landscaping L.L.C.',
+      type: OrgType.LANDSCAPING,
+      status: OrgStatus.ACTIVE,
+      tradeLicenseNumber: 'DED-778812',
+      trn: DEMO_ORGANIZATION.trn,
+      email: 'procurement@desertbloom.example',
+      phoneNumber: '+971 4 388 2200',
+      paymentTerms: PaymentTerms.NET_30,
+      creditLimit: '250000.00',
+      discountRate: '7.50',
+      verifiedAt: new Date(),
+    },
+  });
+
   await upsertUser(ACCOUNT_EMAILS.admin, 'Aisha Rahman', Role.ADMIN, '+971 4 555 0100');
   await upsertUser(ACCOUNT_EMAILS.sales, 'Omar Haddad', Role.SALES, '+971 4 555 0101');
   await upsertUser(ACCOUNT_EMAILS.warehouse, 'Ravi Menon', Role.WAREHOUSE, '+971 4 555 0102');
@@ -337,29 +364,10 @@ async function seedDemoAccounts() {
     });
   }
 
-  const organization = await prisma.organization.upsert({
-    where: { trn: '100234567800003' },
-    update: {},
-    create: {
-      name: 'Desert Bloom Landscaping LLC',
-      legalName: 'Desert Bloom Landscaping L.L.C.',
-      type: OrgType.LANDSCAPING,
-      status: OrgStatus.ACTIVE,
-      tradeLicenseNumber: 'DED-778812',
-      trn: '100234567800003',
-      email: 'procurement@desertbloom.ae',
-      phoneNumber: '+971 4 388 2200',
-      paymentTerms: PaymentTerms.NET_30,
-      creditLimit: '250000.00',
-      discountRate: '7.50',
-      verifiedAt: new Date(),
-    },
-  });
-
   const team: Array<[string, string, OrgRole, string | null]> = [
-    ['owner@desertbloom.ae', 'Khalid Al Mansoori', OrgRole.OWNER, null],
-    ['approver@desertbloom.ae', 'Fatima Noor', OrgRole.APPROVER, '50000.00'],
-    ['buyer@desertbloom.ae', 'Joseph Mathew', OrgRole.BUYER, '5000.00'],
+    ['owner@desertbloom.example', 'Khalid Al Mansoori', OrgRole.OWNER, null],
+    ['approver@desertbloom.example', 'Fatima Noor', OrgRole.APPROVER, '50000.00'],
+    ['buyer@desertbloom.example', 'Joseph Mathew', OrgRole.BUYER, '5000.00'],
   ];
   for (const [email, fullName, role, approvalLimit] of team) {
     const user = await upsertUser(email, fullName, Role.CUSTOMER, '+971 55 700 1000');
@@ -380,9 +388,9 @@ async function seedDemoAccounts() {
   const pending = await prisma.organization.upsert({
     where: { trn: '100998877600003' },
     update: {},
-    create: { name: 'Al Waha Facility Management LLC', type: OrgType.FACILITY_MANAGEMENT, status: OrgStatus.PENDING_VERIFICATION, tradeLicenseNumber: 'DED-910221', trn: '100998877600003', email: 'procurement@alwaha.ae', phoneNumber: '+971 2 644 1100' },
+    create: { name: 'Al Waha Facility Management LLC', type: OrgType.FACILITY_MANAGEMENT, status: OrgStatus.PENDING_VERIFICATION, tradeLicenseNumber: 'DED-910221', trn: '100998877600003', email: 'procurement@alwaha.example', phoneNumber: '+971 2 644 1100' },
   });
-  const pendingOwner = await upsertUser('owner@alwaha.ae', 'Hamad Al Suwaidi', Role.CUSTOMER, '+971 50 900 4411');
+  const pendingOwner = await upsertUser('owner@alwaha.example', 'Hamad Al Suwaidi', Role.CUSTOMER, '+971 50 900 4411');
   await prisma.organizationMember.upsert({
     where: { organizationId_userId: { organizationId: pending.id, userId: pendingOwner.id } },
     update: {},
@@ -474,7 +482,7 @@ function formatted(address: Address): string {
 async function seedDemoDocuments(organizationId: string, customerId: string) {
   const byEmail = async (email: string) => prisma.user.findUniqueOrThrow({ where: { email } });
   const [buyer, approver, sales, warehouse] = await Promise.all(
-    ['buyer@desertbloom.ae', 'approver@desertbloom.ae', ACCOUNT_EMAILS.sales, ACCOUNT_EMAILS.warehouse].map(byEmail),
+    ['buyer@desertbloom.example', 'approver@desertbloom.example', ACCOUNT_EMAILS.sales, ACCOUNT_EMAILS.warehouse].map(byEmail),
   );
   const site = await prisma.address.findFirstOrThrow({ where: { organizationId, isDefault: true } });
   const home = await prisma.address.findFirstOrThrow({ where: { userId: customerId, isDefault: true } });

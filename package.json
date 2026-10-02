@@ -1,6 +1,8 @@
 {
   "name": "topflow-hub",
+  "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "description": "TopFlow Hub — B2B/B2C irrigation & flow-control commerce platform for Top Flow (Turborepo monorepo)",
   "workspaces": [
     "apps/*",
@@ -27,11 +29,16 @@
     "db:deploy": "npm run db:deploy -w @topflow/database",
     "db:seed": "npm run db:seed -w @topflow/database",
     "db:studio": "npm run db:studio -w @topflow/database",
-    "release": "node apps/api/dist/preflight.js && npm run db:deploy"
+    "demo:reset": "npm run demo:reset -w @topflow/database --",
+    "release": "node apps/api/dist/preflight.js && npm run db:deploy",
+    "setup": "tsx scripts/setup-local.ts",
+    "test:scripts": "tsc -p scripts && tsx --test scripts/setup-local.spec.ts"
   },
   "devDependencies": {
+    "@types/node": "^22.20.2",
     "prettier": "^3.9.8",
     "supabase": "^2.117.0",
+    "tsx": "^4.23.13",
     "turbo": "^2.11.2",
     "typescript": "~6.0.3"
   },

@@ -1,0 +1,82 @@
+name: Demo reset
+
+# Nightly reset of the hosted portfolio demo (ADR-021): every table of the demo database is emptied,
+# the demo project's Supabase Auth users are deleted, and the demo data set is loaded again, so
+# whatever visitors changed during the day is gone by morning. The demo has its own Supabase project
+# and its own secrets; `npm run demo:reset` refuses a database without the demo data set that holds any account the demo seed does not create,
+# and Supabase settings whose users are not exactly that database's own auth.users.
+# While no demo database is configured (DEMO_DATABASE_URL, DEMO_SUPABASE_URL and
+# DEMO_SUPABASE_SECRET_KEY all unset), runs are skipped with a notice. Runbook: docs/OPERATIONS.md.
+
+on:
+  schedule:
+    - cron: "0 23 * * *" # 23:00 UTC = 03:00 in the UAE
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo-reset
+  cancel-in-progress: false
+
+jobs:
+  reset:
+    name: Reset the public demo
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # The secrets are given only to the steps that need them, never to `npm ci` (dependency install
+    # scripts) or the build.
+    env:
+      TURBO_TELEMETRY_DISABLED: 1
+    steps:
+      - name: Check configuration
+        id: config
+        env:
+          DATABASE_URL: ${{ secrets.DEMO_DATABASE_URL }}
+          SUPABASE_URL: ${{ vars.DEMO_SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.DEMO_SUPABASE_SECRET_KEY }}
+        run: |
+          if [ -n "$DATABASE_URL" ] && [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SECRET_KEY" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          elif [ -z "$DATABASE_URL" ] && [ -z "$SUPABASE_URL" ] && [ -z "$SUPABASE_SECRET_KEY" ]; then
+            echo "::notice::Demo reset skipped: no hosted demo is configured."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::The demo reset is half configured: set the DEMO_DATABASE_URL and DEMO_SUPABASE_SECRET_KEY secrets and the DEMO_SUPABASE_URL variable."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+        if: steps.config.outputs.configured == 'true'
+
+      - uses: actions/setup-node@v7
+        if: steps.config.outputs.configured == 'true'
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.config.outputs.configured == 'true'
+        run: npm ci --no-audit --no-fund
+
+      - name: Build shared packages
+        if: steps.config.outputs.configured == 'true'
+        run: npx turbo run build --filter=@topflow/shared --filter=@topflow/database
+
+      - name: Apply migrations
+        if: steps.config.outputs.configured == 'true'
+        env:
+          # Session connection string (port 5432) of the demo project: migrations cannot run through
+          # the transaction pooler.
+          DATABASE_URL: ${{ secrets.DEMO_DATABASE_URL }}
+        run: npm run db:deploy
+
+      - name: Reset the demo
+        if: steps.config.outputs.configured == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.DEMO_DATABASE_URL }}
+          SUPABASE_URL: ${{ vars.DEMO_SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.DEMO_SUPABASE_SECRET_KEY }}
+          DEMO_MODE: "true"
+        run: npm run demo:reset -- --confirm
