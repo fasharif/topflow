@@ -14,7 +14,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { DEMO_ACCOUNT_PASSWORD, DEMO_ORGANIZATION } from '@topflow/shared';
 import { Client, Pool } from 'pg';
-import { AUTH_USERS_COLUMNS, passwordDigest, startAuthStandIn, type AuthStandIn } from './auth-standin';
+import { AUTH_USERS_COLUMNS, hashPassword, passwordMatches, startAuthStandIn, type AuthStandIn } from './auth-standin';
 import { DEMO_SEED_EMAILS, supabaseProjectOf } from './demo-reset-core';
 
 const PACKAGE_ROOT = resolve(__dirname, '..');
@@ -92,7 +92,7 @@ function expectFreshDemo(state: DemoState, output: string): void {
   expectThat(state.accounts.length === SEEDED_ACCOUNTS, `expected ${SEEDED_ACCOUNTS} accounts, found ${state.accounts.length}`, output);
   expectThat(sameIds(state.accounts, state.signIns), 'every account must have a sign-in with the same id, and no other sign-in may exist', output);
   expectThat(state.hasDemoOrganization, `${DEMO_ORGANIZATION.name} is missing`, output);
-  expectThat(state.adminPassword === passwordDigest(DEMO_ACCOUNT_PASSWORD), `${ADMIN} does not have the published password`, output);
+  expectThat(passwordMatches(DEMO_ACCOUNT_PASSWORD, state.adminPassword), `${ADMIN} does not have the published password`, output);
 }
 
 async function rehearse(pool: Pool, databaseUrl: string, own: AuthStandIn, other: AuthStandIn): Promise<string[]> {
@@ -111,7 +111,7 @@ async function rehearse(pool: Pool, databaseUrl: string, own: AuthStandIn, other
 
   await scenario("a second reset replaces every sign-in, including a visitor's own, and restores the published password", async () => {
     // What a day of visitors leaves behind: a changed shared password and a visitor's own account.
-    await pool.query('UPDATE auth.users SET encrypted_password = $1 WHERE email = $2', [passwordDigest('changed-by-a-visitor'), ADMIN]);
+    await pool.query('UPDATE auth.users SET encrypted_password = $1 WHERE email = $2', [hashPassword('changed-by-a-visitor'), ADMIN]);
     const visitor = await pool.query<{ id: string }>("INSERT INTO auth.users (id, email) VALUES (gen_random_uuid(), 'visitor@example.org') RETURNING id::text AS id");
     await pool.query(`INSERT INTO public.users (id, email, "fullName", "updatedAt") VALUES ($1, 'visitor@example.org', 'Demo Visitor', now())`, [visitor.rows[0]?.id]);
     const before = await readState(pool);

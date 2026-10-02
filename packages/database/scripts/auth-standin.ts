@@ -5,7 +5,7 @@
  * steps for real without a Supabase project.
  *
  * It is a test double, not an implementation of Supabase Auth: it checks only that an API key is
- * sent, keeps a SHA-256 digest instead of a password hash and issues no tokens. Routes:
+ * sent, stores salted scrypt hashes as a real auth server would, and issues no tokens. Routes:
  *
  *   GET    /auth/v1/admin/users?page=&per_page=    list (oldest first)
  *   POST   /auth/v1/admin/users                     create
@@ -13,7 +13,7 @@
  *   PUT    /auth/v1/admin/users/:id                 update password or confirmation
  *   DELETE /auth/v1/admin/users/:id                 delete
  */
-import { createHash, randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { Pool } from 'pg';
@@ -28,9 +28,19 @@ export const AUTH_USERS_COLUMNS = `
   created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   updated_at timestamptz NOT NULL DEFAULT clock_timestamp()`;
 
-/** What the stand-in keeps instead of a password hash, so a rehearsal can check which password was set. */
-export function passwordDigest(password: string): string {
-  return createHash('sha256').update(password).digest('hex');
+/** A salted scrypt hash in the form `scrypt$<salt>$<hash>` (hex), as the stand-in stores passwords. */
+export function hashPassword(password: string): string {
+  const salt = randomBytes(16);
+  return `scrypt$${salt.toString('hex')}$${scryptSync(password, salt, 32).toString('hex')}`;
+}
+
+/** Whether a stored hash belongs to this password, so a rehearsal can check which password was set. */
+export function passwordMatches(password: string, stored: string | null): boolean {
+  const [scheme, salt, hash] = (stored ?? '').split('$');
+  if (scheme !== 'scrypt' || !salt || !hash) return false;
+  const expected = Buffer.from(hash, 'hex');
+  const actual = scryptSync(password, Buffer.from(salt, 'hex'), expected.length);
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
 export interface AuthStandIn {
@@ -124,7 +134,7 @@ export async function startAuthStandIn(pool: Pool, table: string): Promise<AuthS
         return failure(response, 422, 'email_exists', 'A user with this email address has already been registered');
       }
       const id = typeof body.id === 'string' ? body.id : randomUUID();
-      const password = typeof body.password === 'string' ? passwordDigest(body.password) : null;
+      const password = typeof body.password === 'string' ? hashPassword(body.password) : null;
       const created = await pool.query<UserRow>(
         `INSERT INTO ${table} (id, email, encrypted_password, email_confirmed_at, raw_user_meta_data)
          VALUES ($1, $2, $3, CASE WHEN $4 THEN clock_timestamp() END, $5) RETURNING ${columns}`,
@@ -149,7 +159,7 @@ export async function startAuthStandIn(pool: Pool, table: string): Promise<AuthS
            email_confirmed_at = CASE WHEN $3 THEN COALESCE(email_confirmed_at, clock_timestamp()) ELSE email_confirmed_at END,
            updated_at = clock_timestamp()
          WHERE id = $1 RETURNING ${columns}`,
-        [id, typeof body.password === 'string' ? passwordDigest(body.password) : null, body.email_confirm === true],
+        [id, typeof body.password === 'string' ? hashPassword(body.password) : null, body.email_confirm === true],
       );
       const user = updated.rows[0];
       return user ? send(response, 200, userJson(user)) : failure(response, 404, 'user_not_found', 'User not found');

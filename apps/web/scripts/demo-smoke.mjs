@@ -107,10 +107,10 @@ async function run() {
   );
 
   // Without a session nobody can reach the password form.
-  const setPassword = await page('/auth/set-password');
+  const formWithoutSession = await page('/auth/set-password');
   check(
-    setPassword.status === 307 && (setPassword.location ?? '').includes('/forgot-password?expired=1'),
-    `/auth/set-password without a session redirects to /forgot-password (got ${setPassword.status} ${setPassword.location})`,
+    formWithoutSession.status === 307 && (formWithoutSession.location ?? '').includes('/forgot-password?expired=1'),
+    `/auth/set-password without a session redirects to /forgot-password (got ${formWithoutSession.status} ${formWithoutSession.location})`,
   );
 }
 
