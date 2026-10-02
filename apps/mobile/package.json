@@ -6,7 +6,7 @@
   "dependencies": {
     "@expo/ui": "~57.0.21",
     "@react-native-async-storage/async-storage": "2.2.0",
-    "@supabase/supabase-js": "^2.117.0",
+    "@supabase/supabase-js": "^2.117.2",
     "@topflow/shared": "*",
     "aes-js": "^3.1.2",
     "expo": "~57.0.26",
