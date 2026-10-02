@@ -1,6 +1,7 @@
 import { parseDemoModeFlag } from '@topflow/shared';
 import { z } from 'zod';
 import { sentryEnvShape } from '../observability/sentry-config';
+import { DEFAULT_APP_VERSION } from './app-version';
 
 /**
  * Environment contract, validated once at boot and again by the release preflight. A
@@ -98,8 +99,7 @@ export const envSchema = z
       .enum(['development', 'test', 'production'])
       .default('development'),
     PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
-    // The release number: release-please sets it in each release pull request.
-    APP_VERSION: z.string().default('0.0.0'), // x-release-please-version
+    APP_VERSION: z.string().default(DEFAULT_APP_VERSION),
     APP_PUBLIC_URL: z.url().default('http://localhost:3002'),
 
     DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
