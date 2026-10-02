@@ -35,7 +35,23 @@ export function configureApp(app: INestApplication, config: AppConfig): void {
   app.use(clientIp(config.http.internalApiSecret));
   app.use(
     helmet({
-      contentSecurityPolicy: config.http.swaggerEnabled ? false : undefined,
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          baseUri: ["'self'"],
+          frameAncestors: ["'self'"],
+          objectSrc: ["'none'"],
+          scriptSrc: config.http.swaggerEnabled
+            ? ["'self'", "'unsafe-inline'"]
+            : ["'self'"],
+          styleSrc: config.http.swaggerEnabled
+            ? ["'self'", "'unsafe-inline'"]
+            : ["'self'"],
+          imgSrc: config.http.swaggerEnabled
+            ? ["'self'", 'data:']
+            : ["'self'"],
+        },
+      },
     }),
   );
 
