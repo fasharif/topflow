@@ -3,8 +3,8 @@ name: System tests
 # Starts the whole stack on the runner (Supabase Auth, PostgreSQL and Mailpit from the Supabase CLI;
 # the API and the web app from production builds), seeds the demo data and tests it from outside:
 # Playwright journeys with axe accessibility scans, a k6 smoke run and Schemathesis. The Playwright
-# HTML report is uploaded as an artifact; test-report-pages.yml publishes the one from develop.
-# Local equivalent: tests/README.md.
+# HTML report is uploaded as an artifact; test-report-pages.yml publishes the one from develop
+# once GitHub Pages is enabled for the repository. Local equivalent: tests/README.md.
 
 on:
   push:
