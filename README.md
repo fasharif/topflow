@@ -195,6 +195,8 @@ The API validates its environment at start-up and stops with a readable report w
 | API contract | Schemathesis | 3 passes | no new failure | [Triage](docs/testing/BUGS-FOUND.md#schemathesis-triage) |
 | Defects | | 17 recorded | 16 fixed; 1 of Low severity open | [BUGS-FOUND.md](docs/testing/BUGS-FOUND.md) |
 
+The table predates the dispatch webhooks (ADR-024). With them, the shared package has 93 unit tests and the API 128, and the API end-to-end suites have 72 tests, which cover 80.8 % of the API's statements. They passed on 4 October 2026 in a `node:24` container (Node 24.21, npm 11.19) against PostgreSQL 17. The system, load and contract runs in the table were not repeated for that change.
+
 The two High-severity defects were [BUG-02](docs/testing/BUGS-FOUND.md#bug-02--the-customer-can-be-charged-a-total-other-than-the-one-shown), a customer charged a total other than the one shown (now refused by the API, and fixed in the web and mobile apps), and [BUG-13](docs/testing/BUGS-FOUND.md#bug-13--two-acceptances-at-the-same-moment-pass-the-credit-limit), two quotations accepted at the same moment that together passed a company's credit limit (fixed with a row lock).
 
 ```bash
