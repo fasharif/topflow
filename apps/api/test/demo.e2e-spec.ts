@@ -16,7 +16,7 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { IdentityAdminService } from '../src/auth/identity-admin.service';
-import { configureApp } from '../src/bootstrap';
+import { APP_OPTIONS, configureApp } from '../src/bootstrap';
 import { APP_CONFIG } from '../src/config/config.module';
 import type { AppConfig } from '../src/config/env';
 import { MailService } from '../src/mail/mail.service';
@@ -196,7 +196,7 @@ describe('Public demo mode (e2e)', () => {
       .overrideProvider(IdentityAdminService)
       .useValue(identities)
       .compile();
-    app = moduleRef.createNestApplication();
+    app = moduleRef.createNestApplication(APP_OPTIONS);
     configureApp(app, app.get<AppConfig>(APP_CONFIG));
     await app.init();
     // Listen once, as in app.e2e-spec.ts: SuperTest 7.3 closes servers it starts itself.

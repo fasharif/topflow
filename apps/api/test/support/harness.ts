@@ -9,7 +9,7 @@ import {
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { IdentityAdminService } from '../../src/auth/identity-admin.service';
-import { configureApp } from '../../src/bootstrap';
+import { APP_OPTIONS, configureApp } from '../../src/bootstrap';
 import { APP_CONFIG } from '../../src/config/config.module';
 import type { AppConfig } from '../../src/config/env';
 import { MailService } from '../../src/mail/mail.service';
@@ -42,7 +42,7 @@ export class E2eHarness {
       .overrideProvider(IdentityAdminService)
       .useValue(this.identities)
       .compile();
-    this.nest = moduleRef.createNestApplication();
+    this.nest = moduleRef.createNestApplication(APP_OPTIONS);
     configureApp(this.nest, this.nest.get<AppConfig>(APP_CONFIG));
     await this.nest.init();
     // Listen once for the whole suite. SuperTest then reuses this server instead of starting and

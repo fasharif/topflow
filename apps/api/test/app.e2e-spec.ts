@@ -24,7 +24,7 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { IdentityAdminService } from '../src/auth/identity-admin.service';
-import { configureApp } from '../src/bootstrap';
+import { APP_OPTIONS, configureApp } from '../src/bootstrap';
 import { APP_CONFIG } from '../src/config/config.module';
 import type { AppConfig } from '../src/config/env';
 import { MailService } from '../src/mail/mail.service';
@@ -103,8 +103,7 @@ describe('TopFlow Hub API (e2e)', () => {
       .overrideProvider(IdentityAdminService)
       .useValue(identities)
       .compile();
-    // rawBody as in main.ts: dispatch webhooks are verified against the bytes that were signed.
-    app = moduleRef.createNestApplication({ rawBody: true });
+    app = moduleRef.createNestApplication(APP_OPTIONS);
     configureApp(app, app.get<AppConfig>(APP_CONFIG));
     await app.init();
     // Listen once for the whole suite. SuperTest then reuses this server instead of starting and
