@@ -17,6 +17,7 @@ import {
 } from '@topflow/shared';
 import { FeatureDisabledException } from '../common/feature-disabled.exception';
 import type { RequestMeta } from '../common/request-context';
+import { stripNul } from '../common/strip-nul.pipe';
 import { InjectConfig } from '../config/config.module';
 import type { AppConfig } from '../config/env';
 import { dispatchDeliveryFrom } from '../orders/dispatch-delivery';
@@ -24,6 +25,13 @@ import type { OrderRecord } from '../orders/order.mapper';
 import { OrdersService } from '../orders/orders.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { verifyDispatchSignature } from './dispatch-signature';
+
+/**
+ * The events the dispatch service sends are three levels deep. The whole event is stored as JSON,
+ * and one nested a few thousand levels deep could not be written (the call stack ran out, a 500
+ * that the dispatch service kept retrying), so anything far deeper than a real event is a 400.
+ */
+const MAX_EVENT_DEPTH = 32;
 
 const SIGNATURE_ERRORS = {
   missing: 'The x-dispatch-signature header is missing',
@@ -167,9 +175,17 @@ export class DispatchEventsService {
   } {
     let json: unknown;
     try {
-      json = JSON.parse(rawBody.toString('utf8'));
+      // The signature was checked over the bytes as sent. NUL characters are then dropped, as for
+      // every other request (StripNulPipe): PostgreSQL stores them neither in text nor in JSON,
+      // so an event carrying one ended in a 500 that the dispatch service kept retrying.
+      json = stripNul(JSON.parse(rawBody.toString('utf8')));
     } catch {
       throw new BadRequestException('The body is not valid JSON');
+    }
+    if (nestedDeeperThan(json, MAX_EVENT_DEPTH)) {
+      throw new BadRequestException(
+        `Invalid dispatch event (nested more than ${MAX_EVENT_DEPTH} levels deep)`,
+      );
     }
     const parsed = dispatchEventEnvelopeSchema.safeParse(json);
     if (!parsed.success) throw invalidEvent(parsed.error.issues[0]);
@@ -202,6 +218,18 @@ function invalidEvent(
   return new BadRequestException(
     `Invalid dispatch event${issue ? ` (${issue.path.map(String).join('.')}: ${issue.message})` : ''}`,
   );
+}
+
+/** Whether arrays and objects are nested more than `limit` levels deep (walked without recursion). */
+export function nestedDeeperThan(value: unknown, limit: number): boolean {
+  const pending: [unknown, number][] = [[value, 1]];
+  for (let next = pending.pop(); next; next = pending.pop()) {
+    const [item, depth] = next;
+    if (item === null || typeof item !== 'object') continue;
+    if (depth > limit) return true;
+    for (const child of Object.values(item)) pending.push([child, depth + 1]);
+  }
+  return false;
 }
 
 /** Locks the order the event is about, if it exists, and returns its id. */

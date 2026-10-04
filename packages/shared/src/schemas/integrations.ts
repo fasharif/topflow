@@ -20,7 +20,14 @@ export const DISPATCH_EVENT_TYPES = [
 ] as const;
 export type DispatchEventType = (typeof DISPATCH_EVENT_TYPES)[number];
 
-const isoDateTime = z.iso.datetime({ offset: true, error: 'Expected an ISO 8601 date and time' });
+/**
+ * An ISO 8601 date and time with an offset, as the dispatch service sends them. Year 0000 is valid
+ * ISO 8601 but cannot be stored (PostgreSQL has no year zero), so it is refused here as a 400
+ * and does not fail later as a server error.
+ */
+const isoDateTime = z.iso
+  .datetime({ offset: true, error: 'Expected an ISO 8601 date and time' })
+  .refine((value) => !value.startsWith('0000-'), { error: 'Expected an ISO 8601 date and time' });
 
 export function isKnownDispatchEventType(type: string): type is DispatchEventType {
   return (DISPATCH_EVENT_TYPES as readonly string[]).includes(type);

@@ -210,6 +210,12 @@ describe('request schemas', () => {
     expect(dispatchEventSchema.parse(event).data.proof?.withinGeofence).toBe(true);
     expect(dispatchEventSchema.safeParse({ ...event, type: 'delivery.teleported' }).success).toBe(false);
     expect(dispatchEventSchema.safeParse({ ...event, id: 'not-a-uuid' }).success).toBe(false);
+    // Dates that are not ISO 8601 with an offset, that do not exist, or that cannot be stored (year 0000).
+    for (const occurredAt of ['2026-09-20 10:00', '2026-09-20T10:00:00', '2026-02-30T10:00:00.000Z', '0000-01-01T00:00:00.000Z']) {
+      const changed = { ...event, data: { ...event.data, occurredAt } };
+      expect(dispatchEventSchema.safeParse(changed).success).toBe(false);
+      expect(dispatchEventEnvelopeSchema.safeParse(changed).success).toBe(false);
+    }
   });
 
   it('reads the envelope of an event type it does not know, so it can be recorded', () => {

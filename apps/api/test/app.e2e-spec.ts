@@ -1700,6 +1700,53 @@ describe('TopFlow Hub API (e2e)', () => {
       );
     });
 
+    it('answers 200 or 400, never 500, to signed events whose content cannot be stored as sent', async () => {
+      const order = await retailOrder('DISPATCHED');
+      const base = dispatchEvent('delivery.completed', order.orderNumber);
+      const event: DispatchEvent = {
+        ...base,
+        data: {
+          ...base.data,
+          proof: base.data.proof && {
+            ...base.data.proof,
+            recipientName: 'Aisha\u0000 Rahman',
+          },
+        },
+      };
+      // PostgreSQL stores U+0000 neither in text nor in JSON: this was a 500, retried by dispatch.
+      const receipt = await send(event).expect(200);
+      expect((receipt.body as DispatchEventReceiptDto).outcome).toBe('APPLIED');
+      const stored = await prisma.dispatchEvent.findUniqueOrThrow({
+        where: { id: event.id },
+      });
+      expect(stored.payload).toMatchObject({
+        data: { proof: { recipientName: 'Aisha Rahman' } },
+      });
+      expect((await orderById(order.id)).events.at(-1)?.note).toContain(
+        'signed by Aisha Rahman',
+      );
+
+      // Year 0000 is valid ISO 8601, but PostgreSQL has no year zero.
+      const refused = await send(
+        dispatchEvent('delivery.assigned', order.orderNumber, {
+          occurredAt: '0000-01-01T00:00:00.000Z',
+        }),
+      ).expect(400);
+      expect(refused.body.message).toMatch(/data\.occurredAt/);
+
+      // Far deeper than any real event (theirs are 3 levels deep): it could not be written as JSON.
+      const deep = dispatchEvent('delivery.assigned', order.orderNumber);
+      const body = JSON.stringify(deep).replace(
+        '"driver":',
+        `"extra":${'['.repeat(40)}${']'.repeat(40)},"driver":`,
+      );
+      const tooDeep = await send(deep, { body }).expect(400);
+      expect(tooDeep.body.message).toMatch(/nested more than 32 levels/);
+      expect(await prisma.dispatchEvent.count({ where: { id: deep.id } })).toBe(
+        0,
+      );
+    });
+
     it('refuses a signed body over the size limit without recording the event', async () => {
       const order = await retailOrder('DISPATCHED');
       const event = dispatchEvent('delivery.completed', order.orderNumber);
