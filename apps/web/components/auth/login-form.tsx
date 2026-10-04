@@ -9,7 +9,7 @@ import { resendConfirmation, signInWithPassword } from '@/lib/auth/actions';
 import { landingPath, safeNextPath } from '@/lib/auth/redirects';
 import { DEMO_MODE } from '@/lib/demo';
 import { zodFieldErrors, type FieldErrors } from '@/lib/forms';
-import { refreshSession, sessionStore } from '@/lib/session';
+import { refreshSession, sessionStore, useSession } from '@/lib/session';
 
 const UNEXPECTED = 'We could not reach the sign-in service. Please try again.';
 
@@ -24,6 +24,10 @@ export function LoginForm() {
   const [resent, setResent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const linkFailed = params.get('error') === 'link';
+  // Why the API refused a signed-in identity (a disabled account, an email conflict), from this form
+  // or from the page that sent the visitor here.
+  const { accountProblem } = useSession();
+  const problem = error ?? accountProblem;
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -50,7 +54,12 @@ export function LoginForm() {
         return;
       }
       await refreshSession();
-      const user = sessionStore.getSnapshot().user;
+      const { user, accountProblem: refused } = sessionStore.getSnapshot();
+      if (!user && refused) {
+        // The session has been ended again: stay on this form, which shows the reason.
+        setSubmitting(false);
+        return;
+      }
       router.replace(next || (user ? landingPath(user) : '/account'));
     } catch {
       setError(UNEXPECTED);
@@ -89,10 +98,11 @@ export function LoginForm() {
             Forgot your password?
           </Link>
         </div>
-        {error && (
+        {problem && (
           <Alert tone="danger">
-            <p>{error}</p>
-            {unconfirmed &&
+            <p>{problem}</p>
+            {error &&
+              unconfirmed &&
               (resent ? (
                 <p className="mt-2 font-medium">A new confirmation link is on its way.</p>
               ) : (
