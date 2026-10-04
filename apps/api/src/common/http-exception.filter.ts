@@ -11,6 +11,7 @@ import { InvalidTransitionError, type ApiErrorBody } from '@topflow/shared';
 import type { Response } from 'express';
 import { ZodValidationException } from 'nestjs-zod';
 import { reportServerError } from '../observability/sentry';
+import { FeatureDisabledException } from './feature-disabled.exception';
 import type { AppRequest } from './request-context';
 
 interface ZodIssueLike {
@@ -22,7 +23,8 @@ interface ZodIssueLike {
  * One error envelope for every failure: validation, domain rule violations, database
  * constraint errors and unexpected crashes. Internal details never leak to clients —
  * they are logged with the request id instead, and server errors also go to Sentry when
- * SENTRY_DSN is set.
+ * SENTRY_DSN is set. The 503 of a feature that is switched off (FeatureDisabledException) is
+ * not a server error: it is logged as a warning and not reported.
  */
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -35,7 +37,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const body = this.toBody(exception);
     body.requestId = request.requestId;
 
-    if (body.statusCode >= 500) {
+    if (exception instanceof FeatureDisabledException) {
+      // Switched off by configuration, not a failure: one line, no stack trace, no Sentry event.
+      this.logger.warn(
+        `${request.method} ${request.path} → ${body.statusCode}: ${body.message} [${request.requestId}]`,
+      );
+    } else if (body.statusCode >= 500) {
       this.logger.error(
         `${request.method} ${request.originalUrl} → ${body.statusCode} [${request.requestId}]`,
         exception instanceof Error ? exception.stack : String(exception),

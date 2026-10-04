@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Injectable,
   Logger,
-  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import type { Prisma } from '@topflow/database';
@@ -16,6 +15,7 @@ import {
   type DispatchEventEnvelope,
   type DispatchEventReceiptDto,
 } from '@topflow/shared';
+import { FeatureDisabledException } from '../common/feature-disabled.exception';
 import type { RequestMeta } from '../common/request-context';
 import { InjectConfig } from '../config/config.module';
 import type { AppConfig } from '../config/env';
@@ -60,10 +60,11 @@ export class DispatchEventsService {
     const { dispatchWebhookSecrets, dispatchWebhookToleranceSeconds } =
       this.config.integrations;
     if (dispatchWebhookSecrets.length === 0) {
-      throw new ServiceUnavailableException({
-        message: 'The dispatch integration is not configured',
-        code: 'INTEGRATION_DISABLED',
-      });
+      // 503 so the dispatch service retries; not reported as a server error (see the exception).
+      throw new FeatureDisabledException(
+        'The dispatch integration is not configured',
+        'INTEGRATION_DISABLED',
+      );
     }
     if (!rawBody || rawBody.length === 0) {
       throw new BadRequestException('The request has no body');

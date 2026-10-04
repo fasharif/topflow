@@ -1,9 +1,10 @@
-import { ArgumentsHost, NotFoundException } from '@nestjs/common';
+import { ArgumentsHost, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@topflow/database';
 import { InvalidTransitionError } from '@topflow/shared';
 import { ZodValidationException } from 'nestjs-zod';
 import { z } from 'zod';
 import { initErrorReporting } from '../observability/sentry';
+import { FeatureDisabledException } from './feature-disabled.exception';
 import { HttpExceptionFilter } from './http-exception.filter';
 
 function run(exception: unknown) {
@@ -87,6 +88,49 @@ describe('HttpExceptionFilter', () => {
         extra: { method: 'GET', path: '/test' },
       });
     } finally {
+      initErrorReporting({});
+    }
+  });
+
+  it('answers 503 for a switched-off feature without treating it as a server error', () => {
+    const sdk = { init: jest.fn(), captureException: jest.fn() };
+    initErrorReporting(
+      { SENTRY_DSN: 'https://key@o1.ingest.sentry.io/1' },
+      sdk,
+    );
+    const error = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+    const warn = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+    try {
+      expect(
+        run(
+          new FeatureDisabledException(
+            'The dispatch integration is not configured',
+            'INTEGRATION_DISABLED',
+          ),
+        ),
+      ).toMatchObject({
+        status: 503,
+        body: {
+          statusCode: 503,
+          error: 'Service Unavailable',
+          message: 'The dispatch integration is not configured',
+          code: 'INTEGRATION_DISABLED',
+          requestId: 'req-42',
+        },
+      });
+      expect(sdk.captureException).not.toHaveBeenCalled();
+      expect(error).not.toHaveBeenCalled();
+      // One line with the path (no query string) and the request id.
+      expect(warn).toHaveBeenCalledWith(
+        'GET /test → 503: The dispatch integration is not configured [req-42]',
+      );
+    } finally {
+      error.mockRestore();
+      warn.mockRestore();
       initErrorReporting({});
     }
   });
