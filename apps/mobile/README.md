@@ -73,18 +73,19 @@ Supabase Auth owns identities, passwords, sessions, email confirmation and passw
 **Session store.** `bootstrapSession()` subscribes to `supabase.auth.onAuthStateChange` and loads `GET /auth/me` for each signed-in identity. `useSession()` exposes one of four states:
 - `loading`: restoring the saved session, or loading the account of a new sign-in.
 - `authenticated`: `user` is the Top Flow account.
-- `anonymous`: signed out. If the API refuses the account (403 `ACCOUNT_DISABLED`, 409 `ACCOUNT_CONFLICT`), the session is ended and `error` explains why.
+- `anonymous`: signed out. If the API refuses the account (401 `ACCOUNT_DISABLED`, 409 `ACCOUNT_CONFLICT`), the session is ended and `error` explains why.
 - `unavailable`: signed in, but the account could not be loaded (offline, or the API is down). The session is kept. Loading is retried when the app returns to the foreground, after a token refresh, or with **Try again**.
 
 **Flows.**
 - **Sign in:** `signInWithPassword`. The form closes once the account has loaded; if it cannot be loaded, the device is signed out again and the form shows why. An unconfirmed address gets a **Resend confirmation email** action.
 - **Create account:** `signUp` with `options.data = { full_name, phone_number }` and `emailRedirectTo: <EXPO_PUBLIC_WEB_URL>/account`. The confirmation email's template links to the web app's `/auth/confirm` route, which verifies the token and continues to that page. When email confirmation is on, sign-up returns no session and the app shows "Check your email to confirm your account", with a resend action. Supabase answers the same way for an address that is already registered.
 - **Forgot password:** `resetPasswordForEmail(email, { redirectTo: <EXPO_PUBLIC_WEB_URL>/auth/set-password })`, the page the recovery email's template continues to after `/auth/confirm`. The confirmation is the same whether or not an account exists; only a connection failure is reported. The new password is chosen on the web app.
-- **Sign out:** the app shows the customer as signed out straight away, then calls `supabase.auth.signOut()`, which uses Supabase's default global scope and ends the user's other sessions too. If Supabase cannot be reached, the stored session is still deleted from the device.
+- **Sign out:** the app shows the customer as signed out straight away, then calls `supabase.auth.signOut({ scope: 'local' })`, which ends the session on this device only: the customer's other sessions, for example on the website, stay signed in. If Supabase cannot be reached, the stored session is still deleted from the device.
 
 **API calls.** `api(path, { auth: true })` sends the bearer token from `supabase.auth.getSession()` and fails with a 401 `ApiError` when signed out. `auth: 'optional'` sends it only when signed in; public quote requests use it.
 - On a 401, the request is replayed once if Supabase refreshed the token while it was in flight. Otherwise the app signs out on this device, and an optional-auth request is retried without a token.
-- Errors surface as `ApiError` (`status`, `message`, `code`, `details`), read from the API's `ApiErrorBody`.
+- Errors surface as `ApiError` (`status`, `message`, `code`, `details`), read from the API's `ApiErrorBody`. A 429 from the API's rate limit shows the app's own message, with the wait from the `Retry-After` header when the response has one.
+- `api-error.ts`, `account-problem.ts` and `auth-links.ts` have no React Native imports, so `npm test -w mobile` runs their unit tests with Node's test runner.
 
 **Upgrading from the previous auth.** Earlier versions kept a refresh token from the retired `/auth/*` endpoints under the SecureStore key `topflow.refresh`. It is deleted at startup, and those customers sign in again once.
 
