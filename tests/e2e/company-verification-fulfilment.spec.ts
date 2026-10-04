@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { formatMoney, type OrderDto, type QuotationDto } from '@topflow/shared';
 import { BffClient } from '../support/bff';
 import { PRODUCTS, productBySku } from '../support/data';
@@ -19,7 +20,9 @@ test.describe('money path 3: company verification, fulfilment and stock deductio
     const id = runId();
     const company = `Playwright Irrigation ${id}`;
     const email = `owner.${id}@e2e.topflow.test`;
-    const password = `Pw-${id}-2026`;
+    // Not derived from the run id, which is in the company name and the address: a throwaway
+    // account's password is still a password, so it comes from the system's random source.
+    const password = `Pw-${randomBytes(9).toString('hex')}-2026`;
     const sales = await actAs('sales');
     const warehouse = await actAs('warehouse');
     const product = await productBySku(sales.api, PRODUCTS.fitting);
