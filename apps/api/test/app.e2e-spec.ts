@@ -1825,6 +1825,74 @@ describe('TopFlow Hub API (e2e)', () => {
       expect((await orderById(order.id)).status).toBe('DISPATCHED');
     });
 
+    it('publishes what the endpoint takes and answers in the OpenAPI description', async () => {
+      const document = (await http().get('/docs-json').expect(200)).body as {
+        paths: Record<
+          string,
+          Record<
+            string,
+            {
+              responses: Record<string, unknown>;
+              requestBody?: unknown;
+              security?: unknown;
+            }
+          >
+        >;
+        components: { schemas: Record<string, { required?: string[] }> };
+      };
+      const operation = document.paths['/integrations/dispatch/events'].post;
+      // Public to Supabase Auth, so no bearer token; but it has its own 401, for a bad signature,
+      // and a 503 while the integration is switched off, which the sender retries.
+      expect(operation).not.toHaveProperty('security');
+      expect(Object.keys(operation.responses).sort()).toEqual([
+        '200',
+        '400',
+        '401',
+        '404',
+        '409',
+        '413',
+        '415',
+        '422',
+        '429',
+        '503',
+        '5XX',
+      ]);
+      expect(operation.responses['200']).toMatchObject({
+        content: {
+          'application/json': {
+            schema: {
+              properties: {
+                outcome: {
+                  enum: ['APPLIED', 'IGNORED', 'PENDING', 'DUPLICATE'],
+                },
+              },
+            },
+          },
+        },
+      });
+      for (const status of ['401', '503']) {
+        expect(operation.responses[status]).toMatchObject({
+          description: expect.any(String),
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ApiError' },
+            },
+          },
+        });
+      }
+      expect(operation.requestBody).toMatchObject({
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/DispatchEventEnvelopeDto' },
+          },
+        },
+      });
+      expect(
+        document.components.schemas.DispatchEventEnvelopeDto.required,
+      ).toEqual(['id', 'type', 'createdAt', 'data']);
+    });
+
     it('validates the event body and its id header', async () => {
       const event = dispatchEvent('delivery.completed', 'TF-SO-2026-000001');
       const post = (body: string, eventId: string | null) => {
