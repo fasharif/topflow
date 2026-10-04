@@ -4,6 +4,7 @@ import type { Paginated, ProductDto } from '@topflow/shared';
 import { SearchX } from 'lucide-react';
 import { useApiQuery } from '@/lib/use-api';
 import { useSession } from '@/lib/session';
+import { isTradeView } from '@/lib/trade-view';
 import { Alert, EmptyState, LinkButton } from '../ui';
 import { ProductCard } from './product-card';
 
@@ -11,17 +12,21 @@ import { ProductCard } from './product-card';
  * Renders the server-fetched (public, cached) catalog immediately, then — for members of a
  * verified trade account — re-fetches the same page with the organization header to reveal
  * negotiated prices and trade-only products.
+ *
+ * The trade prices and their notice appear only once that re-fetch has returned the member's view.
+ * While it loads, when it fails, or when the API answers with public data because the session has
+ * expired, the public page stays as the server rendered it.
  */
 export function CatalogGrid({ initial, query }: { initial: Paginated<ProductDto>; query: Record<string, string> }) {
   const { activeMembership } = useSession();
   const trade = useApiQuery<Paginated<ProductDto>>(activeMembership ? '/catalog/products' : null, { query, org: true });
-  const data = activeMembership && trade.data ? trade.data : initial;
-  const tradeMode = Boolean(activeMembership && trade.data);
+  const tradeMode = isTradeView(activeMembership, trade.data?.items);
+  const data = tradeMode && trade.data ? trade.data : initial;
 
   return (
     <div>
       <h2 className="sr-only">Products</h2>
-      {activeMembership && (
+      {tradeMode && activeMembership && (
         <Alert tone={activeMembership.organizationStatus === 'ACTIVE' ? 'info' : 'warning'} className="mb-4">
           {activeMembership.organizationStatus === 'ACTIVE'
             ? `Showing trade prices for ${activeMembership.organizationName} (excl. VAT).`

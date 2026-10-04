@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { addToCart } from '@/lib/cart';
 import { FREE_DELIVERY_LABEL, VAT_LABEL, aed } from '@/lib/format';
 import { useSession } from '@/lib/session';
+import { isTradeView } from '@/lib/trade-view';
 import { useApiQuery } from '@/lib/use-api';
 import { Badge, Breadcrumbs, Button, Card, EmptyState, LinkButton, LoadingBlock, QuantityInput, SectionHeading } from '../ui';
 import { ProductCard, ProductImage, ProductPrice, StockBadge, productSize } from './product-card';
@@ -112,7 +113,10 @@ export function ProductDetail({ product: publicProduct, slug, related }: { produ
   const { status, activeMembership } = useSession();
   // Trade members re-fetch in their organization context (trade price, trade-only items).
   const trade = useApiQuery<ProductDto>(activeMembership ? `/catalog/products/${encodeURIComponent(slug)}` : null, { org: true });
-  const product = (activeMembership && trade.data) || publicProduct;
+  // Trade mode only when the re-fetch returned the member's view: with the API down, or public data
+  // after the session expired, the public product stays.
+  const tradeMode = isTradeView(activeMembership, trade.data && [trade.data]);
+  const product = (tradeMode && trade.data) || publicProduct;
 
   if (!product) {
     if (status === 'loading' || (activeMembership && trade.loading)) return <LoadingBlock />;
@@ -126,7 +130,6 @@ export function ProductDetail({ product: publicProduct, slug, related }: { produ
     );
   }
 
-  const tradeMode = Boolean(activeMembership && trade.data);
   const unit = UOM_LABELS[product.uom];
   const size = productSize(product);
   const specs = Object.entries(product.specifications ?? {}).filter(([key]) => key !== 'Size');
