@@ -7,17 +7,48 @@ import {
 /** U+0000, the one character PostgreSQL cannot store in text (error 22021). */
 const NUL = String.fromCharCode(0);
 
-function stripNul(value: unknown): unknown {
+type Container = unknown[] | Record<string, unknown>;
+
+/** Arrays and plain objects are walked; class instances (dates, buffers) are left alone. */
+function isContainer(value: unknown): value is Container {
+  if (Array.isArray(value)) return true;
+  if (value === null || typeof value !== 'object') return false;
+  const prototype: unknown = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+/**
+ * Removes U+0000 from every string in a parsed JSON value; everything else is kept. The walk
+ * uses its own stack instead of recursion: a body nested a few thousand levels deep (about
+ * 12 KB of brackets) exhausted the call stack and was answered as a 500.
+ */
+export function stripNul(value: unknown): unknown {
   if (typeof value === 'string') return value.replaceAll(NUL, '');
-  if (Array.isArray(value)) return value.map(stripNul);
-  if (value !== null && typeof value === 'object') {
-    const prototype: unknown = Object.getPrototypeOf(value);
-    if (prototype !== Object.prototype && prototype !== null) return value;
-    return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [key, stripNul(item)]),
-    );
+  if (!isContainer(value)) return value;
+  const copyOf = (source: Container): Container =>
+    Array.isArray(source) ? new Array<unknown>(source.length) : {};
+  const root = copyOf(value);
+  const pending: [Container, Container][] = [[value, root]];
+  for (let next = pending.pop(); next; next = pending.pop()) {
+    const [source, target] = next;
+    for (const [key, item] of Object.entries(source)) {
+      let cleaned: unknown = item;
+      if (typeof item === 'string') {
+        cleaned = item.replaceAll(NUL, '');
+      } else if (isContainer(item)) {
+        cleaned = copyOf(item);
+        pending.push([item, cleaned as Container]);
+      }
+      // defineProperty, so a key named __proto__ stays a key (as with Object.fromEntries).
+      Object.defineProperty(target, key, {
+        value: cleaned,
+        writable: true,
+        enumerable: true,
+        configurable: true,
+      });
+    }
   }
-  return value;
+  return root;
 }
 
 /**

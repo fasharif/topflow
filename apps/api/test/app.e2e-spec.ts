@@ -281,6 +281,19 @@ describe('TopFlow Hub API (e2e)', () => {
       expect((await search('dr\u0000ip')).total).toBe(plain.total);
     });
 
+    it('validates a body nested thousands of levels deep instead of failing on it', async () => {
+      // About 40 KB of brackets. Removing NUL characters used to walk the body recursively, ran
+      // out of call stack from about 6,000 levels, and the request was answered as a 500.
+      const depth = 20_000;
+      const refused = await http()
+        .post('/quote-requests')
+        .set('content-type', 'application/json')
+        .send(`{"message":${'['.repeat(depth)}${']'.repeat(depth)}}`)
+        .expect(400);
+      expect(refused.body).toMatchObject({ statusCode: 400 });
+      expect(Array.isArray(refused.body.details)).toBe(true);
+    });
+
     it('answers 413 to a body over the size limit and 415 to an encoding it does not read', async () => {
       // The body parser refuses both before any controller runs; they were answered as 500.
       const tooLarge = await http()
