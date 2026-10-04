@@ -128,7 +128,7 @@ Design choices worth noting:
 - **Revisions as rows.** Each quotation revision is its own row sharing a `number` (`TF-QT-2026-000045`, revision 1…n).
 - **Soft archive.** Products are unpublished (`isActive = false`) rather than deleted.
 - **Sequential numbering.** `document_sequences` holds per-type, per-year counters incremented with an atomic `INSERT … ON CONFLICT DO UPDATE … RETURNING` inside the business transaction.
-- **Audit trail.** `audit_logs` records who did what, to which entity, from which IP — written in the same transaction as the change.
+- **Audit trail.** `audit_logs` records who did what, to which entity, from which IP. Orders, quotations (except discarding a draft), RFQ submissions and team invitations (sending and accepting) write the entry in the same transaction as the change; the other changes (catalogue, users, KYC review, company profile and members, RFQ triage, revoking an invitation) write it straight after the change.
 - **Locked-down tables.** Every table has Row Level Security enabled with no policies, and the Data API roles have no privileges: only the API's database role can read or write platform data.
 
 ## 5. Workflows
@@ -171,6 +171,32 @@ stateDiagram-v2
 ```
 
 Segregation of duties is enforced in `QuotationsService`: a buyer's net commitment above their `approvalLimit` (or any commitment by a buyer without a limit) requires an **approver or owner who did not raise the request** and whose own limit covers the amount.
+
+### Consistency under simultaneous requests
+
+Transactions run at PostgreSQL's default isolation level, READ COMMITTED. A service reads a record, decides in application code and then writes, so two requests that arrive at the same moment can both decide on the same reading. Every status change is therefore guarded inside its transaction, in one of two ways:
+
+- **A conditional write.** The `UPDATE` or `DELETE` carries the state that was read in its `WHERE` clause (`updateMany` or `deleteMany` with the status and every other precondition). PostgreSQL checks the clause again under the row lock once a concurrent transaction has committed, so the second request changes no row. It answers `409` with `code: "CONCURRENT_UPDATE"` (`concurrentUpdate` in `apps/api/src/common/concurrency.ts`) and its transaction rolls back. The guarded write comes first in the transaction; the order, the stock movement, the timeline entry and the audit entry follow it, so nothing is written for the request that lost.
+- **A row lock taken first** (`SELECT … FOR UPDATE` through the transaction client), where the rule is about several rows and no single write can carry it. The requests then run one after the other, and the second is judged on what the first committed, so it gets the rule's ordinary answer.
+
+| Change | Guard | The second of two simultaneous requests |
+| --- | --- | --- |
+| A customer's answer to a quotation (accept, send for approval, reject, ask for a revision) and an approver's decision | Conditional on the status read and on the validity date | `409 CONCURRENT_UPDATE`; no order. The unique `orders.quotationId` remains as a second line of defence |
+| Sending a quotation; editing or discarding a draft | Conditional on Draft; sending supersedes only earlier revisions that are still open | `409 CONCURRENT_UPDATE`; an accepted revision is never superseded, a sent quotation never edited or deleted |
+| First quotation of an RFQ | The RFQ's row is locked before the check that it has none | `409` *This RFQ already has a quotation* |
+| Release on credit | The organisation's row is locked before its exposure is summed | Sees the first order and waits for payment if the limit is used up |
+| Order status, payment, cancellation and refund | Conditional on the status and the payment status read | `409 CONCURRENT_UPDATE`; stock is deducted, and the timeline and audit entries written, once |
+| Stock at dispatch | Conditional decrement per product (`stockQuantity >= quantity`) | `409` *Insufficient stock* |
+| Demoting or removing an owner | The organisation's row is locked; the member and the other owners are read under the lock | `409` *An organization must always have at least one owner* |
+| Accepting a team invitation | Conditional on not accepted, not revoked and not expired | `409 CONCURRENT_UPDATE`; no membership |
+| RFQ status (the customer's cancellation, sales triage) | Conditional on the status read | `409 CONCURRENT_UPDATE` |
+| A company profile with a changed legal identifier | Conditional on the organisation status read | `409 CONCURRENT_UPDATE`; a suspension made meanwhile stands |
+| Document numbers | One atomic `INSERT … ON CONFLICT DO UPDATE … RETURNING` | The next number |
+| First request of a new identity; first request of a new session | Unique keys with a re-read; a conditional update of the session id | Recorded once |
+
+Locks are taken in one order so that two transactions cannot wait for each other: a quotation's row, then the organisation's, then the RFQ's; an order's row, then its products in id order.
+
+Not guarded: catalogue edits, a stock count set by hand, the KYC review and staff edits of users are whole writes, and the later one wins (two partial edits of one price range can together store a lower price above the upper one). Two addresses saved at the same moment into an empty address book can both become the default. Linking a website request to a customer is checked against quotations drafted earlier, not against one drafted at the same moment. A checkout repeated after a lost response creates a second order; there is no idempotency key.
 
 ## 6. Authentication and sessions
 
@@ -222,7 +248,7 @@ sequenceDiagram
 | --- | --- | --- |
 | Static | TypeScript strict, ESLint (type-aware), compile-time Prisma ↔ shared enum parity, shellcheck, actionlint | Contract drift, unsafe code |
 | Unit | Jest, `node:test` | Money/VAT, state machines, permissions, schemas, decision tables for purchase approval and credit release, the web app's basket refresh and order tracker, the mobile app's cart pricing and order request, Supabase token verification, guards, error mapping, OpenAPI post-processing, config, error reporting, the demo mail guard and demo policy, the demo reset's safety checks, the web app's authentication Server Actions in and out of demo mode, its notices, page titles and noindex in both builds, the local setup script |
-| End-to-end | Jest + Supertest against PostgreSQL; `next start` over HTTP | Real middleware stack with simulated Supabase Auth: provisioning, MFA, invitations, RBAC, tenant isolation, procurement and fulfilment journeys, decision-table boundaries, simultaneous credit releases, RLS lockdown, the published OpenAPI description; a second suite in demo mode; the web app's demo and ordinary production builds |
+| End-to-end | Jest + Supertest against PostgreSQL; `next start` over HTTP | Real middleware stack with simulated Supabase Auth: provisioning, MFA, invitations, RBAC, tenant isolation, procurement and fulfilment journeys, decision-table boundaries, simultaneous credit releases and simultaneous changes to one quotation, order, company or invitation, RLS lockdown, the published OpenAPI description; a second suite in demo mode; the web app's demo and ordinary production builds |
 | System | Playwright against the whole stack (Supabase CLI, production builds), in `tests/` | The three money paths as the demo users, a price changed during checkout, tenant isolation, role limits, cross-site writes, tampered prices, money columns visible at 1280 × 720, tables that are tab stops only while they scroll |
 | Accessibility | axe-core in the Playwright run | WCAG 2.2 A/AA on storefront, account, trade-portal and back-office pages, at desktop and phone size |
 | Load | k6 (container) | p95 targets per endpoint; a smoke run in CI that fails on errors, measured runs on a quiet machine only |

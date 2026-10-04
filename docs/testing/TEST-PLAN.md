@@ -40,7 +40,7 @@ Likelihood and impact are each scored 1 (low), 2 (medium) or 3 (high). The score
 | --- | --- | ---: | ---: | ---: | --- | --- |
 | R1 | A customer is charged, or shown, a price other than the catalogue or quoted price | 2 | 3 | 6 | High | Retail checkout journey (with totals worked out by hand); changed-price journey; tampered-price check; API checkout tests (server pricing, changed total refused); mobile order request unit tests; decision tables; BUG-02 |
 | R3 | Goods are released on credit beyond a company's credit limit, including by orders released at the same moment | 2 | 3 | 6 | High | Decision table B (unit and HTTP); two simultaneous acceptances against one limit (API, five rounds, a new company each); mutation check; procurement and company journeys; BUG-13 |
-| R6 | Stock is deducted twice, never, or at the wrong step | 2 | 2 | 4 | Medium | Company journey (stock unchanged at picking, lower by the quantity at dispatch); API fulfilment test |
+| R6 | Stock is deducted twice, never, or at the wrong step | 2 | 2 | 4 | Medium | Company journey (stock unchanged at picking, lower by the quantity at dispatch); API fulfilment test; two dispatches of one order at the same moment (API); BUG-19 |
 | R8 | Keyboard or screen-reader users cannot complete a task | 2 | 2 | 4 | Medium | axe scans of 41 pages at two sizes; the tab-stop check of scrolling tables; tracker announcements; BUG-01, BUG-11, BUG-12 |
 | R9 | Clients rely on an API description that does not match the API | 2 | 2 | 4 | Medium | Schemathesis (three passes); OpenAPI end-to-end test; BUG-03 to BUG-07, BUG-15, BUG-16 |
 | R10 | Key pages slow down under load | 2 | 2 | 4 | Medium | k6 load profile with p95 thresholds set from four measured runs (API only); smoke run and threshold check in CI |
@@ -51,17 +51,18 @@ Likelihood and impact are each scored 1 (low), 2 (medium) or 3 (high). The score
 | R7 | VAT or rounding differs between preview, document and invoice | 1 | 3 | 3 | Medium | Money unit tests; totals asserted in the journeys, once against totals worked out by hand |
 | R11 | Sign-up, confirmation or sign-in breaks with a Supabase change | 1 | 3 | 3 | Medium | Company journey (real sign-up and Mailpit confirmation); sign-in of every demo account; API token tests |
 | R12 | Cross-site request forgery on state-changing calls | 1 | 3 | 3 | Medium | Cross-site write check; Origin check in the `/api` handler |
+| R15 | Two requests that change one record at the same moment both take effect: an order for a rejected quotation, a company left without an owner, a revoked invitation accepted | 1 | 3 | 3 | Medium | Simultaneous requests through the API, in rounds on new records or queued behind a row lock (`concurrency.e2e-spec.ts`); mutation check; BUG-18 to BUG-22 |
 | R14 | One account floods the KYC queue with trade account applications | 2 | 1 | 2 | Low | None yet: BUG-17 is open |
 
 ## 3. Approach
 
-The levels form a pyramid: many fast tests of rules at the bottom, fewer slow tests of whole journeys at the top. The counts are from the latest run in section 9, of 4 October 2026.
+The levels form a pyramid: many fast tests of rules at the bottom, fewer slow tests of whole journeys at the top. The counts are from the runs of 4 October 2026 in section 9: the unit and API end-to-end counts from the run made with the concurrency tests, the system counts from the run after the merge with `develop`.
 
 ```mermaid
 flowchart TB
   SYS["System: 31 Playwright tests, 41 pages scanned by axe at two sizes<br/>k6 smoke and load runs · Schemathesis, three passes"]
-  E2E["API end-to-end: 53 tests against PostgreSQL<br/>workflows, decision tables, concurrency, OpenAPI"]
-  UNIT["Unit: 298 tests<br/>money and VAT, state machines, permissions, schemas, decision tables, cart pricing"]
+  E2E["API end-to-end: 142 tests against PostgreSQL<br/>workflows, decision tables, simultaneous requests, OpenAPI"]
+  UNIT["Unit: 300 tests<br/>money and VAT, state machines, permissions, schemas, decision tables, cart pricing"]
   STATIC["Static: TypeScript strict, ESLint, Prettier, shellcheck, actionlint"]
   SYS --- E2E --- UNIT --- STATIC
 ```
@@ -79,7 +80,7 @@ flowchart TB
 **Test design techniques**
 
 - *Decision tables and boundary values* for the two money rules (section 7), derived from the code rather than the documentation.
-- *Concurrency* where a rule depends on a sum that other requests change: two acceptances at once against one credit limit.
+- *Concurrency* where a rule depends on a sum that other requests change (two acceptances at once against one credit limit), and wherever a request reads a record, decides and then writes: two requests for one quotation, order, company or invitation at the same moment, in rounds on new records. Where one of the two requests always finishes first because it is shorter, the test queues both behind a row lock, so that both have read the record before either writes.
 - *Equivalence partitioning* of roles: platform roles (customer, sales, warehouse, admin) and organisation roles (owner, approver, buyer), each with the demo account that represents it.
 - *State transitions*: order and quotation state machines in unit tests; the order tracker for every status; the journeys walk the main paths end to end.
 - *Negative and abuse cases*: foreign tenants, missing permissions, cross-site writes, tampered prices, a price changed during checkout, generated invalid input.
@@ -130,12 +131,13 @@ Features as listed in the README's *Features*, with the tests that cover them.
 | Website quote requests | Products or a 20-character description; contact details validated; public and rate limited | API: website quote request tests; k6: `quote`; Schemathesis: `POST /quote-requests` |
 | Retail checkout (B2C) | Server prices every line; delivery AED 25 below AED 500 net; VAT per line and on delivery; an order whose total changed since checkout opened is refused; the web and mobile apps send the total they show | System: retail checkout (with hand-worked totals), changed price, tampered price; API: *prices checkout on the server…*, *refuses an order whose total differs…*; unit: money tests, `cart.spec.ts` (web), `cart-pricing.spec.ts` (mobile) |
 | Order tracking | The tracker shows how far the order got; money columns visible on desktop | Unit: `order-progress.spec.ts`; system: retail checkout (tracker), `layout.spec.ts` |
-| Procurement: RFQ, quotations, approval | Decision table A; nobody approves their own purchase | Unit: `approval.spec.ts`; API: `decision-tables.e2e-spec.ts` table A, *routes purchases above the buyer limit…*; mutation check; system: procurement journey |
+| Procurement: RFQ, quotations, approval | Decision table A; nobody approves their own purchase; of two answers to one quotation, one takes effect | Unit: `approval.spec.ts`; API: `decision-tables.e2e-spec.ts` table A, *routes purchases above the buyer limit…*, `concurrency.e2e-spec.ts` (answers, revisions, drafts, RFQ status); mutation check; system: procurement journey |
 | Credit terms | Decision table B; releases for one organisation one at a time | Unit: `order-writer.service.spec.ts`; API: `decision-tables.e2e-spec.ts` table B and the concurrency rounds; mutation check; system: procurement oracle, company journey |
 | Multi-tenancy | Membership verified per request; organisation id from the header only | System: tenant isolation; API: *isolates organizations from each other*; Schemathesis trade pass |
-| Company verification (KYC) | Only sales and admin review; pending companies cannot accept | System: company journey, warehouse limits; API: table B row B0 |
-| Fulfilment and stock | Each step's permission; stock deducted at dispatch; cash on delivery marked paid on delivery | System: company journey; API: retail fulfilment test; system: warehouse cannot record payments |
-| Refunds (ADR-020) | Paid orders cancelled by staff; refund recorded once | API: *leaves a paid order for Top Flow to cancel…* |
+| Company verification (KYC) | Only sales and admin review; pending companies cannot accept; a profile edit does not lift a suspension | System: company journey, warehouse limits; API: table B row B0, `concurrency.e2e-spec.ts` (a company profile edited while the company is suspended) |
+| Company team | A company always has an owner; a revoked invitation cannot be accepted | API: *accepts a team invitation only for the invited, signed-in email*, `concurrency.e2e-spec.ts` (owner changes, an invitation revoked while it is accepted); mutation check |
+| Fulfilment and stock | Each step's permission; stock deducted at dispatch, once; cash on delivery marked paid on delivery; a cancellation and a dispatch cannot both take effect | System: company journey; API: retail fulfilment test, `concurrency.e2e-spec.ts` (changes to one order); mutation check; system: warehouse cannot record payments |
+| Refunds (ADR-020) | Paid orders cancelled by staff; refund recorded once | API: *leaves a paid order for Top Flow to cancel…*, `concurrency.e2e-spec.ts` (two refund records) |
 | Identity and security | Supabase tokens verified; MFA for staff; httpOnly sessions; cross-site writes refused | System: sign-in of every demo account, sign-up with confirmation, cross-site write; API: authentication tests; Schemathesis: `ignored_auth` check |
 | Accessibility | WCAG 2.2 A and AA; a table is a tab stop only while it scrolls | System: `accessibility.spec.ts` (41 pages, two sizes), `layout.spec.ts` |
 | API description | Validation rules, error statuses per operation, UUID ids and header, money and email formats, valid OpenAPI 3.0 | API: the OpenAPI end-to-end tests; unit: `openapi.spec.ts`, schema tests; Schemathesis (three passes) |
@@ -194,13 +196,41 @@ The unit table covers every rule, with boundary rows one fils below the limit (B
 | 6 | Net 60 with a zero limit; 0.21 | — | Pending payment (B6) |
 | Concurrency | Two orders of 1,050.00 accepted at the same moment; five rounds, each on a new company with the same terms | 0.00 | Exactly one confirmed on credit, the other pending payment |
 
-**Evidence that the tables bite.** `node tests/scripts/mutation-check.mts --with-db` breaks each rule in turn, runs the tests that guard it (after checking that they pass unchanged), and restores the code; CI runs it after the end-to-end suites. In the final run of section 9, against PostgreSQL 17 prepared as in CI:
+### Simultaneous requests
+
+Source: the services named below; the guards are listed in [ARCHITECTURE.md, section 5](../ARCHITECTURE.md#consistency-under-simultaneous-requests). Each case sends two requests for one record through HTTP (`apps/api/test/concurrency.e2e-spec.ts`). "Rounds" are five rounds of both requests started in the same tick, each on new records; "queued" is one test in which both requests wait behind a row lock held by the test and then write in a fixed order.
+
+| Record | The two requests | Expected | How |
+| --- | --- | --- | --- |
+| Quotation (`QuotationsService`) | Accept and reject; two acceptances; a request for approval and an acceptance; approve and decline; a personal quotation accepted and rejected | One 200 and one 409 `CONCURRENT_UPDATE`; an order only if the acceptance won, and never two | Rounds |
+| Quotation | Accept revision 1 while revision 2 is sent | The revision is sent; revision 1 is accepted with an order, or superseded without one | Rounds; queued in both orders |
+| Quotation | Send a draft while it is edited or discarded | The quotation stores the total the customer was sent; a sent quotation is not deleted | Queued in both orders |
+| RFQ | Two first drafts | One 201, one 409; one quotation | Rounds |
+| Order (`OrdersService`) | Two dispatches; a cancellation and a dispatch; two cancellations; a customer's cancellation and a payment; two refund records | One 200 and one 409 `CONCURRENT_UPDATE`; stock deducted once; one timeline entry and one audit entry | Rounds |
+| Company members (`OrganizationsService`) | Two owners demote each other; two owners remove each other | One succeeds, one 409 *An organization must always have at least one owner*; one owner left | Rounds, a new company each |
+| Invitation (`InvitationsService`) | Accept and revoke | The invitee joins and the revocation answers 404, or the invitation is revoked and nobody joins | Rounds; queued with the revocation first |
+| RFQ (`RfqService`) | The customer cancels while sales close it | One 200, one 409; the RFQ keeps the winner's status | Rounds; queued with the closing first |
+| Company profile | A new trade licence number while sales suspend the company | The company stays suspended | Queued with the suspension first |
+
+**Evidence that the tables and the guards bite.** `node tests/scripts/mutation-check.mts --with-db` breaks each rule and removes each guard in turn, runs the tests that should notice (after checking that they pass unchanged), and restores the code; CI runs it after the end-to-end suites. In the run made with the concurrency tests (section 9), against PostgreSQL 17 prepared as in CI:
 
 | Mutant | Tests run | Failed | Result |
 | --- | ---: | --- | --- |
 | Table A: `>` becomes `>=` in `requiresApproval` | 16 | 3 | killed |
 | Table B: `<=` becomes `<` in the OrderWriter credit check | 15 | 3 | killed |
 | BUG-13: `FOR UPDATE` removed from the credit release | 5 | 5; 5 rounds that released both orders on credit | killed |
+| BUG-18: the status condition removed from answers to a quotation | 25 | 25 | killed |
+| BUG-18: the same condition, for a draft edited after it was sent | 1 | 1 | killed |
+| BUG-18: a revision supersedes earlier ones whatever their status | 7 | 5 | killed |
+| BUG-18: a quotation is discarded whatever its status | 1 | 1 | killed |
+| BUG-18: `FOR UPDATE` removed from the first draft of an RFQ | 5 | 5 | killed |
+| BUG-19: the status and payment conditions removed from order changes | 25 | 25 | killed |
+| BUG-20: `FOR UPDATE` removed from member changes | 10 | 9 | killed |
+| BUG-21: the revocation condition removed from accepting an invitation | 6 | 5 | killed |
+| BUG-22: the status condition removed from cancelling an RFQ | 6 | 3 | killed |
+| BUG-22: the status condition removed from a change of legal identifier | 1 | 1 | killed |
+
+A round that passes with its guard removed is a round in which the two requests happened not to overlap. The queued tests do not depend on that: with both requests waiting behind the lock, the second always writes after the first. Of the seven tests for a superseded revision, the queued test in which the revision is sent first cannot fail with this mutant, which changes only what sending supersedes; the other test that passed was a round.
 
 The three failures of table A are the three rows exactly at a limit, out of its 13 rows (`approval.spec.ts` also holds three tests of who may approve); the three of table B are its three at-limit B4 rows. Without the row lock, all five concurrency rounds released both orders on credit, in each of four runs on 27 and 28 September 2026. Each round now uses its own company, so no round inherits another's orders: an earlier version shared one company, and after a failing round the later ones started from its leftover exposure.
 
@@ -216,7 +246,7 @@ The three failures of table A are the three rows exactly at a limit, out of its 
 
 ## 9. Results of this cycle
 
-Three runs are recorded here, in the order they were made: the final run of the cycle on 28 September 2026, the measured load runs and reruns of 3 October 2026, and the run of 4 October 2026 after the merge with `develop`, which is the latest and the one the README's table summarises.
+Four runs are recorded here, in the order they were made: the final run of the cycle on 28 September 2026, the measured load runs and reruns of 3 October 2026, the run of 4 October 2026 after the merge with `develop`, and a run of the unit and API suites later that day, made with the concurrency tests. The README's table summarises the last two.
 
 Run on 28 September 2026 on a Windows 11 laptop with Docker Desktop (16 CPUs, 7.9 GB for all containers), shared with other builds. The final run started from a clean clone of commit `adebb33` of the branch (the commit after it changes Markdown only). `npm ci` and every Node step ran in a Linux container (`node:24-bookworm`), in the order of the CI workflows: the API and the web app from production builds, against a freshly started Supabase CLI 2.117 stack (Auth, PostgreSQL 17 and Mailpit only, on the default ports, under its own project id so that it could not touch another stack on that machine) seeded with the demo profile, and a new `postgres:17` container for the API suites, prepared as in CI with `db:deploy`, `db:seed` and the demo reset. The stack's ports were forwarded into the container, so it used the same addresses as a CI runner. k6, Schemathesis, the threshold check, shellcheck and actionlint ran from Git Bash on the host, in their pinned containers. Only pass and fail results and counts are reported here, not timings.
 
@@ -316,3 +346,29 @@ During the Playwright, k6 and Schemathesis runs the API logged no error, and log
 **After the first push.** GitHub's code scanning (CodeQL) reported one alert on the pull request, *Insecure randomness*: money path 3 built the password of its throwaway company owner from the run id, which comes from `Math.random()`. The password now comes from `node:crypto`. With that change the lint and type checks of the workspace passed, and the Playwright suite was run again against a newly started stack of the same kind: 31 passed in 3.6 minutes, none retried.
 
 **Not run in this run.** The measured k6 load profile (the results of 3 October stand for the code before the merge), the README media (captured on 26 September; see the README), and, of `develop`'s infrastructure checks, the deploy script's test, the restore drill, the Terraform checks and the image scan. The results of the GitHub Actions workflows are not recorded here: `ci.yml` and `containers.yml` run on GitHub for every push of a feature branch and `system-tests.yml` for the pull request, and their results are on the pull request. `test-report-pages.yml` cannot run before it is on `develop`, and GitHub Pages is not enabled for the repository; its decision step was run locally against the repository on 4 October 2026 and reported that Pages is not enabled, without failing.
+
+### With the concurrency tests, 4 October 2026
+
+Later on 4 October 2026 the guards against simultaneous requests (BUG-18 to BUG-22) and their tests were added. This run covers what that change touches: the API, the shared package it takes its error code from, and the workspaces that import that package. It was made on the same laptop, which was running other builds at the time, on a copy of the working tree in `node:24-bookworm` (Node 24.21.0, npm 11.19.0), in the order of `ci.yml`, with the API suites against a new `postgres:17` container (PostgreSQL 17.11) reached at `localhost:5432` and prepared as in CI.
+
+| Suite | Command | Result |
+| --- | --- | --- |
+| Install | `npm ci --no-audit --no-fund` | The lockfile, which this change does not touch, was accepted |
+| Static checks | lint and type checks of the API, the web app and the system-test workspace; type checks of the database package and the mobile app | All passed |
+| Shared unit tests | `npm test -w @topflow/shared` | 91 passed |
+| API unit tests | `npm run test:cov -w @topflow/api` | 101 passed (two added: the answer to a lost race, and how the OpenAPI description publishes it) |
+| Web unit tests | `npm test -w web` | 55 passed |
+| Mobile unit tests | `npm test -w mobile` | 8 passed |
+| Database and setup scripts | `npm test -w @topflow/database`, `npm run test:scripts` | 39 and 6 passed |
+| API build | `npm run build -w @topflow/api` | Built |
+| Demo reset and its rehearsal | `npm run demo:reset -- --confirm`; `npm run demo:rehearse -w @topflow/database` | The reset completed; the rehearsal passed its 5 scenarios |
+| API end-to-end tests | `npm run test:e2e:cov -w @topflow/api`, then `npm run test:e2e -w @topflow/api` | 142 passed, both times: 26 in `app.e2e-spec.ts`, 17 in `decision-tables.e2e-spec.ts`, 10 in `demo.e2e-spec.ts` and 89 in `concurrency.e2e-spec.ts` |
+| Mutation check | `node tests/scripts/mutation-check.mts --with-db` | 13 of 13 mutants killed (section 7) |
+
+API coverage from this run (statements, excluding specs and entry points): end-to-end suites 83.2 % (1,992 of 2,395; branches 67.2 %), unit suite 22.7 % (544 of 2,398).
+
+**Before the fix.** The same 89 tests were run against the services as they were, on the Windows host (Node 24.19) against PostgreSQL 17 in a container: 86 failed and 3 passed. The three were the queued test in which a draft is edited and then sent, which was never wrong, and one round each of two cases in which the requests did not overlap. What each case left in the database is in [BUGS-FOUND.md](BUGS-FOUND.md#simultaneous-requests-bug-18-to-bug-22).
+
+**Not run in this run.** The web app's production builds and their smoke checks, the Playwright suite, the k6 smoke run and Schemathesis: the change does not touch the web app or the mobile app, and the API's published description changes only in the wording of the 409 answer and in listing the error codes. The results above them in this section stand for those suites. The results of the GitHub Actions workflows are on the pull request, as before.
+
+BUGS-FOUND.md now records 22 defects: 21 fixed and BUG-17 (Low) open until a product decision is made.

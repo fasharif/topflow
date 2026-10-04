@@ -2,6 +2,8 @@
 
 Defects found while building and reviewing the system tests in [TEST-PLAN.md](TEST-PLAN.md), with the evidence to reproduce them. Each defect fixed on this branch has its own `fix:` commit with a regression test. BUG-08 to BUG-10 were fixed on `feature/demo-mode`, which this branch is based on. One defect is open: BUG-17 (Low), which needs a product decision before it is fixed. Issues can be filed for the record once Farah approves them.
 
+BUG-18 to BUG-22 were added on 4 October 2026 and are of one kind: two requests that change the same record at the same moment. They were found by reading the API's code, not by a test or by a user, and were then reproduced with the tests written for them, which is described at [Simultaneous requests](#simultaneous-requests-bug-18-to-bug-22).
+
 The reproductions ran on 26 to 28 September 2026 on a Windows 11 laptop, against the local stack: the Supabase CLI (Auth, PostgreSQL 17, Mailpit), the API and the web app from production builds, and the demo seed. Severity uses this scale:
 
 | Severity | Meaning |
@@ -10,7 +12,7 @@ The reproductions ran on 26 to 28 September 2026 on a Windows 11 laptop, against
 | Medium | A user sees wrong information or cannot complete a task in one way, and a workaround exists |
 | Low | Documentation, developer experience or a contract detail; no user-visible harm |
 
-"Found by" says honestly where each defect came from. Three of them (BUG-12, BUG-13 and BUG-14), and the mobile part of BUG-02, were missed by the suites and found when the branch was reviewed; each now has a test that fails without its fix.
+"Found by" says honestly where each defect came from. Three of them (BUG-12, BUG-13 and BUG-14), and the mobile part of BUG-02, were missed by the suites and found when the branch was reviewed; each now has a test that fails without its fix. BUG-18 to BUG-22 were missed by every suite as well: no test sent two requests at once, except the one written for BUG-13.
 
 ## Summary
 
@@ -33,6 +35,11 @@ The reproductions ran on 26 to 28 September 2026 on a Windows 11 laptop, against
 | [BUG-15](#bug-15--a-nul-character-in-the-input-causes-a-server-error) | A NUL character in the input causes a server error | Low | Schemathesis | Fixed |
 | [BUG-16](#bug-16--money-amounts-are-published-as-arrays-of-numbers) | Money amounts are published as arrays of numbers | Low | Schemathesis (staff and trade passes) | Fixed |
 | [BUG-17](#bug-17--one-account-can-open-any-number-of-trade-account-applications) | One account can open any number of trade account applications | Low | Schemathesis (customer pass), then review | Open: needs a product decision |
+| [BUG-18](#bug-18--two-requests-that-change-one-quotation-at-the-same-moment-both-take-effect) | Two requests that change one quotation at the same moment both take effect | High | Code review | Fixed |
+| [BUG-19](#bug-19--two-requests-that-change-one-order-at-the-same-moment-both-take-effect) | Two requests that change one order at the same moment both take effect | Medium | Code review | Fixed |
+| [BUG-20](#bug-20--two-owners-who-demote-or-remove-each-other-leave-a-company-without-an-owner) | Two owners who demote or remove each other leave a company without an owner | High | Code review | Fixed |
+| [BUG-21](#bug-21--an-invitation-revoked-while-it-is-being-accepted-is-still-accepted) | An invitation revoked while it is being accepted is still accepted | Medium | Code review | Fixed |
+| [BUG-22](#bug-22--an-rfqs-status-or-a-companys-suspension-is-overwritten-by-a-request-that-read-the-old-one) | An RFQ's status, or a company's suspension, is overwritten by a request that read the old one | Medium | Code review | Fixed |
 
 ---
 
@@ -283,6 +290,107 @@ How often it happens: the first version of the regression test below ran its fiv
 **Actual:** every application is accepted and waits in the KYC queue. In one Schemathesis run a single customer account opened 42 companies. The general rate limit slows this down but does not stop it.
 
 **Status:** open. Recorded as an observation before the second review, which asked for it to be treated as a defect. The fix is a product rule (one pending application per account, or a small limit), so it waits for Farah's decision; the issue will be filed once approved.
+
+## Simultaneous requests (BUG-18 to BUG-22)
+
+**How they were found.** By code review on 4 October 2026: the services read a record, decide in application code and then write by id, and the write did not check that the record was still as it had been read. PostgreSQL's default isolation level (READ COMMITTED) lets two transactions read the same committed row, so two requests that arrive together could both decide on the same reading and both write. Only the credit limit had a test with simultaneous requests (BUG-13).
+
+**How they were reproduced.** `apps/api/test/concurrency.e2e-spec.ts` was written first and run against the code as it was, on a Windows 11 laptop (Node 24.19) against PostgreSQL 17 in a container prepared as in CI. It sends the two requests in the same tick, five rounds per case on new records; where one request always finishes first because it is shorter, it queues both behind a row lock, so that both have read the record before either writes. Against the unfixed services 86 of its 89 tests failed. The "Actual" lines below are from that run, from the two runs of an earlier version of the same tests, and from a throwaway script that repeated each case three times and printed what the database held afterwards. Nothing was reproduced through the browser, and none of these was reported by a user.
+
+**The fix they share.** Each change is now applied only if the record is still as it was read: the state is part of the `WHERE` clause of the `UPDATE` or `DELETE`, or a row is locked first (`SELECT … FOR UPDATE`) where the rule spans several rows. The request that comes second answers `409` and writes nothing; where it lost to a conditional write the answer carries `code: "CONCURRENT_UPDATE"` and the message *This quotation was changed by someone else a moment ago, so your change was not applied. Reload it to see where it stands now.* The web and mobile apps already show the API's message for a failed action, so they needed no change. [ARCHITECTURE.md, section 5](../ARCHITECTURE.md#consistency-under-simultaneous-requests) lists every guard. `tests/scripts/mutation-check.mts` removes each guard in turn and fails unless the tests notice (its table is in [TEST-PLAN.md, section 7](TEST-PLAN.md#7-decision-tables-and-boundary-values)).
+
+## BUG-18 — Two requests that change one quotation at the same moment both take effect
+
+**Severity:** High. A sales order could exist for a quotation recorded as rejected, declined or superseded, and nothing on screen said so. Likelihood is low: two people in one company (or sales and the customer) must act on the same quotation within the same few milliseconds.
+
+**Steps**
+
+1. Send a quotation to a verified trade customer.
+2. At the same moment, send `POST /org/quotations/:id/respond` with `{"action": "ACCEPT"}` as the owner and with `{"action": "REJECT", "note": "…"}` as another member.
+
+**Expected:** one answer takes effect; the other is refused. An order exists only if the acceptance won.
+
+**Actual (before the fix):** both requests answered 200 in 5 of 5 rounds. In the three rounds whose result was printed, the quotation ended as Rejected with one sales order and two audit entries. Both requests also answered 200, in 5 of 5 rounds each, for a buyer's request for approval against an owner's acceptance, for an approver's approval against another approver's decline, and for a personal quotation accepted and rejected by its customer. Further cases in the same service:
+
+- **A revision sent while the earlier one is accepted.** The acceptance answered 200 and created the order while the quotation ended as Superseded, in 5 of 5 rounds (3 and 4 of 5 in the two earlier runs). Sending a revision read the open revisions and then superseded them by id.
+- **A draft sent while it is edited.** The customer was emailed one total (AED 105.00 in the test) while the quotation stored another (AED 147.00), in 5 of 5 rounds of the earlier version of the test.
+- **A draft sent, then discarded by a request that had read it as a draft.** The discard answered 204 and the sent quotation was deleted (queued test), although the customer had been emailed a link to it.
+- **Two first drafts for one RFQ.** Both answered 201 in 5 of 5 rounds; the RFQ then had two quotations with two numbers.
+
+Two acceptances of one quotation were already safe: `orders.quotationId` is unique, so the second answered 409 (*A record with this value already exists*) and rolled back. It now answers the same 409 as the other cases.
+
+**Fix** (commit `fix(api): apply a change to a quotation only if it is still as it was read`): every change goes through one conditional write on the status that was read (and, for a customer's answer, the validity date); sending supersedes only revisions that are still open, in the same statement; discarding deletes only a draft; drafting the first quotation locks the RFQ's row before checking that it has none. The order, the RFQ's status and the audit entry follow the guarded write in the same transaction. Regression tests: *answers to one quotation at the same moment*, *a revision sent while the earlier one is accepted*, *first drafts for one RFQ at the same moment* and *a draft quotation sent while it is edited or discarded*.
+
+**Not changed:** a draft revision can still be sent after an earlier revision was accepted, one request after the other, and could then be accepted as well. That is a product rule, not a race; it is listed in the pull request for a decision.
+
+## BUG-19 — Two requests that change one order at the same moment both take effect
+
+**Severity:** Medium. Stock was deducted twice, or an order ended in a state its lifecycle does not allow; staff can correct both (a stock adjustment, a refund), but nothing told them to.
+
+**Steps**
+
+1. Place a retail order of two units and mark it as Processing.
+2. At the same moment, send `PATCH /admin/orders/:id/status` with `{"status": "DISPATCHED"}` twice.
+
+**Expected:** one request dispatches the order; the other is refused. Stock goes down by two.
+
+**Actual (before the fix):** both answered 200 in 5 of 5 rounds; stock went down by four, and the timeline and the audit log each had two dispatch entries. In 5 of 5 rounds each, both requests also answered 200 for: a cancellation against a dispatch (the order ended as Cancelled with its stock deducted, or as Dispatched although the cancellation had been confirmed); two cancellations (two timeline entries and two audit entries); a customer's cancellation against a payment record (the order ended as Cancelled and Paid, a combination the rules reserve for Top Flow to create); and two refund records (two timeline entries and two audit entries).
+
+**Fix** (commit `fix(api): apply a change to an order only if it is still as it was read`): a status change, a payment, a cancellation and a refund are each written only if the order still has the status and the payment status that were read; stock is deducted after that write, in the same transaction. Products are now locked in id order, so two orders that share products cannot wait for each other. Regression tests: *changes to one order at the same moment* (five cases, five rounds each).
+
+## BUG-20 — Two owners who demote or remove each other leave a company without an owner
+
+**Severity:** High. Without an owner nobody can manage the company's members, invitations or profile, and no endpoint lets staff restore one: it takes a change in the database.
+
+**Steps**
+
+1. Give a company two owners.
+2. At the same moment, each owner sends `PATCH /org/members/:memberId` with `{"role": "BUYER"}` for the other (or `DELETE /org/members/:memberId`).
+
+**Expected:** one request succeeds; the other is refused with *An organization must always have at least one owner*.
+
+**Actual (before the fix):** both demotions answered 200 in 5 of 5 rounds and the company had no owner; both removals answered 204 in 4 of 5 rounds (5 of 5 in the earlier runs) and the company had no member at all. The check that another owner exists and the write were separate statements, outside any transaction.
+
+**Fix** (commit `fix(api): change one company's members one request at a time`): the rule is about several rows, so no single conditional write can carry it. The change now runs in a transaction that locks the organisation's row first (as the credit release of BUG-13 does), reads the member again and counts the other owners under the lock. The second request waits, then gets the rule's ordinary 409. Regression tests: *owner changes at the same moment* (two cases, five rounds each, a new company per round).
+
+## BUG-21 — An invitation revoked while it is being accepted is still accepted
+
+**Severity:** Medium. Someone joins a company after its owner withdrew the invitation; the owner can remove the member again.
+
+**Steps**
+
+1. As an owner, invite a colleague.
+2. At the same moment, the colleague sends `POST /invitations/accept` and the owner sends `DELETE /org/invitations/:invitationId`.
+
+**Expected:** either the colleague joins and the revocation answers 404, or the invitation is revoked and nobody joins.
+
+**Actual (before the fix):** the revocation answered 204 and the acceptance 200 in 5 of 5 rounds (10 of 10 in the earlier runs): the invitation was both revoked and accepted, and the colleague was a member. The acceptance checked the revocation before its transaction and then marked the invitation accepted on `acceptedAt` alone.
+
+**Fix** (commit `fix(api): do not accept an invitation that was revoked at the same moment`): the acceptance first takes the invitation with one conditional write (not accepted, not revoked, not expired) and creates the membership only if that succeeded. Regression tests: *an invitation revoked while it is accepted* (five rounds, and once queued behind a row lock so that the revocation is certain to land between the acceptance's check and its write).
+
+## BUG-22 — An RFQ's status, or a company's suspension, is overwritten by a request that read the old one
+
+**Severity:** Medium for the suspension, Low for the RFQ.
+
+**Steps (suspension)**
+
+1. As the owner of a verified company, send `PATCH /org` with a new trade licence number.
+2. At the same moment, as sales, send `PATCH /admin/organizations/:id/review` with `{"status": "SUSPENDED"}`.
+
+**Expected:** the company stays suspended.
+
+**Actual (before the fix):** with the suspension written first and the profile update, which had read the company as active, written second (queued test), the company ended as *Pending verification*: a changed legal identifier sends a verified company back to review, and that write replaced the suspension. In the earlier version of the test, which sent both at the same moment, this happened in 10 of 10 rounds.
+
+**Steps (RFQ)**
+
+1. Submit an RFQ and move it to *In review*.
+2. At the same moment, cancel it as the customer (`POST /org/rfqs/:id/cancel`) and close it as sales (`PATCH /admin/rfqs/:id` with `{"status": "CLOSED"}`).
+
+**Expected:** one request succeeds; the RFQ keeps that status.
+
+**Actual (before the fix):** both answered 200 in 4 of 5 rounds, so one of the two was told it had succeeded while the RFQ kept the other's status. Both statuses are final.
+
+**Fix** (commit `fix(api): keep an RFQ's status and a company's suspension set at the same moment`): a profile update that changes a legal identifier is written only if the company's status is still the one that was read; an RFQ's status is written only over the status it was checked against. Regression tests: *a company profile edited while the company is suspended* and *an RFQ cancelled while sales close it*.
 
 ---
 
