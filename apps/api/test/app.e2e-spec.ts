@@ -1700,6 +1700,72 @@ describe('TopFlow Hub API (e2e)', () => {
       );
     });
 
+    it('keeps one delivery when the warehouse and the dispatch service confirm it at the same moment', async () => {
+      const order = await retailOrder('DISPATCHED');
+      const event = dispatchEvent('delivery.completed', order.orderNumber);
+      const warehouse = await sessionFor('warehouse@topflow.example');
+      /** Requests of this test that are waiting for a row lock. */
+      const waiting = async (count: number): Promise<void> => {
+        for (let attempt = 0; attempt < 100; attempt += 1) {
+          const [{ n }] = await prisma.$queryRaw<{ n: number }[]>`
+            SELECT count(*)::int AS n FROM pg_stat_activity
+            WHERE datname = current_database() AND wait_event_type = 'Lock'`;
+          if (n >= count) return;
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        throw new Error(`${count} request(s) never waited for the order row`);
+      };
+
+      // Hold the order row, so both confirmations queue behind it in a known order: the event
+      // first, then the warehouse, which has by then read the order as DISPATCHED.
+      let locked!: () => void;
+      const isLocked = new Promise<void>((resolve) => (locked = resolve));
+      let release!: () => void;
+      const released = new Promise<void>((resolve) => (release = resolve));
+      const holder = prisma.$transaction(
+        async (tx) => {
+          await tx.$queryRaw`SELECT 1 FROM "orders" WHERE "id" = ${order.id} FOR UPDATE`;
+          locked();
+          await released;
+        },
+        { timeout: 30_000 },
+      );
+      await isLocked;
+      let fromDispatch: Promise<request.Response>;
+      let byHand: Promise<request.Response>;
+      try {
+        // SuperTest sends a request when it is awaited; then() starts it without waiting here.
+        fromDispatch = send(event).then((response) => response);
+        await waiting(1);
+        byHand = http()
+          .patch(`/admin/orders/${order.id}/status`)
+          .set(bearer(warehouse))
+          .send({ status: 'DELIVERED' })
+          .then((response) => response);
+        await waiting(2);
+      } finally {
+        release();
+        await holder;
+      }
+
+      const [received, manual] = await Promise.all([fromDispatch, byHand]);
+      expect(received.status).toBe(200);
+      expect((received.body as DispatchEventReceiptDto).outcome).toBe(
+        'APPLIED',
+      );
+      // The warehouse's change was checked against DISPATCHED; the order is no longer in it.
+      expect(manual.status).toBe(409);
+      expect(manual.body.message).toMatch(/changed while/);
+      const after = await orderById(order.id);
+      expect(after.status).toBe('DELIVERED');
+      expect(
+        after.events.filter((e) => e.toStatus === 'DELIVERED'),
+      ).toHaveLength(1);
+      expect(after.events.at(-1)?.note).toContain(
+        'Delivery confirmed by dispatch',
+      );
+    });
+
     it('answers 200 or 400, never 500, to signed events whose content cannot be stored as sent', async () => {
       const order = await retailOrder('DISPATCHED');
       const base = dispatchEvent('delivery.completed', order.orderNumber);

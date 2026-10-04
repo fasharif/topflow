@@ -374,7 +374,9 @@ export class OrdersService {
 
     const now = new Date();
     const deliveredAtDispatch = await this.prisma.$transaction(async (tx) => {
-      const data: Prisma.OrderUpdateInput = { status: input.status };
+      const data: Prisma.OrderUpdateManyMutationInput = {
+        status: input.status,
+      };
       let note = input.note ?? null;
 
       if (input.status === OrderStatus.CONFIRMED) data.confirmedAt = now;
@@ -394,7 +396,18 @@ export class OrdersService {
         }
       }
 
-      await tx.order.update({ where: { id }, data });
+      // Conditional on the status the transition was checked against. The order was read before
+      // this transaction, and the dispatch service may have delivered it since (ADR-024): without
+      // the condition both confirmations were applied, with two timeline entries and two emails.
+      const { count } = await tx.order.updateMany({
+        where: { id, status: order.status },
+        data,
+      });
+      if (count !== 1) {
+        throw new ConflictException(
+          `Order ${order.orderNumber} changed while its status was being updated. Reload it and try again.`,
+        );
+      }
       await this.writer.recordEvent(
         tx,
         id,
