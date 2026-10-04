@@ -136,8 +136,10 @@ export class DispatchEventsService {
       }
       if (event?.type !== 'delivery.completed') {
         if (!event) {
+          // Quoted as JSON: the type is the sender's text, and a line break in it would
+          // otherwise start a new, made-up log line.
           this.logger.log(
-            `Recorded a dispatch event of a type TopFlow does not act on: ${envelope.type}`,
+            `Recorded a dispatch event of a type TopFlow does not act on: ${JSON.stringify(envelope.type)}`,
           );
         }
         return this.receiptFor(envelope, DispatchEventOutcome.IGNORED, null);

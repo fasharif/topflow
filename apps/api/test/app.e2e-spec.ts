@@ -1,4 +1,4 @@
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import {
   calculateTotals,
@@ -1650,6 +1650,31 @@ describe('TopFlow Hub API (e2e)', () => {
         orderId: order.id,
       });
       expect((await orderById(order.id)).status).toBe('DISPATCHED');
+
+      // The type is the sender's text. It goes to the log quoted, so that a line break in it
+      // cannot start a second, made-up log line.
+      const forged = {
+        ...future,
+        id: randomUUID(),
+        type: 'delivery.rescheduled\nERROR [HTTP] made-up line',
+      };
+      const forgedBody = JSON.stringify(forged);
+      const log = jest.spyOn(Logger.prototype, 'log');
+      try {
+        await http()
+          .post('/integrations/dispatch/events')
+          .set('content-type', 'application/json')
+          .set('x-dispatch-event-id', forged.id)
+          .set('x-dispatch-signature', signDispatchBody(secret(), forgedBody))
+          .send(forgedBody)
+          .expect(200);
+        const lines = log.mock.calls.map(([message]) => String(message));
+        expect(lines).toEqual([
+          'Recorded a dispatch event of a type TopFlow does not act on: "delivery.rescheduled\\nERROR [HTTP] made-up line"',
+        ]);
+      } finally {
+        log.mockRestore();
+      }
     });
 
     it('records other event types and repeat completions without changing the order', async () => {
