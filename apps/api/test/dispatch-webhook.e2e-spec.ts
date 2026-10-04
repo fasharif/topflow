@@ -3,8 +3,9 @@ import { dispatchEvent, signDispatchBody } from './support/dispatch';
 import { E2eHarness } from './support/harness';
 
 /**
- * The dispatch webhook endpoint in a configuration the main suite does not run in: switched off
- * (no DISPATCH_WEBHOOK_SECRET, which is how every deployment starts). The block starts its own
+ * The dispatch webhook endpoint in two configurations the main suite does not run in: switched
+ * off (no DISPATCH_WEBHOOK_SECRET, which is how every deployment starts), and with a rate limit
+ * a test can reach (setup-env.ts raises it for the other suites). Each block starts its own
  * application, because the configuration is read once at start.
  */
 describe('dispatch webhook endpoint (e2e)', () => {
@@ -62,6 +63,56 @@ describe('dispatch webhook endpoint (e2e)', () => {
         error.mockRestore();
         warn.mockRestore();
       }
+    });
+  });
+
+  describe('with a rate limit a test can reach', () => {
+    const LIMIT = 12;
+    const harness = new E2eHarness();
+
+    beforeAll(async () => {
+      process.env.DISPATCH_WEBHOOK_SECRET = secret;
+      process.env.THROTTLE_LIMIT = String(LIMIT);
+      await harness.start();
+    });
+
+    afterAll(async () => {
+      await harness.stop();
+    });
+
+    it('limits a client that keeps sending requests, before their signature is checked', async () => {
+      // Unsigned requests cost the API one refusal each, up to the per-client limit.
+      for (let sent = 0; sent < LIMIT; sent += 1) {
+        const refused = await harness
+          .http()
+          .post(ENDPOINT)
+          .set('content-type', 'application/json')
+          .send(body)
+          .expect(401);
+        expect(refused.body).toMatchObject({ code: 'INVALID_SIGNATURE' });
+      }
+      const limited = await harness
+        .http()
+        .post(ENDPOINT)
+        .set('content-type', 'application/json')
+        .send(body)
+        .expect(429);
+      expect(limited.body).toMatchObject({ statusCode: 429 });
+      expect(limited.headers['retry-after']).toBeDefined();
+
+      // The limit is per client address, so a correctly signed event from that address waits too.
+      // 429 is an answer the dispatch service retries.
+      await harness
+        .http()
+        .post(ENDPOINT)
+        .set('content-type', 'application/json')
+        .set('x-dispatch-event-id', event.id)
+        .set('x-dispatch-signature', signDispatchBody(secret, body))
+        .send(body)
+        .expect(429);
+      expect(
+        await harness.prisma.dispatchEvent.count({ where: { id: event.id } }),
+      ).toBe(0);
     });
   });
 });
