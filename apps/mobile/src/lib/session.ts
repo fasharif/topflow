@@ -5,13 +5,14 @@ import {
   type AuthError,
   type Session,
 } from '@supabase/supabase-js';
-import { ErrorCode, type AuthUser, type LoginInput, type RegisterInput, type SignUpMetadata } from '@topflow/shared';
+import type { AuthUser, LoginInput, RegisterInput, SignUpMetadata } from '@topflow/shared';
 import * as SecureStore from 'expo-secure-store';
 import { useSyncExternalStore } from 'react';
 import { AppState, Platform, type AppStateStatus } from 'react-native';
 
+import { accountRefusalMessage } from '@/lib/account-problem';
 import { webUrl } from '@/lib/config';
-import { errorMessage, isApiError, request, type ApiError } from '@/lib/http';
+import { errorMessage, isApiError, request } from '@/lib/http';
 import { getSupabase, isSupabaseConfigured, signOutLocally, SUPABASE_NOT_CONFIGURED_MESSAGE } from '@/lib/supabase';
 
 /**
@@ -162,29 +163,18 @@ async function fetchAccount(startedAt: number): Promise<void> {
     if (startedAt === generation) setState({ status: 'authenticated', user, error: null });
   } catch (error) {
     if (startedAt !== generation) return;
-    if (isApiError(error, 401)) {
-      // The API rejected the session and http.ts has signed out on this device.
-      forgetAccount();
-      setState({ status: 'anonymous', user: null, error: errorMessage(error) });
-    } else if (isApiError(error, 403) || isApiError(error, 409)) {
-      // The account cannot be used, for example it was disabled: end the session.
-      forgetAccount();
-      setState({ status: 'anonymous', user: null, error: accountProblemMessage(error) });
-      await endSupabaseSession(() => signOutLocally());
-    } else {
+    const refusal = accountRefusalMessage(error);
+    if (refusal === null) {
       setState({ status: 'unavailable', user: null, error: errorMessage(error) });
+      return;
     }
+    // The API refused the identity: the session ended, or the account cannot be used (it was
+    // disabled, or its email address belongs to another account).
+    forgetAccount();
+    setState({ status: 'anonymous', user: null, error: refusal });
+    // After a 401, http.ts has already signed out on this device.
+    if (!isApiError(error, 401)) await endSupabaseSession(() => signOutLocally());
   }
-}
-
-function accountProblemMessage(error: ApiError): string {
-  if (error.code === ErrorCode.ACCOUNT_DISABLED) {
-    return 'Your Top Flow account has been disabled. Please contact us for help.';
-  }
-  if (error.code === ErrorCode.ACCOUNT_CONFLICT) {
-    return 'This email address is linked to a different Top Flow account. Please contact us for help.';
-  }
-  return error.message;
 }
 
 async function endSupabaseSession(task: () => Promise<void>): Promise<void> {
