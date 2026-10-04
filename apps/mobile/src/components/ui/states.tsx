@@ -28,10 +28,13 @@ export function ErrorState({
 }) {
   return (
     <View style={[styles.centered, style]}>
-      <Text style={styles.title} accessibilityRole="header">
-        {title}
-      </Text>
-      <Text style={styles.message}>{message}</Text>
+      {/* Announced like InlineError. The retry button stays outside, so its loading state is not read out as an alert. */}
+      <View style={styles.announcement} accessibilityRole="alert" accessibilityLiveRegion="polite">
+        <Text style={styles.title} accessibilityRole="header">
+          {title}
+        </Text>
+        <Text style={styles.message}>{message}</Text>
+      </View>
       {onRetry ? <Button label="Try again" variant="secondary" onPress={onRetry} loading={retrying} style={styles.action} /> : null}
     </View>
   );
@@ -75,6 +78,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 32,
     paddingVertical: 48,
+    gap: 8,
+  },
+  announcement: {
+    alignItems: 'center',
     gap: 8,
   },
   title: {
