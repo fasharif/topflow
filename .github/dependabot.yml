@@ -53,6 +53,10 @@ updates:
       # cannot load (context.getFilename was removed). The API already runs ESLint 10.
       - dependency-name: eslint
         update-types: ["version-update:semver-major"]
+      # The system tests (tests/) lint with ESLint 9 too, and with @eslint/js, whose major version has
+      # to match ESLint's (@eslint/js 10 requires eslint ^10). It moves with ESLint, not on its own.
+      - dependency-name: "@eslint/js"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
