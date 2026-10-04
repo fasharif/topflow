@@ -672,3 +672,82 @@ describe('owner changes at the same moment', () => {
     },
   );
 });
+
+describe('an invitation revoked while it is accepted', () => {
+  let organizationId: string;
+  let owner: TestSession;
+
+  beforeAll(async () => {
+    ({ owner, organizationId } = await trade.organization('Race Invitations'));
+  });
+
+  /** A pending invitation with the two competing requests and what they leave behind. */
+  async function invited() {
+    const { invitationId, token, invitee } = await trade.invite(
+      owner,
+      organizationId,
+      'BUYER',
+    );
+    return {
+      invitationId,
+      accept: harness
+        .http()
+        .post('/invitations/accept')
+        .set(harness.bearer(invitee))
+        .send({ token }),
+      revoke: harness
+        .http()
+        .delete(`/org/invitations/${invitationId}`)
+        .set(harness.member(owner, organizationId)),
+      outcome: async () => {
+        const invitation =
+          await harness.prisma.organizationInvitation.findUniqueOrThrow({
+            where: { id: invitationId },
+            select: { acceptedAt: true, revokedAt: true },
+          });
+        return {
+          accepted: invitation.acceptedAt !== null,
+          revoked: invitation.revokedAt !== null,
+          memberships: await harness.prisma.organizationMember.count({
+            where: { organizationId, userId: invitee.user.id },
+          }),
+        };
+      },
+    };
+  }
+
+  it.each(ROUNDS)(
+    'round %i: the invitee joins, or the invitation is revoked and nobody joins',
+    async () => {
+      const { accept, revoke, outcome } = await invited();
+      const [accepted, revoked] = await atOnce(accept, revoke);
+      // The acceptance answers 409 when the revocation overtook it, or 404 when the invitation
+      // was already revoked as it started; a revocation that came second answers 404.
+      const joined = accepted.status === 200;
+      expect(revoked.status).toBe(joined ? 404 : 204);
+      expect(joined ? [200] : [404, 409]).toContain(accepted.status);
+      expect(await outcome()).toEqual({
+        accepted: joined,
+        revoked: !joined,
+        memberships: joined ? 1 : 0,
+      });
+    },
+  );
+
+  it('revoked first, then accepted by a request that read it as pending: nobody joins', async () => {
+    const { invitationId, accept, revoke, outcome } = await invited();
+    const [revoked, accepted] = await queuedBehindLock(
+      'organization_invitations',
+      invitationId,
+      revoke,
+      accept,
+    );
+    expect(revoked.status).toBe(204);
+    expectLostRace(accepted);
+    expect(await outcome()).toEqual({
+      accepted: false,
+      revoked: true,
+      memberships: 0,
+    });
+  });
+});
