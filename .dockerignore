@@ -25,9 +25,12 @@ supabase/.branches
 **/*.tfstate
 **/*.tfstate.*
 
-# Not part of either image. The mobile app's manifest stays, so the workspace graph is complete.
+# Not part of either image. The manifests of the mobile app and of the system tests stay, so the
+# workspace graph is complete.
 apps/mobile/*
 !apps/mobile/package.json
+tests/*
+!tests/package.json
 docs
 infra
 **/.claude
