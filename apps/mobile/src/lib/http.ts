@@ -120,6 +120,7 @@ async function send<T>(path: string, options: TransportOptions, token: string | 
   let status: number;
   let ok: boolean;
   let text: string;
+  let retryAfter: string | null;
   try {
     const response = await fetch(`${API_URL}${path}${buildQuery(query)}`, {
       method,
@@ -129,6 +130,7 @@ async function send<T>(path: string, options: TransportOptions, token: string | 
     });
     status = response.status;
     ok = response.ok;
+    retryAfter = response.headers.get('retry-after');
     text = await response.text();
   } catch (cause) {
     if (signal?.aborted) throw cause;
@@ -142,7 +144,7 @@ async function send<T>(path: string, options: TransportOptions, token: string | 
   }
 
   const data = parseJson(text);
-  if (!ok) throw toApiError(status, data);
+  if (!ok) throw toApiError(status, data, retryAfter);
   return data as T;
 }
 
