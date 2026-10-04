@@ -11,6 +11,7 @@ import { useSyncExternalStore } from 'react';
 import { AppState, Platform, type AppStateStatus } from 'react-native';
 
 import { accountRefusalMessage } from '@/lib/account-problem';
+import { CONFIRM_EMAIL_REDIRECT, RESET_PASSWORD_REDIRECT } from '@/lib/auth-links';
 import { webUrl } from '@/lib/config';
 import { errorMessage, isApiError, request } from '@/lib/http';
 import { getSupabase, isSupabaseConfigured, signOutLocally, SUPABASE_NOT_CONFIGURED_MESSAGE } from '@/lib/supabase';
@@ -48,9 +49,6 @@ export type RegisterResult =
 
 /** SecureStore key of the refresh token that the retired `/auth/*` endpoints issued. */
 const LEGACY_REFRESH_TOKEN_KEY = 'topflow.refresh';
-
-const CONFIRM_EMAIL_REDIRECT = '/auth/confirm?next=/account';
-const RESET_PASSWORD_REDIRECT = '/auth/confirm?next=/account/security';
 
 const OFFLINE_MESSAGE = 'Could not reach Top Flow. Check your connection and try again.';
 
