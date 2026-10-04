@@ -751,3 +751,100 @@ describe('an invitation revoked while it is accepted', () => {
     });
   });
 });
+
+describe('an RFQ cancelled while sales close it', () => {
+  let organizationId: string;
+  let owner: TestSession;
+
+  beforeAll(async () => {
+    ({ owner, organizationId } = await trade.organization('Race Requests'));
+  });
+
+  /** An RFQ in review, with the customer's cancellation and the closing by sales. */
+  async function inReview() {
+    const rfq = await trade.rfq(owner, organizationId);
+    const update = (status: string) =>
+      harness
+        .http()
+        .patch(`/admin/rfqs/${rfq.id}`)
+        .set(harness.bearer(sales))
+        .send({ status });
+    await update('IN_REVIEW').expect(200);
+    return {
+      rfqId: rfq.id,
+      cancel: harness
+        .http()
+        .post(`/org/rfqs/${rfq.id}/cancel`)
+        .set(harness.member(owner, organizationId)),
+      close: update('CLOSED'),
+      status: async () =>
+        (
+          await harness.prisma.quoteRequest.findUniqueOrThrow({
+            where: { id: rfq.id },
+            select: { status: true },
+          })
+        ).status,
+    };
+  }
+
+  it.each(ROUNDS)(
+    'round %i: the RFQ is cancelled or closed, as the one successful request left it',
+    async () => {
+      const { cancel, close, status } = await inReview();
+      const [cancelled, closed] = await atOnce(cancel, close);
+      // Both statuses are final, so the second request is refused whether it lost the race (409
+      // with CONCURRENT_UPDATE) or simply came later (409 from the lifecycle).
+      expect([cancelled.status, closed.status].sort()).toEqual([200, 409]);
+      const expected = cancelled.status === 200 ? 'CANCELLED' : 'CLOSED';
+      const winner = cancelled.status === 200 ? cancelled : closed;
+      expect(winner.body).toMatchObject({ status: expected });
+      expect(await status()).toBe(expected);
+    },
+  );
+
+  it('closed first, then cancelled by a request that read it as in review: it stays closed', async () => {
+    const { rfqId, cancel, close, status } = await inReview();
+    const [closed, cancelled] = await queuedBehindLock(
+      'quote_requests',
+      rfqId,
+      close,
+      cancel,
+    );
+    expect(closed.status).toBe(200);
+    expectLostRace(cancelled);
+    expect(await status()).toBe('CLOSED');
+  });
+});
+
+describe('a company profile edited while the company is suspended', () => {
+  it('suspended first, then a new trade licence number from a request that read it as active: the suspension stands', async () => {
+    const { owner, organizationId } = await trade.organization('Race Profile');
+    const [suspended, edited] = await queuedBehindLock(
+      'organizations',
+      organizationId,
+      harness
+        .http()
+        .patch(`/admin/organizations/${organizationId}/review`)
+        .set(harness.bearer(sales))
+        .send({ status: 'SUSPENDED' }),
+      harness
+        .http()
+        .patch('/org')
+        .set(harness.member(owner, organizationId))
+        .send({ tradeLicenseNumber: 'DED-RACE-PROFILE' }),
+    );
+    expect(suspended.status).toBe(200);
+    expectLostRace(edited);
+    expect(
+      await harness.prisma.organization.findUniqueOrThrow({
+        where: { id: organizationId },
+        select: { status: true, tradeLicenseNumber: true },
+      }),
+    ).toMatchObject({
+      status: 'SUSPENDED',
+      tradeLicenseNumber: expect.not.stringMatching(
+        'DED-RACE-PROFILE',
+      ) as string,
+    });
+  });
+});

@@ -17,6 +17,7 @@ import {
 } from '@topflow/shared';
 import { AuditAction } from '../audit/audit-actions';
 import { AuditService } from '../audit/audit.service';
+import { concurrentUpdate } from '../common/concurrency';
 import type {
   AuthenticatedUser,
   OrganizationContext,
@@ -76,8 +77,14 @@ export class OrganizationsService {
     const requiresReverification =
       identifiersChanged && current.status === OrgStatus.ACTIVE;
 
-    const org = await this.prisma.organization.update({
-      where: { id: ctx.organizationId },
+    // A change of legal identifier is decided on the status that was read (it may send a verified
+    // account back to review), so it is written only if the status is still that one. Otherwise a
+    // suspension or a KYC decision made at the same moment would be overwritten or bypassed.
+    const { count } = await this.prisma.organization.updateMany({
+      where: {
+        id: ctx.organizationId,
+        ...(identifiersChanged && { status: current.status }),
+      },
       data: {
         ...input,
         ...(requiresReverification && {
@@ -85,6 +92,10 @@ export class OrganizationsService {
           verifiedAt: null,
         }),
       },
+    });
+    if (count !== 1) throw concurrentUpdate('company profile');
+    const org = await this.prisma.organization.findUniqueOrThrow({
+      where: { id: ctx.organizationId },
       include: withMemberCount,
     });
     await this.audit.record({

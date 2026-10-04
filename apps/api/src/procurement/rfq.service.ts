@@ -29,6 +29,7 @@ import {
 import { AuditAction } from '../audit/audit-actions';
 import { AuditService } from '../audit/audit.service';
 import { IdentityAdminService } from '../auth/identity-admin.service';
+import { concurrentUpdate } from '../common/concurrency';
 import { todayInUae, uaeDate } from '../common/dates';
 import { NumberingService } from '../common/numbering.service';
 import type {
@@ -248,9 +249,14 @@ export class RfqService {
     });
     if (!rfq) throw new NotFoundException('RFQ not found');
     assertTransition(RFQ_TRANSITIONS, rfq.status, RfqStatus.CANCELLED, 'RFQ');
-    const updated = await this.prisma.quoteRequest.update({
-      where: { id },
+    // Cancelled only from the status that was read: sales may have moved the request on meanwhile.
+    const { count } = await this.prisma.quoteRequest.updateMany({
+      where: { id, status: rfq.status },
       data: { status: RfqStatus.CANCELLED },
+    });
+    if (count !== 1) throw concurrentUpdate('RFQ');
+    const updated = await this.prisma.quoteRequest.findUniqueOrThrow({
+      where: { id },
       include: rfqInclude(false),
     });
     await this.audit.record({
@@ -311,10 +317,13 @@ export class RfqService {
         );
       }
     }
-    await this.prisma.quoteRequest.update({
-      where: { id },
+    // A status is written only over the status it was checked against; assigning an owner alone
+    // does not depend on the status and is written as it is.
+    const { count } = await this.prisma.quoteRequest.updateMany({
+      where: { id, ...(input.status && { status: rfq.status }) },
       data: { status: input.status, assignedToId: input.assignedToId },
     });
+    if (count !== 1) throw concurrentUpdate('RFQ');
     await this.audit.record({
       action: AuditAction.RFQ_UPDATED,
       entityType: 'QuoteRequest',
