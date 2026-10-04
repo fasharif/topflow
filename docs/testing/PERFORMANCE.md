@@ -2,7 +2,7 @@
 
 How the API is load-tested with k6, which thresholds fail a run, and what the measured runs showed. The approach is part of the [test plan](TEST-PLAN.md) and ADR-022 in [DECISIONS.md](../DECISIONS.md).
 
-> **Status: measured on 3 October 2026.** Four runs of the load profile, on a laptop with nothing else running in Docker, against the stack started from production builds. Every endpoint's p95 was between 3 and 20 ms at about 90 requests a second, and 1 of 97,905 requests failed (a connection from the k6 container to the host that did not open). The p95 thresholds were then set from these runs. The numbers describe this laptop and this setup, not production ([what they do not show](#what-the-results-do-not-show)).
+> **Status: measured on 3 October 2026.** Four runs of the load profile, on a laptop with nothing else running in Docker, against the stack started from production builds. Every endpoint's p95 was between 3 and 20 ms at about 90 requests a second, and 1 of 97,905 requests failed (a connection from the k6 container to the host that did not open). The p95 thresholds were then set from these runs. The numbers describe this laptop and this setup, not production ([what they do not show](#what-the-results-do-not-show)). They were measured on the code before it was merged with `develop` on 4 October 2026; after the merge only the smoke profile was run again (25 of 25 checks passed, 0 of 27 requests failed).
 
 ## What the test does
 

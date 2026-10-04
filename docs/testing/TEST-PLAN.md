@@ -29,7 +29,7 @@ TopFlow Hub is a portfolio project built with Top Flow's permission; every accou
 | Real email delivery (Resend) and SMTP | The API uses the console transport and Supabase sends to Mailpit; templates are checked by reading Mailpit |
 | Online card payments | Not offered (payment on delivery, bank transfer and credit only) |
 | Fuzzing the back office's writes | Schemathesis would change the shared demo catalogue, users and companies; the API end-to-end suite covers these operations |
-| Hosting, backups and restores | Nothing is hosted (ADR-019); the backup workflow is covered in OPERATIONS.md |
+| Hosting, container images, deployment, backups and restores | Nothing is hosted (ADR-019). The images, the production-like Compose stack and its smoke test, the deploy script, the Terraform layout and the backup restore drill have their own tests, in `containers.yml`, `infra.yml` and the infrastructure jobs of `ci.yml` (ADR-023, and *Tests* in the README); they are not part of this plan |
 | Manual accessibility audit with screen readers, visual regression, penetration testing | Automated scans find only part of the accessibility issues; these belong to a release checklist, not to every change |
 
 ## 2. Risks
@@ -55,13 +55,13 @@ Likelihood and impact are each scored 1 (low), 2 (medium) or 3 (high). The score
 
 ## 3. Approach
 
-The levels form a pyramid: many fast tests of rules at the bottom, fewer slow tests of whole journeys at the top. The counts are from the run in section 9.
+The levels form a pyramid: many fast tests of rules at the bottom, fewer slow tests of whole journeys at the top. The counts are from the latest run in section 9, of 4 October 2026.
 
 ```mermaid
 flowchart TB
   SYS["System: 31 Playwright tests, 41 pages scanned by axe at two sizes<br/>k6 smoke and load runs · Schemathesis, three passes"]
   E2E["API end-to-end: 53 tests against PostgreSQL<br/>workflows, decision tables, concurrency, OpenAPI"]
-  UNIT["Unit: 254 tests<br/>money and VAT, state machines, permissions, schemas, decision tables, cart pricing"]
+  UNIT["Unit: 298 tests<br/>money and VAT, state machines, permissions, schemas, decision tables, cart pricing"]
   STATIC["Static: TypeScript strict, ESLint, Prettier, shellcheck, actionlint"]
   SYS --- E2E --- UNIT --- STATIC
 ```
@@ -93,7 +93,7 @@ flowchart TB
 | Environment | Stack | Used for |
 | --- | --- | --- |
 | Developer machine | Supabase CLI stack (PostgreSQL 17, Auth, Mailpit), API and web app from production builds or `npm run dev`, Docker for k6, Schemathesis and ffmpeg | All suites; the README media, from a web build with `NEXT_PUBLIC_DEMO_MODE=true` |
-| CI, `ci.yml` (every push and pull request) | GitHub-hosted Ubuntu runner, Node 24; PostgreSQL 17 service container for the API suites | Static checks, unit tests with coverage, builds, the k6 threshold check, API end-to-end tests with coverage, the mutation check |
+| CI, `ci.yml` (pushes to `develop` and feature branches, pull requests into `develop`) | GitHub-hosted Ubuntu runner, Node 24; PostgreSQL 17 service container for the API suites | Static checks, unit tests with coverage, builds, the k6 threshold check, the demo reset and its rehearsal, API end-to-end tests with coverage, the mutation check; the infrastructure scripts and the restore drill, which are outside this plan |
 | CI, `system-tests.yml` (pull requests and `develop`) | Same runner with the Supabase CLI stack, the API and the web app started from production builds, Chromium from Playwright 1.63 | Playwright with axe and the layout check, k6 smoke run, Schemathesis (three passes) |
 | Quiet machine (manual) | As the developer machine, nothing else running | Measured k6 load runs only |
 
@@ -216,6 +216,8 @@ The three failures of table A are the three rows exactly at a limit, out of its 
 
 ## 9. Results of this cycle
 
+Three runs are recorded here, in the order they were made: the final run of the cycle on 28 September 2026, the measured load runs and reruns of 3 October 2026, and the run of 4 October 2026 after the merge with `develop`, which is the latest and the one the README's table summarises.
+
 Run on 28 September 2026 on a Windows 11 laptop with Docker Desktop (16 CPUs, 7.9 GB for all containers), shared with other builds. The final run started from a clean clone of commit `adebb33` of the branch (the commit after it changes Markdown only). `npm ci` and every Node step ran in a Linux container (`node:24-bookworm`), in the order of the CI workflows: the API and the web app from production builds, against a freshly started Supabase CLI 2.117 stack (Auth, PostgreSQL 17 and Mailpit only, on the default ports, under its own project id so that it could not touch another stack on that machine) seeded with the demo profile, and a new `postgres:17` container for the API suites, prepared as in CI with `db:deploy`, `db:seed` and the demo reset. The stack's ports were forwarded into the container, so it used the same addresses as a CI runner. k6, Schemathesis, the threshold check, shellcheck and actionlint ran from Git Bash on the host, in their pinned containers. Only pass and fail results and counts are reported here, not timings.
 
 | Suite | Command | Result |
@@ -250,7 +252,7 @@ Schemathesis 4.28.0, seed 20260926. An hour earlier, the same command against th
 
 API coverage from the same runs (statements, excluding specs and entry points): end-to-end suites 80.8 % (1,842 of 2,281; branches 65.0 %), unit suite 19.9 % (453 of 2,281). CI prints both in its job summary.
 
-**Not run here.** The GitHub Actions workflows (`ci.yml`, `system-tests.yml`, `test-report-pages.yml`) have not run on a GitHub runner, because nothing can be pushed from this machine; each step was run locally as above, except the Pages deployment. The one behaviour that differs on a Linux runner, the ownership of files the tool containers write, was reproduced on a Linux-native Docker mount on 26 September 2026: a summary written by a container running as root could not be rewritten by user 1000, one written as user 1000 could, which is why the containers run as the calling user on Linux. The measured k6 load runs of 3 October 2026 are below.
+**Not run in this run.** At that time the GitHub Actions workflows (`ci.yml`, `system-tests.yml`, `test-report-pages.yml`) had not run on a GitHub runner, because the work had not been pushed; each step was run locally as above, except the Pages deployment. The one behaviour that differs on a Linux runner, the ownership of files the tool containers write, was reproduced on a Linux-native Docker mount on 26 September 2026: a summary written by a container running as root could not be rewritten by user 1000, one written as user 1000 could, which is why the containers run as the calling user on Linux. The measured k6 load runs of 3 October 2026 are below.
 
 Seventeen defects are recorded in BUGS-FOUND.md: sixteen fixed (thirteen on this branch, each with a regression test, and three on `feature/demo-mode`) and BUG-17 (Low) open until a product decision is made.
 
@@ -267,3 +269,48 @@ On 3 October 2026 the same laptop ran only this stack: a Supabase CLI 2.117 stac
 | Clean clone of `9e3423a` | `npm ci`; `npx turbo run lint check-types test`; `npm run test:scripts`; `bash tests/scripts/common.test.sh`; `npm run load:check`; then the API and the web app built and started from the clone, the k6 smoke run and Playwright with `CI=1`, against the same Supabase stack | All passed: unit tests 91, 84, 30, 8 and 35 (shared, API, web, mobile, database), the setup script's 6, the 17 address checks, the threshold check, 25 of 25 smoke checks with 0 of 27 requests failed, and 31 Playwright tests in 2.7 minutes, none retried |
 
 The flaky retry of money path 3 seen on 28 September did not recur on the quiet machine. During both Playwright runs the API logged one warning from the PostgreSQL driver, `Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0`; no request failed, and the k6 runs did not trigger it. Whether it comes from the API's own code or from Prisma's PostgreSQL adapter has not been traced; it needs an answer before the driver is upgraded to pg 9.
+
+### After the merge with `develop`, 4 October 2026
+
+On 4 October 2026 the system tests and their fixes were merged with `develop`, which had gained the container images and the production-like stack, the AWS layout, the release pipeline, releases 1.0.0 and 1.0.1 and a round of dependency updates (Prisma 7.10, SuperTest 7.3 and zod 4.6.5 among them). Everything below ran on the merged result, on the same laptop (Docker Desktop, 16 CPUs, 7.9 GB for all containers), which was running other builds at the time. Nothing ran on the Windows host:
+
+- `npm ci` and the Node steps of `ci.yml` ran in `node:24-bookworm` (Node 24.21.0, npm 11.19.0) on a copy of the working tree, and the API suites against a new `postgres:17` container (PostgreSQL 17.11), reached at `localhost:5432` and prepared as in CI.
+- The steps of `system-tests.yml` ran in the Playwright 1.63 image (Ubuntu 24.04, Node 24.20.0) next to a Docker daemon of its own, so that every address was the one a CI runner uses. In it the Supabase CLI 2.118.0 started Auth (GoTrue 2.197.0), PostgreSQL (`supabase/postgres:17.6.1.171`), Kong 2.8.1 and Mailpit 1.30.2 on their default ports; the API and the web app ran from production builds with the settings of the workflow, and k6 and Schemathesis ran from their pinned images.
+
+Only pass and fail results and counts are reported, not timings, except where a tool printed one.
+
+| Suite | Command | Result |
+| --- | --- | --- |
+| Install | `npm ci --no-audit --no-fund` | The lockfile regenerated for the merge was accepted |
+| Static checks | lint and type checks of each workspace, as `ci.yml` runs them; ShellCheck 0.11.0 on the tool scripts; actionlint 1.7.12 | All passed; no finding in the 11 workflows |
+| Script guards and load thresholds | `bash tests/scripts/common.test.sh`; `npm run load:check -w @topflow/system-tests` | 17 address checks passed; the load profile gates on all 8 p95 targets, failed requests and checks |
+| Shared unit tests | `npm test -w @topflow/shared` | 91 passed |
+| API unit tests | `npm run test:cov -w @topflow/api` | 99 passed |
+| Web unit tests | `npm test -w web` | 55 passed |
+| Mobile unit tests | `npm test -w mobile` | 8 passed |
+| Database and setup scripts | `npm test -w @topflow/database`, `npm run test:scripts` | 39 and 6 passed |
+| Web builds | `npm run build -w web` and `npm run test:demo -w web`, ordinary and demo build | Both built; both smoke checks passed (61 checks on 6 pages for the ordinary build, 55 for the demo build) |
+| Demo reset and its rehearsal | `npm run demo:reset -- --confirm`; `npm run demo:rehearse -w @topflow/database` | The reset completed; the rehearsal passed its 5 scenarios |
+| API end-to-end tests | `npm run test:e2e:cov -w @topflow/api` | 53 passed: 26 in `app.e2e-spec.ts`, 17 in `decision-tables.e2e-spec.ts`, 10 in `demo.e2e-spec.ts` |
+| Mutation check | `node tests/scripts/mutation-check.mts --with-db` | 3 of 3 mutants killed, with the counts of section 7: 3 of 16, 3 of 15 and 5 of 5 tests failed |
+| Playwright | `npm run e2e -w @topflow/system-tests` with `CI=true` | 31 passed in 3.9 minutes, none retried: 8 sign-ins, 18 journeys and checks on desktop, 5 accessibility tests on a phone |
+| k6 smoke | `npm run load -w @topflow/system-tests` | 25 of 25 checks passed, 0 of 27 requests failed |
+| Schemathesis | `npm run contract -w @topflow/system-tests` | No new failure in any pass; table below. The three throwaway accounts were deactivated and their sign-ins deleted |
+| Infrastructure scripts (outside this plan) | `npx tsc -p infra/tsconfig.json`; `node --test "infra/**/*.test.mts"` | 30 passed |
+| Container images and the production-like stack (outside this plan; run because the merge adds a workspace to what the images are built from) | The build, start and smoke-test steps of `containers.yml` | The api, migrate, web and seed images built, the stack started and the smoke test passed its 11 checks. The Trivy scan was not run |
+
+| Pass | Operations tested | Test cases | New failures | Known (baseline) | Only 401/403 | Repeated 404 | Mostly rejected |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| customer | 58 of 82 | 6,618 | 0 | 5 | 24 | 7 | 23 |
+| staff | 13 of 82 | 1,949 | 0 | 0 | 0 | 5 | 1 |
+| trade | 24 of 82 | 2,889 | 0 | 3 | 0 | 14 | 9 |
+
+Schemathesis 4.28.0, seed 20260926. The API still publishes 82 operations, and the warnings name the same numbers of operations as on 28 September.
+
+API coverage from these runs (statements, excluding specs and entry points): end-to-end suites 79.3 % (1,878 of 2,367; branches 63.5 %), unit suite 22.7 % (539 of 2,370). The totals are larger than on 28 September (2,281 statements then): `develop` added code to the API, its error reporting among it.
+
+During the Playwright, k6 and Schemathesis runs the API logged no error, and logged once the PostgreSQL driver's warning about `client.query()` described above.
+
+**What the merge changed in the tests.** The end-to-end harness of `decision-tables.e2e-spec.ts` now listens on a local port once per suite, as the two other suites do on `develop` since SuperTest 7.3. The suite also passed in the one run made before that change, so no failure was reproduced; the change applies the rule the other suites already follow. The system-test workspace takes `@types/node` and `typescript-eslint` at the versions the rest of the repository resolves. No test was changed to make it pass.
+
+**Not run in this run.** The measured k6 load profile (the results of 3 October stand for the code before the merge), the README media (captured on 26 September; see the README), and, of `develop`'s infrastructure checks, the deploy script's test, the restore drill, the Terraform checks and the image scan. The results of the GitHub Actions workflows are not recorded here: `ci.yml` and `containers.yml` run on GitHub for every push of a feature branch and `system-tests.yml` for the pull request, and their results are on the pull request. `test-report-pages.yml` cannot run before it is on `develop`, and GitHub Pages is not enabled for the repository; its decision step was run locally against the repository on 4 October 2026 and reported that Pages is not enabled, without failing.

@@ -97,7 +97,7 @@ The reproductions ran on 26 to 28 September 2026 on a Windows 11 laptop, against
 
 **Actual:** every property was a bare `{"type": "string"}` or `{"type": "number"}`. `nestjs-zod` generates the schemas with its own `zod` import, which npm resolved to zod 3.25.76 at the root (hoisted for Expo's CLI) while the schemas are built with zod 4.6.4.
 
-**Fix** (commit `fix(api): publish the validation rules in the OpenAPI description`): zod 4.6.4 is a root dev dependency, so all workspaces and `nestjs-zod` share it; Expo's CLI keeps its own zod 3. Regression test: *publishes the validation rules and the error envelope in its OpenAPI description* in `apps/api/test/app.e2e-spec.ts`.
+**Fix** (commit `fix(api): publish the validation rules in the OpenAPI description`): zod 4.6.4 is a root dev dependency, so all workspaces and `nestjs-zod` share it; Expo's CLI keeps its own zod 3. The root version has to follow the workspaces': it became 4.6.5 when the branch was merged with `develop` on 4 October 2026 (`develop`, which did not have this fix yet, still had zod 3.25.76 at the root). Regression test: *publishes the validation rules and the error envelope in its OpenAPI description* in `apps/api/test/app.e2e-spec.ts`.
 
 ## BUG-04 — The OpenAPI description documents only success responses
 
