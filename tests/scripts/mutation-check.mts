@@ -242,7 +242,10 @@ try {
     }
 
     const before = runUnchanged(mutant.command, `${index}-before`);
-    if (before.numFailedTests > 0) throw new Error(`${mutant.name}: ${before.numFailedTests} test(s) fail before any change; fix them first.`);
+    if (before.numFailedTests > 0) {
+      process.stderr.write(`${failureMessages(before).join('\n\n')}\n`);
+      throw new Error(`${mutant.name}: ${before.numFailedTests} test(s) fail before any change; fix them first.`);
+    }
 
     restore.set(file, source);
     writeFileSync(file, source.replace(mutant.original, mutant.mutated));
