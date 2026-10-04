@@ -1,4 +1,5 @@
 import type { OpenAPIObject, OperationObject } from '@nestjs/swagger';
+import { ErrorCode } from '@topflow/shared';
 import {
   API_ERROR_SCHEMA,
   PUBLIC_OPERATION,
@@ -120,6 +121,31 @@ describe('documentErrorResponses', () => {
       'details',
       'requestId',
     ]);
+  });
+
+  it('lists the error codes, and says how a write that lost a race is answered', () => {
+    expect(API_ERROR_SCHEMA.properties?.code).toMatchObject({
+      type: 'string',
+      enum: Object.values(ErrorCode),
+    });
+    const input = document();
+    input.paths['/me/orders/{id}/cancel'] = {
+      post: {
+        parameters: [{ in: 'path', name: 'id', required: true }],
+        responses: { '200': { description: 'Cancelled' } },
+      },
+    };
+    const cancel =
+      documentErrorResponses(input).paths['/me/orders/{id}/cancel'].post
+        ?.responses ?? {};
+    expect(cancel['409']).toMatchObject({
+      description: expect.stringContaining(ErrorCode.CONCURRENT_UPDATE),
+      content: {
+        'application/json': {
+          schema: { $ref: '#/components/schemas/ApiError' },
+        },
+      },
+    });
   });
 
   it('leaves the input document unchanged', () => {
