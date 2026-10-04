@@ -449,3 +449,160 @@ describe('a draft quotation sent while it is edited or discarded', () => {
     ).toBe(0);
   });
 });
+
+describe('changes to one order at the same moment', () => {
+  let warehouse: TestSession;
+
+  beforeAll(async () => {
+    warehouse = await staffSession(harness, 'warehouse');
+  });
+
+  const setStatus = (
+    staff: TestSession,
+    order: { id: string },
+    body: Record<string, unknown>,
+  ) =>
+    harness
+      .http()
+      .patch(`/admin/orders/${order.id}/status`)
+      .set(harness.bearer(staff))
+      .send(body);
+
+  const stored = async (order: { id: string }) =>
+    harness.prisma.order.findUniqueOrThrow({
+      where: { id: order.id },
+      select: {
+        status: true,
+        paymentStatus: true,
+        events: { select: { fromStatus: true, toStatus: true, note: true } },
+      },
+    });
+
+  const stock = async () => (await harness.product(SKU)).stockQuantity;
+
+  it.each(ROUNDS)(
+    'round %i: two dispatches deduct the stock once and write one timeline entry',
+    async () => {
+      const order = await trade.retailOrder(await trade.shopper(), 2);
+      await setStatus(warehouse, order, { status: 'PROCESSING' }).expect(200);
+      const before = await stock();
+      const responses = await atOnce(
+        setStatus(warehouse, order, { status: 'DISPATCHED' }),
+        setStatus(warehouse, order, { status: 'DISPATCHED' }),
+      );
+      expectOneWinner(responses);
+      expect(await stock()).toBe(before - 2);
+      const after = await stored(order);
+      expect(after.status).toBe('DISPATCHED');
+      expect(
+        after.events.filter((event) => event.toStatus === 'DISPATCHED'),
+      ).toHaveLength(1);
+      // One audit entry for picking and one for the dispatch.
+      expect(await auditEntries(order.id, 'orders.status_changed')).toBe(2);
+    },
+  );
+
+  it.each(ROUNDS)(
+    'round %i: a cancellation and a dispatch: the order is dispatched with its stock deducted, or cancelled with the stock untouched',
+    async () => {
+      const order = await trade.retailOrder(await trade.shopper(), 2);
+      await setStatus(warehouse, order, { status: 'PROCESSING' }).expect(200);
+      const before = await stock();
+      const [cancel, dispatch] = await atOnce(
+        setStatus(sales, order, { status: 'CANCELLED', note: 'Race' }),
+        setStatus(warehouse, order, { status: 'DISPATCHED' }),
+      );
+      expectOneWinner([cancel, dispatch]);
+      const dispatched = dispatch.status === 200;
+      const after = await stored(order);
+      expect(after.status).toBe(dispatched ? 'DISPATCHED' : 'CANCELLED');
+      expect(await stock()).toBe(dispatched ? before - 2 : before);
+      // One entry out of Processing: the timeline tells the same story as the status.
+      expect(
+        after.events
+          .filter((event) => event.fromStatus === 'PROCESSING')
+          .map((event) => event.toStatus),
+      ).toEqual([after.status]);
+    },
+  );
+
+  it.each(ROUNDS)(
+    'round %i: two cancellations write one timeline entry and one audit entry',
+    async () => {
+      const shopper = await trade.shopper();
+      const order = await trade.retailOrder(shopper);
+      const responses = await atOnce(
+        harness
+          .http()
+          .post(`/me/orders/${order.id}/cancel`)
+          .set(harness.bearer(shopper.session))
+          .send({ reason: 'Ordered twice' }),
+        setStatus(sales, order, { status: 'CANCELLED', note: 'Duplicate' }),
+      );
+      expectOneWinner(responses);
+      const after = await stored(order);
+      expect(after.status).toBe('CANCELLED');
+      expect(
+        after.events.filter((event) => event.toStatus === 'CANCELLED'),
+      ).toHaveLength(1);
+      expect(await auditEntries(order.id, 'orders.cancelled')).toBe(1);
+    },
+  );
+
+  it.each(ROUNDS)(
+    "round %i: a customer's cancellation and a payment record: never a cancelled order that the customer paid",
+    async () => {
+      const shopper = await trade.shopper();
+      const order = await trade.retailOrder(shopper);
+      const [cancel, payment] = await atOnce(
+        harness
+          .http()
+          .post(`/me/orders/${order.id}/cancel`)
+          .set(harness.bearer(shopper.session))
+          .send({ reason: 'Changed my mind' }),
+        harness
+          .http()
+          .post(`/admin/orders/${order.id}/payment`)
+          .set(harness.bearer(sales))
+          .send({ paymentReference: 'RACE-PAY' }),
+      );
+      expectOneWinner([cancel, payment]);
+      const after = await stored(order);
+      expect([after.status, after.paymentStatus]).toEqual(
+        payment.status === 200
+          ? ['CONFIRMED', 'PAID']
+          : ['CANCELLED', 'UNPAID'],
+      );
+    },
+  );
+
+  it.each(ROUNDS)(
+    'round %i: two refund records write one timeline entry and one audit entry',
+    async () => {
+      const order = await trade.retailOrder(await trade.shopper());
+      await harness
+        .http()
+        .post(`/admin/orders/${order.id}/payment`)
+        .set(harness.bearer(sales))
+        .send({ paymentReference: 'RACE-PAID' })
+        .expect(200);
+      await setStatus(sales, order, {
+        status: 'CANCELLED',
+        note: 'Cancelled after payment',
+      }).expect(200);
+      const refund = () =>
+        harness
+          .http()
+          .post(`/admin/orders/${order.id}/refund`)
+          .set(harness.bearer(sales))
+          .send({ refundReference: 'RACE-REFUND' });
+      expectOneWinner(await atOnce(refund(), refund()));
+      const after = await stored(order);
+      expect(after.paymentStatus).toBe('REFUNDED');
+      expect(
+        after.events.filter((event) => event.note?.includes('RACE-REFUND')),
+      ).toHaveLength(1);
+      expect(await auditEntries(order.id, 'orders.refund_recorded')).toBe(1);
+    },
+  );
+});

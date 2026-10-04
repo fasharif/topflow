@@ -41,6 +41,7 @@ import {
 } from '@topflow/shared';
 import { AuditAction } from '../audit/audit-actions';
 import { AuditService } from '../audit/audit.service';
+import { concurrentUpdate } from '../common/concurrency';
 import { NumberingService } from '../common/numbering.service';
 import type {
   AuthenticatedUser,
@@ -67,11 +68,26 @@ import {
   type OrderRecord,
 } from './order.mapper';
 
+/** The columns a change to an existing order may write. */
+type OrderChange = Prisma.OrderUncheckedUpdateManyInput;
+
+/** Plain string order, the same on every instance whatever its locale. */
+const byCodeUnit = (a: string, b: string): number =>
+  a < b ? -1 : a > b ? 1 : 0;
+
 type Viewer =
   | { kind: 'customer' }
   | { kind: 'organization'; ctx: OrganizationContext }
   | { kind: 'staff'; user: AuthenticatedUser };
 
+/**
+ * Concurrent requests. Every change to an existing order (a fulfilment step, a payment, a
+ * cancellation, a refund) reads the order, decides, and then writes through `applyChange`, which
+ * writes only if the order still has the status and the payment status that were read. Of two
+ * requests that change one order at the same moment, one takes effect and the other answers 409
+ * (CONCURRENT_UPDATE) without writing anything: stock movements, the timeline entry and the audit
+ * entry follow the guarded write in the same transaction.
+ */
 @Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
@@ -366,12 +382,11 @@ export class OrdersService {
 
     const now = new Date();
     await this.prisma.$transaction(async (tx) => {
-      const data: Prisma.OrderUpdateInput = { status: input.status };
+      const data: OrderChange = { status: input.status };
       let note = input.note ?? null;
 
       if (input.status === OrderStatus.CONFIRMED) data.confirmedAt = now;
       if (input.status === OrderStatus.DISPATCHED) {
-        await this.commitStock(tx, order);
         data.dispatchedAt = now;
         data.trackingReference =
           input.trackingReference ?? order.trackingReference;
@@ -392,7 +407,11 @@ export class OrdersService {
         }
       }
 
-      await tx.order.update({ where: { id }, data });
+      // The status first: stock leaves the warehouse only for the request that moved the order.
+      await this.applyChange(tx, order, data);
+      if (input.status === OrderStatus.DISPATCHED) {
+        await this.commitStock(tx, order);
+      }
       await this.writer.recordEvent(
         tx,
         id,
@@ -443,14 +462,11 @@ export class OrdersService {
     const release = order.status === OrderStatus.PENDING_PAYMENT;
     const now = new Date();
     await this.prisma.$transaction(async (tx) => {
-      await tx.order.update({
-        where: { id },
-        data: {
-          paymentStatus: PaymentStatus.PAID,
-          paidAt: now,
-          paymentReference: input.paymentReference ?? order.paymentReference,
-          ...(release && { status: OrderStatus.CONFIRMED, confirmedAt: now }),
-        },
+      await this.applyChange(tx, order, {
+        paymentStatus: PaymentStatus.PAID,
+        paidAt: now,
+        paymentReference: input.paymentReference ?? order.paymentReference,
+        ...(release && { status: OrderStatus.CONFIRMED, confirmedAt: now }),
       });
       if (release) {
         await this.writer.recordEvent(
@@ -511,9 +527,8 @@ export class OrdersService {
     const amount = money(order.totalAmount);
     const reference = input.refundReference?.trim() || null;
     await this.prisma.$transaction(async (tx) => {
-      await tx.order.update({
-        where: { id },
-        data: { paymentStatus: PaymentStatus.REFUNDED },
+      await this.applyChange(tx, order, {
+        paymentStatus: PaymentStatus.REFUNDED,
       });
       await this.writer.recordEvent(
         tx,
@@ -547,14 +562,44 @@ export class OrdersService {
   // ─── Internals ──────────────────────────────────────────────────────────
 
   /**
+   * Writes `data` to the order only if it still has the status and the payment status this
+   * request read. Both are part of the UPDATE's WHERE clause, so PostgreSQL decides under the row
+   * lock: a request that waited for another one to commit checks the committed row, matches
+   * nothing and answers 409. Call it first in the transaction; what follows is then written for
+   * the winner only. The payment status is part of the condition because the rules read it too:
+   * a customer may cancel only an unpaid order, and a delivery marks cash on delivery as paid.
+   */
+  private async applyChange(
+    tx: Prisma.TransactionClient,
+    order: Pick<OrderRecord, 'id' | 'status' | 'paymentStatus'>,
+    data: OrderChange,
+  ): Promise<void> {
+    const { count } = await tx.order.updateMany({
+      where: {
+        id: order.id,
+        status: order.status,
+        paymentStatus: order.paymentStatus,
+      },
+      data,
+    });
+    if (count !== 1) throw concurrentUpdate('order');
+  }
+
+  /**
    * Deducts stock when goods leave the warehouse. The conditional update makes it impossible
    * to dispatch more than is physically available, even under concurrent dispatches.
+   *
+   * Lock order: the order's row first (applyChange), then the product rows in id order, so two
+   * orders that share products and are dispatched at the same moment cannot wait for each other.
    */
   private async commitStock(
     tx: Prisma.TransactionClient,
     order: OrderRecord,
   ): Promise<void> {
-    for (const item of order.items) {
+    const items = [...order.items].sort((a, b) =>
+      byCodeUnit(a.productId ?? '', b.productId ?? ''),
+    );
+    for (const item of items) {
       if (!item.productId) continue;
       const { count } = await tx.product.updateMany({
         where: { id: item.productId, stockQuantity: { gte: item.quantity } },
@@ -599,13 +644,10 @@ export class OrdersService {
       );
     }
     await this.prisma.$transaction(async (tx) => {
-      await tx.order.update({
-        where: { id: order.id },
-        data: {
-          status: OrderStatus.CANCELLED,
-          cancelledAt: new Date(),
-          cancellationReason: reason,
-        },
+      await this.applyChange(tx, order, {
+        status: OrderStatus.CANCELLED,
+        cancelledAt: new Date(),
+        cancellationReason: reason,
       });
       await this.writer.recordEvent(
         tx,
