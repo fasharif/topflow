@@ -1,21 +1,22 @@
 /**
- * Nightly reset of the public portfolio demo (ADR-021, docs/OPERATIONS.md section 10):
+ * Nightly reset of the public portfolio demo (ADR-021, docs/OPERATIONS.md, "Public demo"):
  *
  *   DEMO_MODE=true npm run demo:reset -- --confirm
  *
  * Empties every application table of DATABASE_URL, removes the Supabase Auth users of the demo project
  * (SUPABASE_URL + SUPABASE_SECRET_KEY) and runs the demo seed again. It refuses to start without
- * DEMO_MODE=true and --confirm, refuses a database that holds accounts but not the demo data, and
- * refuses Supabase settings whose users are not exactly the database's own auth.users. The safety
- * checks live in demo-reset-core.ts.
+ * DEMO_MODE=true and --confirm, refuses a database without the demo data that holds any account the
+ * demo seed does not create, and refuses Supabase settings whose users are not exactly the database's
+ * own auth.users. The safety checks live in demo-reset-core.ts.
  */
-import 'dotenv/config';
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
+import { config as loadEnvFile } from 'dotenv';
 import { Client } from 'pg';
 import { DEMO_ORGANIZATION } from '@topflow/shared';
 import {
+  DEMO_SEED_EMAILS,
   DemoResetRefused,
   checkPreconditions,
   describeDatabase,
@@ -39,11 +40,20 @@ function postgres(client: Client): DemoDatabase {
         ? (await client.query<{ id: string }>('SELECT id::text AS id FROM auth.users')).rows.map((row) => row.id)
         : null;
       if (!tables.includes('users') || !tables.includes('organizations')) {
-        return { tables, users: 0, hasDemoOrganization: false, authUserIds };
+        return { tables, users: 0, otherAccounts: 0, hasDemoOrganization: false, authUserIds };
       }
-      const users = await client.query<{ count: string }>('SELECT count(*)::text AS count FROM public.users');
+      const accounts = await client.query<{ users: string; other: string }>(
+        'SELECT count(*)::text AS users, (count(*) FILTER (WHERE lower(email) <> ALL($1::text[])))::text AS other FROM public.users',
+        [[...DEMO_SEED_EMAILS]],
+      );
       const demo = await client.query('SELECT 1 FROM public.organizations WHERE trn = $1', [DEMO_ORGANIZATION.trn]);
-      return { tables, users: Number(users.rows[0]?.count ?? 0), hasDemoOrganization: (demo.rowCount ?? 0) > 0, authUserIds };
+      return {
+        tables,
+        users: Number(accounts.rows[0]?.users ?? 0),
+        otherAccounts: Number(accounts.rows[0]?.other ?? 0),
+        hasDemoOrganization: (demo.rowCount ?? 0) > 0,
+        authUserIds,
+      };
     },
     async truncate(statement) {
       await client.query('BEGIN');
@@ -65,7 +75,8 @@ function supabaseDirectory(supabase: NonNullable<ResetPlan['supabase']>): Identi
   return {
     async listIds(page, perPage) {
       const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
-      if (error) throw new Error(`Could not list Supabase Auth users: ${error.message}`);
+      // resetDemo turns this into a one-line refusal: nothing has changed at this point.
+      if (error) throw new Error(error.message);
       return data.users.map((user) => user.id);
     },
     async remove(id) {
@@ -84,14 +95,20 @@ function runSeed(env: NodeJS.ProcessEnv): Promise<void> {
   });
   if (result.status !== 0) {
     return Promise.reject(
-      new Error(`The demo seed failed (exit code ${result.status ?? 'none'}). The demo database stays empty until a reset succeeds.`),
+      new Error(
+        `The demo seed failed (exit code ${result.status ?? 'none'}). The demo is incomplete until a reset succeeds: fix the cause and run the reset again.`,
+      ),
     );
   }
   return Promise.resolve();
 }
 
 async function main(): Promise<void> {
-  const checked = checkPreconditions(process.env, process.argv.slice(2));
+  // DEMO_MODE must be given for the run itself, so it is read before packages/database/.env fills in
+  // DATABASE_URL and the other settings (a .env file never overrides the shell).
+  const shell = { ...process.env };
+  loadEnvFile();
+  const checked = checkPreconditions(process.env, process.argv.slice(2), shell);
   if (!checked.ok) {
     console.error(`Demo reset refused:\n${checked.problems.map((problem) => `  - ${problem}`).join('\n')}`);
     process.exitCode = 1;

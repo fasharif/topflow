@@ -238,7 +238,7 @@ function InviteCard({ organizationName, onInvited }: { organizationName: string;
       <CardHeader
         title="Invite a colleague"
         description={
-          DEMO_MODE ? `The invitation is saved, but it stays pending: ${DEMO_NO_EMAIL}` : `They will receive an email link to join ${organizationName}.`
+          DEMO_MODE ? `The invitation is saved, but it stays pending. ${DEMO_NO_EMAIL}` : `They will receive an email link to join ${organizationName}.`
         }
       />
       <form onSubmit={submit} className="space-y-4 p-5" noValidate>

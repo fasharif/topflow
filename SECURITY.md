@@ -14,7 +14,7 @@ to test against. Reports about the code in this repository are welcome.
 
 ## How the platform is protected
 
-The main measures are summarised in the README's *Highlights* table and described in
+The main measures are summarised in the README's [*Features*](README.md#features) table and described in
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (sections 6 and 7):
 
 - Supabase Auth, with two-factor authentication required for staff.

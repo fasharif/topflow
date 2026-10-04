@@ -1,7 +1,8 @@
 {
   "name": "topflow-hub",
-  "version": "0.0.0",
+  "version": "1.0.1",
   "private": true,
+  "license": "MIT",
   "description": "TopFlow Hub: a portfolio B2B/B2C commerce platform built on Top Flow's irrigation and flow-control catalogue (Turborepo monorepo)",
   "workspaces": [
     "apps/*",
@@ -10,8 +11,8 @@
   ],
   "packageManager": "npm@11.17.0",
   "overrides": {
-    "prisma": "7.9.1",
-    "@prisma/client": "7.9.1"
+    "prisma": "7.10.0",
+    "@prisma/client": "7.10.0"
   },
   "scripts": {
     "build": "turbo run build",
@@ -35,13 +36,13 @@
     "test:scripts": "tsc -p scripts && tsx --test scripts/setup-local.spec.ts"
   },
   "devDependencies": {
-    "@types/node": "^22.20.2",
-    "prettier": "^3.7.4",
-    "supabase": "^2.117.0",
+    "@types/node": "^26.6.3",
+    "prettier": "^3.9.9",
+    "supabase": "^2.118.0",
     "tsx": "^4.23.13",
-    "turbo": "^2.10.11",
+    "turbo": "^2.11.5",
     "typescript": "~6.0.3",
-    "zod": "4.6.4"
+    "zod": "4.6.5"
   },
   "engines": {
     "node": ">=22"
@@ -53,10 +54,10 @@
     }
   },
   "allowScripts": {
-    "prisma@7.9.1": true,
+    "prisma@7.10.0": true,
     "unrs-resolver@1.12.2": true,
     "@parcel/watcher@2.6.0": true,
-    "@prisma/engines@7.9.1": true,
+    "@prisma/engines@7.10.0": true,
     "esbuild@0.28.2": true,
     "supabase@2.117.0": true
   }

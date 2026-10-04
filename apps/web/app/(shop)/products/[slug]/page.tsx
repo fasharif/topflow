@@ -4,6 +4,7 @@ import { connection } from 'next/server';
 import { ProductDetail } from '@/components/catalog/product-detail';
 import { Container } from '@/components/ui';
 import { ServerApiError, serverApi } from '@/lib/server-api';
+import { productMetadata } from '@/lib/site-metadata';
 
 async function loadProduct(slug: string): Promise<ProductDto | null> {
   try {
@@ -28,15 +29,8 @@ export async function generateMetadata({ params }: PageProps<'/products/[slug]'>
   const { slug } = await params;
   const product = await loadProduct(slug).catch(() => null);
   if (!product) return { title: 'Product' };
-  const description = product.description ?? `${product.name} — ${product.sku}`;
   // Link previews (WhatsApp, email, social) show the product rather than the site-wide defaults.
-  const images = product.imageUrl ? [{ url: product.imageUrl, alt: product.name }] : undefined;
-  return {
-    title: product.name,
-    description,
-    openGraph: { type: 'website', siteName: 'Top Flow Hub', locale: 'en_AE', title: product.name, description, images },
-    twitter: { card: 'summary', title: product.name, description, images },
-  };
+  return productMetadata(product);
 }
 
 export default async function ProductPage({ params }: PageProps<'/products/[slug]'>) {

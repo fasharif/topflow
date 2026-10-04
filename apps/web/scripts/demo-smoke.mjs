@@ -1,8 +1,14 @@
-// End-to-end check of a production build's demo promises (ADR-021): starts `next start` on the build in
-// .next, requests real pages over HTTP and checks what a visitor or a search engine receives.
+// End-to-end check of a production build's promises (ADR-021, ADR-023): starts `next start` on the build
+// in .next, requests real pages over HTTP and checks what a visitor, a search engine or a link preview
+// receives: the notice at the top of the page, noindex, page titles and Open Graph cards, robots.txt, the
+// demo notices and the note beside Top Flow's real contact details.
 //
-//   npm run build -w web && npm run test:demo -w web            (build made with NEXT_PUBLIC_DEMO_MODE=true)
-//   npm run build -w web && npm run test:demo -w web -- --off   (an ordinary build: no demo traces)
+// Every build says that it is a portfolio project and asks not to be indexed. A demo build shows the demo
+// banner, calls itself a portfolio demo and shows the demo notices; an ordinary build shows the portfolio
+// notice instead and no demo traces. Never both notices on one page.
+//
+//   NEXT_PUBLIC_DEMO_MODE=true npm run build -w web && npm run test:demo -w web   (a demo build)
+//   npm run build -w web && npm run test:demo -w web -- --off                     (an ordinary build)
 //
 // The API does not need to run: the pages checked here render without it. The sign-in page's list of
 // demo accounts is rendered in the browser (the form reads the query string inside a Suspense boundary),
@@ -20,6 +26,13 @@ const EXPECT_DEMO = !process.argv.includes('--off');
 const PORT = process.env.DEMO_SMOKE_PORT ?? '3102';
 const BASE = `http://127.0.0.1:${PORT}`;
 const PAGES = ['/', '/products', '/contact', '/login', '/register', '/forgot-password'];
+
+// The portfolio notice of an ordinary build (apps/web/lib/portfolio.ts) and the start of its link
+// preview text (apps/web/lib/site-metadata.ts).
+const PORTFOLIO_NOTICE = 'Portfolio project by Farah Sharif, built with Top Flow’s permission. This is not Top Flow’s official store.';
+const PORTFOLIO_PREVIEW = 'A portfolio project by Farah Sharif, built with Top Flow’s permission';
+// Sent with every response of every build (ROBOTS_DIRECTIVE in apps/web/lib/portfolio.ts).
+const ROBOTS_DIRECTIVE = 'noindex, nofollow';
 
 const failures = [];
 let checks = 0;
@@ -55,21 +68,58 @@ async function waitUntilReady(server) {
 
 async function page(path) {
   const response = await fetch(`${BASE}${path}`, { redirect: 'manual' });
-  return { status: response.status, location: response.headers.get('location'), html: readable(await response.text()) };
+  return {
+    status: response.status,
+    location: response.headers.get('location'),
+    robotsHeader: response.headers.get('x-robots-tag'),
+    html: readable(await response.text()),
+  };
 }
 
 async function run() {
   for (const path of PAGES) {
-    const { status, html } = await page(path);
+    const { status, robotsHeader, html } = await page(path);
     check(status === 200, `${path} answers 200 (got ${status})`);
     check(html.includes(DEMO_BANNER_TEXT) === EXPECT_DEMO, `${path} ${EXPECT_DEMO ? 'shows' : 'does not show'} the demo banner`);
-    const noindex = /<meta name="robots" content="noindex, nofollow"/.test(html);
-    check(noindex === EXPECT_DEMO, `${path} ${EXPECT_DEMO ? 'asks' : 'does not ask'} search engines not to index it`);
+    check(
+      html.includes(PORTFOLIO_NOTICE) === !EXPECT_DEMO,
+      `${path} ${EXPECT_DEMO ? 'does not show the portfolio notice, which the demo banner replaces' : 'shows the portfolio notice'}`,
+    );
+    // Every build, demo or not, asks search engines not to index it, in the page and in the header.
+    check(html.includes(`<meta name="robots" content="${ROBOTS_DIRECTIVE}"`), `${path} has the robots meta tag "${ROBOTS_DIRECTIVE}"`);
+    check(robotsHeader === ROBOTS_DIRECTIVE, `${path} sends X-Robots-Tag "${ROBOTS_DIRECTIVE}" (got "${robotsHeader}")`);
+
+    // A shared link is often seen only as a title or a preview card, without the banner.
+    const title = /<title>([^<]*)<\/title>/.exec(html)?.[1] ?? '';
+    const previewTitle = /<meta property="og:title" content="([^"]*)"/.exec(html)?.[1] ?? '';
+    const previewText = /<meta property="og:description" content="([^"]*)"/.exec(html)?.[1] ?? '';
+    check(/portfolio demo/i.test(title) === EXPECT_DEMO, `${path}: the page title "${title}" ${EXPECT_DEMO ? 'says' : 'does not say'} "portfolio demo"`);
+    check(
+      /portfolio demo/i.test(previewTitle) === EXPECT_DEMO,
+      `${path}: the link preview title "${previewTitle}" ${EXPECT_DEMO ? 'says' : 'does not say'} "portfolio demo"`,
+    );
+    check(
+      previewText.startsWith(DEMO_BANNER_TEXT) === EXPECT_DEMO,
+      `${path}: the link preview text ${EXPECT_DEMO ? 'starts' : 'does not start'} with the banner text`,
+    );
+    if (!EXPECT_DEMO) {
+      check(previewText.startsWith(PORTFOLIO_PREVIEW), `${path}: the link preview text "${previewText}" says that the site is a portfolio project`);
+    }
   }
 
+  // Top Flow's real phone number and email appear on the contact page and in every footer.
+  const contact = await page('/contact');
+  const contactNotes = contact.html.split("These are Top Flow's real contact details.").length - 1;
+  check(
+    EXPECT_DEMO ? contactNotes >= 2 : contactNotes === 0,
+    `the contact page ${EXPECT_DEMO ? 'says, on the page and in the footer,' : 'does not say'} that the demo does not reach Top Flow (found ${contactNotes})`,
+  );
+
+  // In both builds robots.txt blocks nothing, so crawlers can read the noindex, and offers no sitemap.
   const robots = await page('/robots.txt');
-  const disallowAll = /^Disallow: \/$/m.test(robots.html);
-  check(disallowAll === EXPECT_DEMO, `robots.txt ${EXPECT_DEMO ? 'disallows' : 'does not disallow'} the whole site`);
+  check(/^Allow: \/$/m.test(robots.html), 'robots.txt allows the whole site, so crawlers can read its noindex');
+  check(!/^Disallow:/im.test(robots.html), `robots.txt disallows nothing (got "${robots.html.trim()}")`);
+  check(!/^Sitemap:/im.test(robots.html), 'robots.txt offers no sitemap');
 
   const register = await page('/register');
   check(
@@ -83,10 +133,10 @@ async function run() {
   );
 
   // Without a session nobody can reach the password form.
-  const setPassword = await page('/auth/set-password');
+  const formWithoutSession = await page('/auth/set-password');
   check(
-    setPassword.status === 307 && (setPassword.location ?? '').includes('/forgot-password?expired=1'),
-    `/auth/set-password without a session redirects to /forgot-password (got ${setPassword.status} ${setPassword.location})`,
+    formWithoutSession.status === 307 && (formWithoutSession.location ?? '').includes('/forgot-password?expired=1'),
+    `/auth/set-password without a session redirects to /forgot-password (got ${formWithoutSession.status} ${formWithoutSession.location})`,
   );
 }
 
@@ -117,7 +167,7 @@ try {
 
 const mode = EXPECT_DEMO ? 'demo build' : 'ordinary build';
 if (failures.length > 0) {
-  console.error(`Demo smoke test failed (${mode}), ${failures.length} of ${checks} check(s):\n${failures.map((failure) => `  - ${failure}`).join('\n')}`);
+  console.error(`Build smoke test failed (${mode}), ${failures.length} of ${checks} check(s):\n${failures.map((failure) => `  - ${failure}`).join('\n')}`);
   process.exit(1);
 }
-console.log(`Demo smoke test passed (${mode}): ${checks} checks on ${PAGES.length} pages, robots.txt and /auth/set-password.`);
+console.log(`Build smoke test passed (${mode}): ${checks} checks on ${PAGES.length} pages, robots.txt and /auth/set-password.`);

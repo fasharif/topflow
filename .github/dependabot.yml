@@ -9,14 +9,86 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    # Each Expo SDK pins React, React Native and their native libraries for the mobile app.
+    # Dependabot moved them past SDK 57 in #8 and broke the mobile build, so they are upgraded
+    # together with the SDK instead (npx expo install --fix in apps/mobile). The web app's React
+    # moves with them.
+    ignore:
+      - dependency-name: expo
+      - dependency-name: expo-*
+      - dependency-name: "@expo/*"
+      - dependency-name: react
+      - dependency-name: react-dom
+      - dependency-name: "@types/react"
+      - dependency-name: "@types/react-dom"
+      - dependency-name: react-native
+      - dependency-name: react-native-*
+      - dependency-name: "@react-native/*"
+      # Prisma's CLI and client are pinned together by "overrides" (and their install scripts by
+      # "allowScripts") in the root package.json, which Dependabot does not update. Upgrade them by
+      # hand, all in one change.
+      - dependency-name: prisma
+      - dependency-name: "@prisma/*"
+      # NestJS 12 is blocked by nestjs-zod, whose latest release (5.5.0) supports @nestjs/common 10-11
+      # and @nestjs/swagger up to 11 only. Minor and patch updates still come through; the major
+      # upgrade is a deliberate migration once nestjs-zod supports it (or it is replaced).
+      - dependency-name: "@nestjs/common"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/core"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/platform-express"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/testing"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/swagger"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/mapped-types"
+        update-types: ["version-update:semver-major"]
+      # TypeScript 7 (the native compiler) breaks ts-jest, which runs the API's unit tests. Move to a
+      # new TypeScript major deliberately, once ts-jest, typescript-eslint, Next.js and the NestJS CLI
+      # support it.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      # The web app stays on ESLint 9: eslint-config-next brings eslint-plugin-react 7, which ESLint 10
+      # cannot load (context.getFilename was removed). The API already runs ESLint 10.
+      - dependency-name: eslint
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
 
+  # Base images of apps/api/Dockerfile and apps/web/Dockerfile (tag and digest). Dependabot reads
+  # literal FROM lines only, so each Dockerfile names its base once, in the node-base stage.
+  - package-ecosystem: docker
+    directories: [/apps/api, /apps/web]
+    schedule:
+      interval: weekly
+
+  # Images of the production-like stack (docker-compose.prod.yml).
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+    # PostgreSQL follows production: Supabase runs major version 17 (supabase/config.toml), and CI
+    # tests against postgres:17. A new major also needs a different volume layout and pg_upgrade.
+    ignore:
+      - dependency-name: docker/library/postgres
+        update-types: ["version-update:semver-major"]
+
   # Tool images for the system tests (k6, Schemathesis, ffmpeg), pinned in tests/compose.yaml.
   - package-ecosystem: docker-compose
     directory: /tests
+    schedule:
+      interval: weekly
+
+  # The AWS provider of every Terraform root and module (lock files included).
+  - package-ecosystem: terraform
+    directories:
+      - /infra/terraform/bootstrap
+      - /infra/terraform/environments/staging
+      - /infra/terraform/environments/production
+      - /infra/terraform/modules/hub
     schedule:
       interval: weekly

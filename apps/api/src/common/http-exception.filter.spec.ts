@@ -3,6 +3,7 @@ import { Prisma } from '@topflow/database';
 import { InvalidTransitionError } from '@topflow/shared';
 import { ZodValidationException } from 'nestjs-zod';
 import { z } from 'zod';
+import { initErrorReporting } from '../observability/sentry';
 import { HttpExceptionFilter } from './http-exception.filter';
 
 function run(exception: unknown) {
@@ -13,7 +14,8 @@ function run(exception: unknown) {
       getRequest: () => ({
         requestId: 'req-42',
         method: 'GET',
-        originalUrl: '/test',
+        originalUrl: '/test?search=secret',
+        path: '/test',
       }),
       getResponse: () => ({ status }),
     }),
@@ -66,6 +68,27 @@ describe('HttpExceptionFilter', () => {
       status: 409,
       body: { message: 'A record with this sku already exists' },
     });
+  });
+
+  it('reports server errors to Sentry when it is configured, and nothing else', () => {
+    const sdk = { init: jest.fn(), captureException: jest.fn() };
+    initErrorReporting(
+      { SENTRY_DSN: 'https://key@o1.ingest.sentry.io/1' },
+      sdk,
+    );
+    try {
+      run(new NotFoundException('Order not found'));
+      expect(sdk.captureException).not.toHaveBeenCalled();
+
+      const crash = new Error('connection refused');
+      run(crash);
+      expect(sdk.captureException).toHaveBeenCalledWith(crash, {
+        tags: { requestId: 'req-42' },
+        extra: { method: 'GET', path: '/test' },
+      });
+    } finally {
+      initErrorReporting({});
+    }
   });
 
   it('hides unexpected errors behind a generic 500', () => {

@@ -331,17 +331,9 @@ async function seedProductionAccounts() {
 }
 
 async function seedDemoAccounts() {
-  await upsertUser(ACCOUNT_EMAILS.admin, 'Aisha Rahman', Role.ADMIN, '+971 4 555 0100');
-  await upsertUser(ACCOUNT_EMAILS.sales, 'Omar Haddad', Role.SALES, '+971 4 555 0101');
-  await upsertUser(ACCOUNT_EMAILS.warehouse, 'Ravi Menon', Role.WAREHOUSE, '+971 4 555 0102');
-
-  const customer = await upsertUser(ACCOUNT_EMAILS.customer, 'Sara Ahmed', Role.CUSTOMER, '+971 50 123 4567');
-  if (!(await prisma.address.findFirst({ where: { userId: customer.id } }))) {
-    await prisma.address.create({
-      data: { userId: customer.id, label: 'Home', contactName: 'Sara Ahmed', phoneNumber: '+971 50 123 4567', line1: 'Villa 14, Street 3', area: 'Arabian Ranches', city: 'Dubai', emirate: Emirate.DUBAI, isDefault: true },
-    });
-  }
-
+  // Desert Bloom comes first, before any account: `npm run demo:reset` recognises the demo database by
+  // it, so a run that fails part-way (a Supabase Auth outage while the accounts are created, say)
+  // still leaves a database that the next reset accepts.
   const organization = await prisma.organization.upsert({
     where: { trn: DEMO_ORGANIZATION.trn },
     update: {},
@@ -360,6 +352,17 @@ async function seedDemoAccounts() {
       verifiedAt: new Date(),
     },
   });
+
+  await upsertUser(ACCOUNT_EMAILS.admin, 'Aisha Rahman', Role.ADMIN, '+971 4 555 0100');
+  await upsertUser(ACCOUNT_EMAILS.sales, 'Omar Haddad', Role.SALES, '+971 4 555 0101');
+  await upsertUser(ACCOUNT_EMAILS.warehouse, 'Ravi Menon', Role.WAREHOUSE, '+971 4 555 0102');
+
+  const customer = await upsertUser(ACCOUNT_EMAILS.customer, 'Sara Ahmed', Role.CUSTOMER, '+971 50 123 4567');
+  if (!(await prisma.address.findFirst({ where: { userId: customer.id } }))) {
+    await prisma.address.create({
+      data: { userId: customer.id, label: 'Home', contactName: 'Sara Ahmed', phoneNumber: '+971 50 123 4567', line1: 'Villa 14, Street 3', area: 'Arabian Ranches', city: 'Dubai', emirate: Emirate.DUBAI, isDefault: true },
+    });
+  }
 
   const team: Array<[string, string, OrgRole, string | null]> = [
     ['owner@desertbloom.example', 'Khalid Al Mansoori', OrgRole.OWNER, null],

@@ -1,4 +1,5 @@
-import 'dotenv/config';
+// Error reporting starts before anything else is imported (a no-op without SENTRY_DSN).
+import './instrument';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';

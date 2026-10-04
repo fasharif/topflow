@@ -20,7 +20,8 @@
     ".": {
       "package-name": "topflow-hub",
       "changelog-path": "CHANGELOG.md",
-      "initial-version": "1.0.0"
+      "initial-version": "1.0.0",
+      "extra-files": ["apps/api/src/config/app-version.ts", "apps/api/.env.example"]
     }
   }
 }

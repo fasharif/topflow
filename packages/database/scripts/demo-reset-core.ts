@@ -3,7 +3,7 @@
  * check is unit-tested. The reset empties every table of the public demo's database, removes the
  * demo project's Supabase Auth users and loads the demo data set again (ADR-021).
  */
-import { DEMO_ACCOUNT_PASSWORD, DEMO_ORGANIZATION, parseDemoModeFlag } from '@topflow/shared';
+import { DEMO_ACCOUNTS, DEMO_ACCOUNT_PASSWORD, DEMO_ORGANIZATION, parseDemoModeFlag } from '@topflow/shared';
 
 export const CONFIRM_FLAG = '--confirm';
 
@@ -12,6 +12,13 @@ const MIGRATIONS_TABLE = '_prisma_migrations';
 
 /** Supabase Auth pages are read in full before anything is deleted; this bounds the loop. */
 const MAX_IDENTITY_PAGES = 100;
+
+/**
+ * Every account the demo seed (`prisma/seed.ts`) creates: the published demo accounts and the
+ * unpublished owner of the company it leaves in the KYC queue. A database whose accounts are all
+ * among them is a demo database, even when a seed that failed part-way left it without Desert Bloom.
+ */
+export const DEMO_SEED_EMAILS: readonly string[] = [...DEMO_ACCOUNTS.map((account) => account.email), 'owner@alwaha.example'];
 
 export interface ResetPlan {
   databaseUrl: string;
@@ -54,16 +61,34 @@ function describeProject(project: string): string {
   return project === 'local' ? 'a local Supabase stack' : `project ${project}`;
 }
 
+/** parseDemoModeFlag without the exception: an invalid value counts as off. */
+function demoModeOn(value: string | undefined): boolean {
+  try {
+    return parseDemoModeFlag(value);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Everything that must hold before the reset touches a database. All problems are reported at once,
  * so a misconfigured scheduled run explains itself in a single log.
+ *
+ * `shell` is the environment as the shell or the workflow set it, captured before any `.env` file was
+ * read. DEMO_MODE must come from there: the switch is given for the run itself, so a DEMO_MODE=true
+ * forgotten in packages/database/.env (the file that also holds DATABASE_URL) never empties a database.
  */
-export function checkPreconditions(env: NodeJS.ProcessEnv, args: readonly string[]): Preconditions {
+export function checkPreconditions(env: NodeJS.ProcessEnv, args: readonly string[], shell: NodeJS.ProcessEnv = env): Preconditions {
   const problems: string[] = [];
+  const shellDemoMode = shell.DEMO_MODE;
 
   try {
-    if (!parseDemoModeFlag(env.DEMO_MODE)) {
-      problems.push('DEMO_MODE=true is required: demo:reset only runs against the public demo database.');
+    if (!parseDemoModeFlag(shellDemoMode)) {
+      problems.push(
+        shellDemoMode === undefined && demoModeOn(env.DEMO_MODE)
+          ? 'DEMO_MODE=true comes only from a .env file. Set it for this run, in the shell or the workflow, so a value left in a file never empties a database.'
+          : 'DEMO_MODE=true is required: demo:reset only runs against the public demo database.',
+      );
     }
   } catch (error) {
     problems.push(error instanceof Error ? error.message : String(error));
@@ -123,6 +148,8 @@ export interface TargetFacts {
   tables: string[];
   /** Rows in `public.users`. */
   users: number;
+  /** Rows in `public.users` whose address is not one of DEMO_SEED_EMAILS. */
+  otherAccounts: number;
   hasDemoOrganization: boolean;
   /**
    * Ids in the database's own `auth.users` table, which every Supabase project's database has, or
@@ -132,16 +159,17 @@ export interface TargetFacts {
 }
 
 /**
- * The last line of defence against a wrong DATABASE_URL: a database is reset only when it is empty
- * or already holds the demo data set. A production database has accounts but no Desert Bloom.
+ * The last line of defence against a wrong DATABASE_URL: a database is reset only when it is empty,
+ * holds the demo data set, or holds nothing but accounts the demo seed creates (what a seed that
+ * failed part-way leaves behind). A production database has other accounts and no Desert Bloom.
  */
 export function assessTarget(facts: TargetFacts): string | null {
   if (!facts.tables.includes('users') || !facts.tables.includes('organizations')) {
     return 'The database has no platform tables. Run `npm run db:deploy` against it first.';
   }
-  if (facts.users > 0 && !facts.hasDemoOrganization) {
+  if (facts.otherAccounts > 0 && !facts.hasDemoOrganization) {
     return (
-      `The database holds ${facts.users} account(s) but not the demo data set ` +
+      `The database holds ${facts.users} account(s), ${facts.otherAccounts} of them not created by the demo seed, and not the demo data set ` +
       `(${DEMO_ORGANIZATION.name}, TRN ${DEMO_ORGANIZATION.trn}), so it does not look like the demo database. Nothing was changed.`
     );
   }
@@ -267,20 +295,37 @@ export interface ResetSummary {
   identitiesRemoved: number;
 }
 
+/** Every sign-in of the demo project, or a refusal that says in one line why they could not be read. */
+async function readIdentities(directory: IdentityDirectory): Promise<string[]> {
+  try {
+    return await listAllIdentities(directory);
+  } catch (error) {
+    if (error instanceof DemoResetRefused) throw error;
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new DemoResetRefused(
+      `Could not list the Supabase Auth users of SUPABASE_URL (${reason}). Check SUPABASE_URL and SUPABASE_SECRET_KEY. Nothing was changed.`,
+    );
+  }
+}
+
 /**
- * 1. Refuse a database that holds accounts but not the demo data set. 2. List the demo project's sign-ins
- * (read-only) and refuse unless they are exactly the database's own auth.users. 3. Empty every
- * application table in one transaction. 4. Remove those sign-ins: changed passwords, enrolled
- * authenticators and visitors' own accounts go with them. 5. Run the demo seed, which creates the
- * published accounts again.
+ * 1. Refuse a database that holds accounts other than the demo seed's but not the demo data set.
+ * 2. List the demo project's sign-ins (read-only) and refuse unless they are exactly the database's
+ * own auth.users. 3. Empty every application table in one transaction. 4. Remove those sign-ins:
+ * changed passwords, enrolled authenticators and visitors' own accounts go with them. 5. Run the demo
+ * seed, which creates the published accounts again.
  */
 export async function resetDemo(env: NodeJS.ProcessEnv, deps: ResetDependencies): Promise<ResetSummary> {
   const facts = await deps.database.facts();
   const problem = assessTarget(facts);
   if (problem) throw new DemoResetRefused(problem);
   const statement = truncateStatement(facts.tables);
-  const identityIds = deps.identities ? await listAllIdentities(deps.identities) : [];
+  let identityIds: string[] = [];
   if (deps.identities) {
+    // Without auth.users there is nothing to compare a listing with, so none is requested.
+    const noAuthTable = facts.authUserIds === null ? compareIdentities([], null) : null;
+    if (noAuthTable) throw new DemoResetRefused(noAuthTable);
+    identityIds = await readIdentities(deps.identities);
     const mismatch = compareIdentities(identityIds, facts.authUserIds);
     if (mismatch) throw new DemoResetRefused(mismatch);
   }

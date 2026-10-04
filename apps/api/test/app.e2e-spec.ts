@@ -103,6 +103,10 @@ describe('TopFlow Hub API (e2e)', () => {
     app = moduleRef.createNestApplication();
     configureApp(app, app.get<AppConfig>(APP_CONFIG));
     await app.init();
+    // Listen once for the whole suite. SuperTest then reuses this server instead of starting and
+    // closing its own per request, which fails (since SuperTest 7.3) when a request is built
+    // while another one, such as a session lookup in its arguments, is still running.
+    await app.listen(0, '127.0.0.1');
     mail = app.get(MailService);
     prisma = app.get(PrismaService);
   });

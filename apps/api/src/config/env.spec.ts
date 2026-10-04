@@ -1,3 +1,5 @@
+import { sentryOptions } from '../observability/sentry-config';
+import { DEFAULT_APP_VERSION } from './app-version';
 import { loadConfig } from './env';
 
 const production = {
@@ -46,6 +48,33 @@ describe('loadConfig', () => {
     expect(config.http.swaggerEnabled).toBe(true);
   });
 
+  it('lets the release preflight reject a malformed Sentry DSN', () => {
+    const base = { DATABASE_URL: 'postgres://db' };
+    expect(() => loadConfig({ ...base, SENTRY_DSN: 'sentry' })).toThrow(
+      /SENTRY_DSN/,
+    );
+    expect(() => loadConfig({ ...base, SENTRY_DSN: '' })).not.toThrow();
+    expect(() =>
+      loadConfig({
+        ...base,
+        SENTRY_DSN: 'https://key@o1.ingest.sentry.io/1',
+      }),
+    ).not.toThrow();
+  });
+
+  it('reports one release at /health and to Sentry, with or without APP_VERSION', () => {
+    const base = {
+      DATABASE_URL: 'postgres://db',
+      SENTRY_DSN: 'https://key@o1.ingest.sentry.io/1',
+    };
+    expect(loadConfig(base).app.version).toBe(DEFAULT_APP_VERSION);
+    expect(sentryOptions(base)?.release).toBe(DEFAULT_APP_VERSION);
+
+    const tagged = { ...base, APP_VERSION: 'sha-1a2b3c4' };
+    expect(loadConfig(tagged).app.version).toBe('sha-1a2b3c4');
+    expect(sentryOptions(tagged)?.release).toBe('sha-1a2b3c4');
+  });
+
   describe('demo mode', () => {
     const demo = {
       ...production,
@@ -89,6 +118,22 @@ describe('loadConfig', () => {
       expect(() =>
         loadConfig({ ...demo, DEMO_MAIL_ALLOWLIST: 'farah@' }),
       ).toThrow(/DEMO_MAIL_ALLOWLIST/);
+    });
+
+    it('refuses a whole public mail domain, which would reopen the demo to any address on it', () => {
+      for (const entry of ['@gmail.com', ' @Outlook.com ']) {
+        expect(() =>
+          loadConfig({
+            ...demo,
+            DEMO_MAIL_ALLOWLIST: `farah@portfolio.example,${entry}`,
+          }),
+        ).toThrow(/public mail domain.*list exact addresses instead/);
+      }
+      // An exact address on a public service is fine: it reaches one mailbox.
+      expect(
+        loadConfig({ ...demo, DEMO_MAIL_ALLOWLIST: 'Farah@Gmail.com' }).demo
+          .mailAllowList,
+      ).toEqual(['farah@gmail.com']);
     });
 
     it('refuses staff MFA, because the published staff accounts are shared', () => {

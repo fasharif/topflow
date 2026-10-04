@@ -1,5 +1,7 @@
 import { parseDemoModeFlag } from '@topflow/shared';
 import { z } from 'zod';
+import { sentryEnvShape } from '../observability/sentry-config';
+import { DEFAULT_APP_VERSION } from './app-version';
 
 /**
  * Environment contract, validated once at boot and again by the release preflight. A
@@ -38,6 +40,34 @@ const demoModeFlag = z
     }
   });
 
+/**
+ * Public mail services where anyone can open an address. A domain entry for one of them would let any
+ * visitor send the demo's quote acknowledgements to any address on it, so only exact addresses on them
+ * are accepted. The list covers large services only: it guards against the obvious mistake and is not
+ * a complete register, which is why .env.example asks for exact addresses.
+ */
+export const PUBLIC_MAIL_DOMAINS: ReadonlySet<string> = new Set([
+  'aol.com',
+  'gmail.com',
+  'googlemail.com',
+  'gmx.com',
+  'gmx.net',
+  'hotmail.com',
+  'icloud.com',
+  'live.com',
+  'mac.com',
+  'mail.com',
+  'me.com',
+  'msn.com',
+  'outlook.com',
+  'proton.me',
+  'protonmail.com',
+  'yahoo.com',
+  'yandex.com',
+  'ymail.com',
+  'zoho.com',
+]);
+
 /** An exact address (`name@example.com`) or a whole domain (`@example.com`), compared in lower case. */
 const mailAllowListEntry = z
   .string()
@@ -45,7 +75,15 @@ const mailAllowListEntry = z
     /^[^\s@,]*@[^\s@,]+\.[^\s@,]+$/,
     'entries must be email addresses (name@example.com) or domains (@example.com)',
   )
-  .transform((entry) => entry.toLowerCase());
+  .transform((entry) => entry.toLowerCase())
+  .refine(
+    (entry) =>
+      !(entry.startsWith('@') && PUBLIC_MAIL_DOMAINS.has(entry.slice(1))),
+    {
+      message:
+        'a whole public mail domain (such as @gmail.com) would let visitors send demo email to any address on it: list exact addresses instead',
+    },
+  );
 
 /**
  * Default per-client rate limits: requests per window, and the window. A public demo may make them
@@ -61,7 +99,7 @@ export const envSchema = z
       .enum(['development', 'test', 'production'])
       .default('development'),
     PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
-    APP_VERSION: z.string().default('3.0.0'),
+    APP_VERSION: z.string().default(DEFAULT_APP_VERSION),
     APP_PUBLIC_URL: z.url().default('http://localhost:3002'),
 
     DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
@@ -121,6 +159,8 @@ export const envSchema = z
     COMPANY_EMAIL: z.string().default('info@topflow.ae'),
     COMPANY_WEBSITE: z.string().default('www.topflow.ae'),
     COMPANY_BANK_DETAILS: z.string().optional(),
+
+    ...sentryEnvShape,
   })
   .superRefine((env, ctx) => {
     if (env.DEMO_MODE) {

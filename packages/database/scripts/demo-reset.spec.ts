@@ -1,6 +1,7 @@
-import { DEMO_ACCOUNT_PASSWORD } from '@topflow/shared';
+import { DEMO_ACCOUNTS, DEMO_ACCOUNT_PASSWORD } from '@topflow/shared';
 import {
   CONFIRM_FLAG,
+  DEMO_SEED_EMAILS,
   DemoResetRefused,
   assessTarget,
   checkPreconditions,
@@ -42,6 +43,20 @@ describe('demo reset safety checks', () => {
         ]);
       }
       expect(problemsOf({ ...ready, DEMO_MODE: 'yes' })).toEqual([expect.stringContaining('DEMO_MODE must be "true" or "false"')]);
+    });
+
+    it('refuses a DEMO_MODE=true that comes only from a .env file', () => {
+      // The shell set no DEMO_MODE; packages/database/.env supplied it along with DATABASE_URL.
+      expect(checkPreconditions(ready, [CONFIRM_FLAG], {})).toEqual({
+        ok: false,
+        problems: [expect.stringMatching(/^DEMO_MODE=true comes only from a \.env file\. Set it for this run/)],
+      });
+      expect(checkPreconditions(ready, [CONFIRM_FLAG], { DEMO_MODE: 'true' })).toMatchObject({ ok: true });
+      // A shell value wins: DEMO_MODE=false in the shell is off whatever the file says.
+      expect(checkPreconditions(ready, [CONFIRM_FLAG], { DEMO_MODE: 'false' })).toEqual({
+        ok: false,
+        problems: ['DEMO_MODE=true is required: demo:reset only runs against the public demo database.'],
+      });
     });
 
     it('refuses to run without the explicit confirmation flag', () => {
@@ -135,6 +150,7 @@ describe('demo reset safety checks', () => {
     const facts = (overrides: Partial<TargetFacts>): TargetFacts => ({
       tables: APP_TABLES,
       users: 8,
+      otherAccounts: 0,
       hasDemoOrganization: true,
       authUserIds: null,
       ...overrides,
@@ -143,12 +159,20 @@ describe('demo reset safety checks', () => {
     it('accepts the demo database and an empty one', () => {
       expect(assessTarget(facts({}))).toBeNull();
       expect(assessTarget(facts({ users: 0, hasDemoOrganization: false }))).toBeNull();
+      // Visitors' own accounts do not matter once Desert Bloom is there.
+      expect(assessTarget(facts({ users: 12, otherAccounts: 4 }))).toBeNull();
     });
 
-    it('refuses a database with accounts but no demo data set', () => {
-      expect(assessTarget(facts({ users: 1250, hasDemoOrganization: false }))).toMatch(
-        /holds 1250 account\(s\) but not the demo data set .*Nothing was changed/,
+    it('accepts what a demo seed that failed after its first account leaves behind', () => {
+      expect(assessTarget(facts({ users: 1, otherAccounts: 0, hasDemoOrganization: false }))).toBeNull();
+    });
+
+    it('refuses a database with other accounts but no demo data set', () => {
+      expect(assessTarget(facts({ users: 1250, otherAccounts: 1250, hasDemoOrganization: false }))).toMatch(
+        /holds 1250 account\(s\), 1250 of them not created by the demo seed, and not the demo data set .*Nothing was changed/,
       );
+      // One account that the demo seed does not create is enough.
+      expect(assessTarget(facts({ users: 3, otherAccounts: 1, hasDemoOrganization: false }))).toMatch(/1 of them not created by the demo seed/);
     });
 
     it('refuses a database without the platform schema', () => {
@@ -192,6 +216,10 @@ describe('demo reset safety checks', () => {
     expect(env.SEED_DEMO_DOCUMENTS).toBeUndefined();
   });
 
+  it('knows every account the demo seed creates', () => {
+    expect(DEMO_SEED_EMAILS).toEqual([...DEMO_ACCOUNTS.map((account) => account.email), 'owner@alwaha.example']);
+  });
+
   it('never logs database credentials', () => {
     expect(describeDatabase(DATABASE_URL)).toBe('127.0.0.1:54500/topflow_test');
     expect(describeDatabase('not a url')).toBe('an unparseable DATABASE_URL');
@@ -231,7 +259,14 @@ describe('resetDemo', () => {
     const deps: ResetDependencies = {
       database: {
         facts: () =>
-          Promise.resolve({ tables: APP_TABLES, users: 8, hasDemoOrganization: true, authUserIds: identities ? [...identities.ids] : null, ...facts }),
+          Promise.resolve({
+            tables: APP_TABLES,
+            users: 8,
+            otherAccounts: 0,
+            hasDemoOrganization: true,
+            authUserIds: identities ? [...identities.ids] : null,
+            ...facts,
+          }),
         truncate: (statement) => {
           steps.push(`truncate ${statement.split(',').length} tables`);
           return Promise.resolve();
@@ -271,14 +306,14 @@ describe('resetDemo', () => {
     expect(steps).toEqual(['list page 1']);
   });
 
-  it('changes nothing when Supabase settings are given for a database without auth.users', async () => {
+  it('changes nothing, and lists no sign-ins, when Supabase settings are given for a database without auth.users', async () => {
     const { deps, steps } = harness({ authUserIds: null });
-    await expect(resetDemo(ready, deps)).rejects.toBeInstanceOf(DemoResetRefused);
-    expect(steps).toEqual(['list page 1']);
+    await expect(resetDemo(ready, deps)).rejects.toThrow(/no auth\.users table/);
+    expect(steps).toEqual([]);
   });
 
   it('changes nothing when the target does not look like the demo database', async () => {
-    const { deps, steps } = harness({ users: 1250, hasDemoOrganization: false });
+    const { deps, steps } = harness({ users: 1250, otherAccounts: 1250, hasDemoOrganization: false });
     await expect(resetDemo(ready, deps)).rejects.toBeInstanceOf(DemoResetRefused);
     expect(steps).toEqual([]);
   });
@@ -286,10 +321,14 @@ describe('resetDemo', () => {
   it('empties nothing when the Supabase credentials do not work', async () => {
     const { deps, steps } = harness();
     deps.identities = {
-      listIds: () => Promise.reject(new Error('Could not list Supabase Auth users: Invalid API key')),
+      listIds: () => Promise.reject(new Error('Invalid API key')),
       remove: () => Promise.resolve(),
     };
-    await expect(resetDemo(ready, deps)).rejects.toThrow('Invalid API key');
+    const refusal = resetDemo(ready, deps);
+    await expect(refusal).rejects.toBeInstanceOf(DemoResetRefused);
+    await expect(refusal).rejects.toThrow(
+      'Could not list the Supabase Auth users of SUPABASE_URL (Invalid API key). Check SUPABASE_URL and SUPABASE_SECRET_KEY. Nothing was changed.',
+    );
     expect(steps).toEqual([]);
   });
 
@@ -303,5 +342,34 @@ describe('resetDemo', () => {
     const { deps } = harness();
     deps.seed = () => Promise.reject(new Error('The demo seed failed (exit code 1).'));
     await expect(resetDemo(ready, deps)).rejects.toThrow('demo seed failed');
+  });
+
+  it('runs again after a seed that failed after its first account', async () => {
+    // The database as each step leaves it. The seed creates Desert Bloom before any account, but even
+    // a database holding only the first demo account and no Desert Bloom must not lock the reset out.
+    let state = { users: 8, otherAccounts: 0, hasDemoOrganization: true };
+    const { deps, steps } = harness({}, null);
+    deps.database = {
+      facts: () => Promise.resolve({ tables: APP_TABLES, authUserIds: null, ...state }),
+      truncate: () => {
+        steps.push('truncate');
+        state = { users: 0, otherAccounts: 0, hasDemoOrganization: false };
+        return Promise.resolve();
+      },
+    };
+    deps.seed = () => {
+      steps.push('seed fails after admin@topflow.example');
+      state = { users: 1, otherAccounts: 0, hasDemoOrganization: false };
+      return Promise.reject(new Error('The demo seed failed (exit code 1).'));
+    };
+    await expect(resetDemo(ready, deps)).rejects.toThrow('demo seed failed');
+
+    deps.seed = () => {
+      steps.push('seed');
+      state = { users: 8, otherAccounts: 0, hasDemoOrganization: true };
+      return Promise.resolve();
+    };
+    await expect(resetDemo(ready, deps)).resolves.toEqual({ tables: 5, identitiesRemoved: 0 });
+    expect(steps).toEqual(['truncate', 'seed fails after admin@topflow.example', 'truncate', 'seed']);
   });
 });

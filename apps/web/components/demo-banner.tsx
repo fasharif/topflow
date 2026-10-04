@@ -2,7 +2,10 @@ import { DEMO_BANNER_TEXT } from '@topflow/shared';
 import { Info } from 'lucide-react';
 import { DEMO_MODE } from '@/lib/demo';
 
-/** Top of every page in demo mode: this deployment is a portfolio demo, not Top Flow's store. */
+/**
+ * Top of every page in demo mode: this deployment is a portfolio demo, not Top Flow's store. It takes
+ * the place of the portfolio notice (components/portfolio-notice.tsx), which says the same.
+ */
 export function DemoBanner() {
   if (!DEMO_MODE) return null;
   return (
