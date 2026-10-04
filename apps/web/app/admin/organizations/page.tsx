@@ -92,7 +92,7 @@ function OrganizationsList() {
       <>
         <ResultSummary page={data.page} pageSize={data.pageSize} total={data.total} singular="organization" loading={loading} />
         <div aria-busy={loading} className={loading ? 'opacity-70 transition-opacity' : 'transition-opacity'}>
-          <Table>
+          <Table label="Organizations">
             <thead>
               <tr>
                 <Th>Organization</Th>

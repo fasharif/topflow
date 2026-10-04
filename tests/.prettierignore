@@ -1,0 +1,7 @@
+.auth/
+reports/
+test-results/
+# Written by Schemathesis (SCHEMATHESIS_UPDATE_BASELINE=1)
+contract/baseline*.json
+# Markdown follows the repository's documentation style, not Prettier's table layout
+*.md

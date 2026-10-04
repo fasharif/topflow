@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Prisma 7 schema, migrations, seed data and generated client for the Top Flow platform",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "type": "commonjs",
   "main": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",
@@ -20,25 +20,46 @@
   "scripts": {
     "generate": "prisma generate",
     "build": "prisma generate && tsc -p tsconfig.json",
-    "check-types": "prisma generate && tsc -p tsconfig.json --noEmit",
+    "check-types": "prisma generate && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.scripts.json",
+    "test": "jest",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:reset": "prisma migrate reset --force",
     "db:seed": "prisma db seed",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "demo:reset": "tsx scripts/demo-reset.ts",
+    "demo:rehearse": "tsx scripts/demo-reset-rehearsal.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
-    "@prisma/client": "^7.9.1",
-    "dotenv": "^16.0.3",
+    "@prisma/client": "^7.10.0",
+    "dotenv": "^18.0.4",
     "pg": "^8.23.0",
-    "prisma": "^7.9.1"
+    "prisma": "^7.10.0"
   },
   "devDependencies": {
-    "@supabase/supabase-js": "^2.116.0",
+    "@supabase/supabase-js": "^2.117.2",
     "@topflow/shared": "*",
-    "@types/node": "^22.20.2",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^26.6.3",
     "@types/pg": "^8.23.1",
-    "tsx": "^4.23.13"
+    "jest": "^30.0.0",
+    "ts-jest": "^29.4.14",
+    "tsx": "^4.23.15"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "roots": [
+      "<rootDir>/scripts"
+    ],
+    "transform": {
+      "^.+\\.ts$": [
+        "ts-jest",
+        {
+          "tsconfig": "tsconfig.scripts.json"
+        }
+      ]
+    }
   }
 }

@@ -62,7 +62,7 @@ function OrderList() {
         )
       ) : (
         <div className={cx('transition-opacity', loading && 'opacity-60')} aria-busy={loading}>
-          <Table>
+          <Table label="Orders">
             <thead>
               <tr>
                 <Th>Order</Th>

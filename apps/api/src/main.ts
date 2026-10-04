@@ -1,4 +1,5 @@
-import 'dotenv/config';
+// Error reporting starts before anything else is imported (a no-op without SENTRY_DSN).
+import './instrument';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -17,7 +18,7 @@ async function bootstrap(): Promise<void> {
 
   await app.listen(config.port, '0.0.0.0');
   Logger.log(
-    `Top Flow API v${config.app.version} listening on :${config.port} (${config.env})` +
+    `Top Flow API v${config.app.version} listening on :${config.port} (${config.env}${config.demo.enabled ? ', demo mode' : ''})` +
       (config.http.swaggerEnabled ? ' — docs at /docs' : ''),
     'Bootstrap',
   );

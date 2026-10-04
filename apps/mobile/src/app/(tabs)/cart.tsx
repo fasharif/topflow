@@ -16,6 +16,7 @@ import {
   removeFromCart,
   setQuantity,
   useCart,
+  useCartPriceRefresh,
   type CartLine,
 } from '@/lib/cart';
 import { perUnit, pluralize, quantityWithUnit } from '@/lib/format';
@@ -26,6 +27,8 @@ const LINE_THUMB_SIZE = 56;
 export default function CartScreen() {
   const insets = useSafeAreaInsets();
   const { lines, hydrated } = useCart();
+  // The cart keeps each product's price from when it was added: show the catalogue's current one.
+  const priceCheck = useCartPriceRefresh();
 
   if (!hydrated || lines.length === 0) {
     return (
@@ -96,6 +99,12 @@ export default function CartScreen() {
           {totals.freeDeliveryRemainingFils > 0 ? (
             <Text style={styles.deliveryHint}>
               Add {formatMoney(totals.freeDeliveryRemainingFils)} more (excl. VAT) for free delivery.
+            </Text>
+          ) : null}
+          {priceCheck === 'unverified' ? (
+            <Text style={styles.priceNotice} accessibilityRole="alert">
+              We could not check the current price of every item, so this total may be out of date. If it has changed,
+              you will be asked to confirm the new total before the order is placed.
             </Text>
           ) : null}
         </Card>
@@ -285,6 +294,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     color: Brand.blueInk,
+  },
+  priceNotice: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: Brand.text,
   },
   emptyActions: {
     gap: 10,

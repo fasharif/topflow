@@ -5,8 +5,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Param,
-  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -34,6 +32,7 @@ import {
   UpdateProfileDto,
 } from './users.dto';
 import { UsersService } from './users.service';
+import { UuidParam } from '../common/uuid-param';
 
 @ApiTags('Account')
 @ApiBearerAuth()
@@ -83,7 +82,7 @@ export class AccountController {
   @Patch('addresses/:id')
   updateAddress(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
     @Body() dto: UpdateAddressDto,
   ): Promise<AddressDto> {
     return this.addressBook.update({ userId: user.id }, id, dto);
@@ -93,7 +92,7 @@ export class AccountController {
   @HttpCode(HttpStatus.NO_CONTENT)
   removeAddress(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
   ): Promise<void> {
     return this.addressBook.remove({ userId: user.id }, id);
   }
@@ -130,7 +129,7 @@ export class AdminUsersController {
       'Change a user role or suspend/restore an account (suspension also blocks sign-in in Supabase)',
   })
   update(
-    @Param('id', ParseUUIDPipe) id: string,
+    @UuidParam('id') id: string,
     @Body() dto: AdminUpdateUserDto,
     @CurrentUser() actor: AuthenticatedUser,
     @Meta() meta: RequestMeta,

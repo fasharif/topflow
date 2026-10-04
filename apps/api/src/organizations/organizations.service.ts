@@ -23,6 +23,7 @@ import type {
   RequestMeta,
 } from '../common/request-context';
 import { pageArgs, paginated } from '../common/serialization';
+import { DemoPolicy } from '../demo/demo-policy';
 import { PrismaService } from '../prisma/prisma.service';
 import { toMemberDto, toOrganizationDto } from './organization.mapper';
 
@@ -38,6 +39,7 @@ export class OrganizationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly demo: DemoPolicy,
   ) {}
 
   // ─── Tenant (customer) side ─────────────────────────────────────────────
@@ -52,7 +54,8 @@ export class OrganizationsService {
 
   /**
    * Owners maintain their company profile. Changing a legal identifier (TRN or trade licence)
-   * on a verified account sends it back to KYC review.
+   * on a verified account sends it back to KYC review, so the public demo refuses it for the
+   * published demo organisation.
    */
   async updateProfile(
     ctx: OrganizationContext,
@@ -67,6 +70,9 @@ export class OrganizationsService {
       (input.trn !== undefined && input.trn !== current.trn) ||
       (input.tradeLicenseNumber !== undefined &&
         input.tradeLicenseNumber !== current.tradeLicenseNumber);
+    if (identifiersChanged) {
+      this.demo.assertMayChangeOrganization(current.trn, 'identifiers');
+    }
     const requiresReverification =
       identifiersChanged && current.status === OrgStatus.ACTIVE;
 
@@ -110,6 +116,7 @@ export class OrganizationsService {
     meta: RequestMeta,
   ): Promise<MemberDto> {
     const member = await this.findMember(ctx.organizationId, memberId);
+    this.demo.assertMayChangeAccount(member.user.email);
     if (
       member.role === OrgRole.OWNER &&
       input.role !== undefined &&
@@ -141,6 +148,7 @@ export class OrganizationsService {
     meta: RequestMeta,
   ): Promise<void> {
     const member = await this.findMember(ctx.organizationId, memberId);
+    this.demo.assertMayChangeAccount(member.user.email);
     if (member.role === OrgRole.OWNER) {
       await this.assertAnotherOwner(ctx.organizationId, member.id);
     }
@@ -203,7 +211,10 @@ export class OrganizationsService {
     };
   }
 
-  /** KYC decision and commercial terms (payment terms, credit limit, trade discount). */
+  /**
+   * KYC decision and commercial terms (payment terms, credit limit, trade discount). The public demo
+   * keeps the published demo organisation's status and terms fixed.
+   */
   async review(
     id: string,
     input: ReviewOrganizationInput,
@@ -216,6 +227,7 @@ export class OrganizationsService {
     if (!current) {
       throw new NotFoundException('Organization not found');
     }
+    this.demo.assertMayChangeOrganization(current.trn, 'review');
     const org = await this.prisma.organization.update({
       where: { id },
       data: {
@@ -246,6 +258,7 @@ export class OrganizationsService {
   private async findMember(organizationId: string, memberId: string) {
     const member = await this.prisma.organizationMember.findFirst({
       where: { id: memberId, organizationId },
+      include: { user: { select: { email: true } } },
     });
     if (!member) {
       throw new NotFoundException('Member not found');

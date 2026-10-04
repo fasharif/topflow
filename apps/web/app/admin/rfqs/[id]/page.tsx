@@ -497,7 +497,7 @@ function RfqDetail({ id }: { id: string }) {
             <h2 className="heading-4 mb-3 text-ink-900">
               Requested items <span className="font-normal text-slate-500">· {pluralize(rfq.items.length, 'line')}</span>
             </h2>
-            <Table>
+            <Table label="Requested items">
               <thead>
                 <tr>
                   <Th>Product</Th>

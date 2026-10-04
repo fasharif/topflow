@@ -2,7 +2,9 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import {
   calculateTotals,
+  formatMoney,
   fromFils,
+  ORGANIZATION_HEADER,
   retailDeliveryFeeFils,
   toFils,
   type AddressDto,
@@ -105,6 +107,10 @@ describe('TopFlow Hub API (e2e)', () => {
     app = moduleRef.createNestApplication({ rawBody: true });
     configureApp(app, app.get<AppConfig>(APP_CONFIG));
     await app.init();
+    // Listen once for the whole suite. SuperTest then reuses this server instead of starting and
+    // closing its own per request, which fails (since SuperTest 7.3) when a request is built
+    // while another one, such as a session lookup in its arguments, is still running.
+    await app.listen(0, '127.0.0.1');
     mail = app.get(MailService);
     prisma = app.get(PrismaService);
   });
@@ -136,6 +142,142 @@ describe('TopFlow Hub API (e2e)', () => {
       const exposed = await prisma.$queryRaw<Array<{ tablename: string }>>`
         SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND NOT rowsecurity`;
       expect(exposed).toEqual([]);
+    });
+
+    it('publishes the validation rules and the error envelope in its OpenAPI description', async () => {
+      const document = (await http().get('/docs-json').expect(200)).body as {
+        paths: Record<
+          string,
+          Record<
+            string,
+            { responses: Record<string, unknown>; security?: unknown }
+          >
+        >;
+        components: {
+          schemas: Record<
+            string,
+            { properties?: Record<string, Record<string, unknown>> }
+          >;
+        };
+      };
+      const { schemas } = document.components;
+      expect(schemas.InvitationTokenDto.properties?.token).toMatchObject({
+        minLength: 20,
+      });
+      expect(
+        schemas.CreateWebsiteQuoteRequestDto.properties?.phone,
+      ).toHaveProperty('pattern');
+      // Money is a number or a digits string; it was published as an array of numbers (BUG-16).
+      expect(
+        schemas.ReviewOrganizationDto.properties?.creditLimit,
+      ).toMatchObject({
+        anyOf: [
+          { type: 'number', minimum: 0 },
+          { type: 'string', pattern: expect.any(String) },
+        ],
+      });
+      expect(JSON.stringify(document)).not.toContain(
+        '"type":"array","items":{"type":"number"}',
+      );
+      expect(schemas.InviteMemberDto.properties?.email).toMatchObject({
+        format: 'email',
+      });
+      // OpenAPI 3.0 only allows boolean exclusive bounds next to minimum/maximum.
+      expect(JSON.stringify(document)).not.toMatch(
+        /"exclusive(Minimum|Maximum)":-?\d/,
+      );
+      const envelope = expect.objectContaining({
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/ApiError' },
+          },
+        },
+      });
+      // Each operation lists the error statuses it can answer, not a catch-all default (BUG-04).
+      const checkout = document.paths['/me/orders'].post.responses;
+      expect(Object.keys(checkout).sort()).toEqual([
+        '201',
+        '400',
+        '401',
+        '403',
+        '404',
+        '409',
+        '422',
+        '429',
+        '5XX',
+      ]);
+      expect(checkout['422']).toEqual(envelope);
+      const operations = Object.values(document.paths).flatMap((item) =>
+        Object.values(item),
+      );
+      expect(operations.filter((o) => 'default' in o.responses)).toEqual([]);
+      // Public operations answer no 401 or 403 and need no token; the rest need the bearer token.
+      const quoteRequest = document.paths['/quote-requests'].post;
+      expect(quoteRequest.responses).not.toHaveProperty('401');
+      expect(quoteRequest).not.toHaveProperty('security');
+      expect(document.paths['/me/orders'].get).toMatchObject({
+        security: [{ bearer: [] }],
+      });
+    });
+
+    it('describes ids and the organization header as UUIDs in its OpenAPI description', async () => {
+      type Parameter = {
+        in: string;
+        name: string;
+        required?: boolean;
+        schema?: { type?: string; format?: string };
+      };
+      const document = (await http().get('/docs-json').expect(200)).body as {
+        paths: Record<string, Record<string, { parameters?: Parameter[] }>>;
+      };
+      const parameters = Object.entries(document.paths).flatMap(
+        ([path, item]) =>
+          Object.entries(item).flatMap(([method, operation]) =>
+            (operation.parameters ?? []).map((parameter) => ({
+              operation: `${method.toUpperCase()} ${path}`,
+              ...parameter,
+            })),
+          ),
+      );
+      // Every path id is validated with ParseUUIDPipe, except the product slug and the numeric
+      // category ids; the organisation guard refuses a header that is not a UUID (BUG-06).
+      const stringIds = parameters.filter(
+        (p) =>
+          p.in === 'path' && p.schema?.type === 'string' && p.name !== 'slug',
+      );
+      expect(stringIds.length).toBeGreaterThan(30);
+      expect(stringIds.filter((p) => p.schema?.format !== 'uuid')).toEqual([]);
+      // The catalogue's optional header ignores other values, so only /org requires a UUID.
+      const headers = parameters.filter(
+        (p) =>
+          p.in === 'header' &&
+          p.name === ORGANIZATION_HEADER &&
+          p.operation.includes(' /org'),
+      );
+      expect(headers.length).toBeGreaterThan(20);
+      expect(headers.filter((p) => p.schema?.format !== 'uuid')).toEqual([]);
+      expect(headers.filter((p) => p.required !== true)).toEqual([]);
+    });
+
+    it('treats an empty includeInactive filter as absent', async () => {
+      const page = (
+        await http().get('/catalog/products?includeInactive=').expect(200)
+      ).body as Paginated<ProductDto>;
+      expect(page.items.length).toBeGreaterThan(0);
+      await http().get('/catalog/products?includeInactive=maybe').expect(400);
+    });
+
+    it('ignores NUL characters in input instead of failing on them', async () => {
+      const search = async (term: string) =>
+        (
+          await http()
+            .get('/catalog/products')
+            .query({ search: term, pageSize: 5 })
+            .expect(200)
+        ).body as Paginated<ProductDto>;
+      const plain = await search('drip');
+      expect(plain.total).toBeGreaterThan(0);
+      expect((await search('dr\u0000ip')).total).toBe(plain.total);
     });
 
     it('trusts a forwarded client address only from the web app', async () => {
@@ -254,7 +396,7 @@ describe('TopFlow Hub API (e2e)', () => {
     });
 
     it('requires two-factor authentication for the back office', async () => {
-      const unverified = await sessionFor('sales@topflow.ae', 'aal1');
+      const unverified = await sessionFor('sales@topflow.example', 'aal1');
       expect(unverified.user).toMatchObject({
         mfaRequired: true,
         assuranceLevel: 'aal1',
@@ -266,12 +408,12 @@ describe('TopFlow Hub API (e2e)', () => {
       expect(blocked.body.code).toBe('MFA_REQUIRED');
       await http()
         .get('/admin/dashboard')
-        .set(bearer(await sessionFor('sales@topflow.ae')))
+        .set(bearer(await sessionFor('sales@topflow.example')))
         .expect(200);
     });
 
     it('invites staff through Supabase Auth and suspends accounts', async () => {
-      const admin = await sessionFor('admin@topflow.ae');
+      const admin = await sessionFor('admin@topflow.example');
       const email = unique('staff');
       const invited = (
         await http()
@@ -320,7 +462,7 @@ describe('TopFlow Hub API (e2e)', () => {
     });
 
     it('accepts a team invitation only for the invited, signed-in email', async () => {
-      const owner = await sessionFor('owner@desertbloom.ae');
+      const owner = await sessionFor('owner@desertbloom.example');
       const organizationId = owner.user.memberships[0].organizationId;
       const email = unique('invitee');
       await http()
@@ -371,11 +513,11 @@ describe('TopFlow Hub API (e2e)', () => {
         .expect(403);
       await http()
         .get('/admin/dashboard')
-        .set(bearer(await sessionFor('sales@topflow.ae')))
+        .set(bearer(await sessionFor('sales@topflow.example')))
         .expect(200);
       await http()
         .get('/admin/audit-logs')
-        .set(bearer(await sessionFor('sales@topflow.ae')))
+        .set(bearer(await sessionFor('sales@topflow.example')))
         .expect(403);
     });
 
@@ -424,7 +566,7 @@ describe('TopFlow Hub API (e2e)', () => {
     });
 
     it('isolates organizations from each other', async () => {
-      const buyer = await sessionFor('buyer@desertbloom.ae');
+      const buyer = await sessionFor('buyer@desertbloom.example');
       const desertBloomId = buyer.user.memberships[0].organizationId;
 
       const owner = await sessionWith({
@@ -479,7 +621,7 @@ describe('TopFlow Hub API (e2e)', () => {
           })
           .expect(201)
       ).body as RfqDto;
-      const sales = await sessionFor('sales@topflow.ae');
+      const sales = await sessionFor('sales@topflow.example');
       const draft = (
         await http()
           .post('/admin/quotations')
@@ -500,7 +642,7 @@ describe('TopFlow Hub API (e2e)', () => {
     }
 
     it('lets a buyer accept a quotation within their limit and creates the sales order', async () => {
-      const buyer = await sessionFor('buyer@desertbloom.ae');
+      const buyer = await sessionFor('buyer@desertbloom.example');
       const org = buyer.user.memberships[0].organizationId;
       const quotation = await quoteAndSend(buyer, 'AX-EFS-001', 20);
 
@@ -530,8 +672,8 @@ describe('TopFlow Hub API (e2e)', () => {
     });
 
     it('routes purchases above the buyer limit to an approver (segregation of duties)', async () => {
-      const buyer = await sessionFor('buyer@desertbloom.ae');
-      const approver = await sessionFor('approver@desertbloom.ae');
+      const buyer = await sessionFor('buyer@desertbloom.example');
+      const approver = await sessionFor('approver@desertbloom.example');
       const org = buyer.user.memberships[0].organizationId;
       const quotation = await quoteAndSend(buyer, 'AX-EFS-003', 160);
 
@@ -620,7 +762,7 @@ describe('TopFlow Hub API (e2e)', () => {
       });
       expect(mail.lastMessageTo(email)?.subject).toContain(receipt.number);
 
-      const sales = await sessionFor('sales@topflow.ae');
+      const sales = await sessionFor('sales@topflow.example');
       const inbox = (
         await http()
           .get('/admin/rfqs')
@@ -713,7 +855,7 @@ describe('TopFlow Hub API (e2e)', () => {
           .expect(201)
       ).body as WebsiteQuoteReceiptDto;
 
-      const sales = await sessionFor('sales@topflow.ae');
+      const sales = await sessionFor('sales@topflow.example');
       const inbox = (
         await http()
           .get('/admin/rfqs')
@@ -859,7 +1001,7 @@ describe('TopFlow Hub API (e2e)', () => {
           .post('/quote-requests')
           .send({
             name: 'Khalid Al Mansoori',
-            email: 'owner@desertbloom.ae',
+            email: 'owner@desertbloom.example',
             phone: '+971 55 700 1000',
             companyName: 'Desert Bloom Landscaping',
             items: [{ productId: item.id, quantity: 4 }],
@@ -867,7 +1009,7 @@ describe('TopFlow Hub API (e2e)', () => {
           .expect(201)
       ).body as WebsiteQuoteReceiptDto;
 
-      const sales = await sessionFor('sales@topflow.ae');
+      const sales = await sessionFor('sales@topflow.example');
       const inbox = (
         await http()
           .get('/admin/rfqs')
@@ -881,7 +1023,7 @@ describe('TopFlow Hub API (e2e)', () => {
       ).body as RfqDto;
       const account = detail.contactAccount;
       expect(account).toMatchObject({
-        email: 'owner@desertbloom.ae',
+        email: 'owner@desertbloom.example',
         organizations: [
           expect.objectContaining({ name: 'Desert Bloom Landscaping LLC' }),
         ],
@@ -920,7 +1062,7 @@ describe('TopFlow Hub API (e2e)', () => {
         .set(bearer(sales))
         .expect(200);
 
-      const owner = await sessionFor('owner@desertbloom.ae');
+      const owner = await sessionFor('owner@desertbloom.example');
       await http()
         .get(`/org/quotations/${draft.id}`)
         .set(bearer(owner))
@@ -937,7 +1079,7 @@ describe('TopFlow Hub API (e2e)', () => {
   describe('retail orders', () => {
     it('prices checkout on the server and moves the order through fulfilment', async () => {
       const customer = await sessionFor('customer@example.com');
-      const warehouse = await sessionFor('warehouse@topflow.ae');
+      const warehouse = await sessionFor('warehouse@topflow.example');
       const addresses = (
         await http().get('/me/addresses').set(bearer(customer)).expect(200)
       ).body as AddressDto[];
@@ -995,9 +1137,53 @@ describe('TopFlow Hub API (e2e)', () => {
       );
     });
 
+    it('refuses an order whose total differs from the total the customer was shown', async () => {
+      const customer = await sessionFor('customer@example.com');
+      const addresses = (
+        await http().get('/me/addresses').set(bearer(customer)).expect(200)
+      ).body as AddressDto[];
+      const fitting = await product('AX-EFS-002');
+      const netSubtotal = toFils(fitting.unitPrice);
+      const expected = calculateTotals(
+        [{ listPriceFils: netSubtotal, quantity: 1 }],
+        { deliveryFeeFils: retailDeliveryFeeFils(netSubtotal) },
+      );
+      const checkout = (expectedTotal: string) =>
+        http()
+          .post('/me/orders')
+          .set(bearer(customer))
+          .send({
+            items: [{ productId: fitting.id, quantity: 1 }],
+            addressId: addresses[0].id,
+            paymentMethod: 'CASH_ON_DELIVERY',
+            expectedTotal,
+          });
+      // A total shown from a stale or edited basket (one fils less) is refused, nothing is ordered.
+      const ordersBefore = (
+        await http().get('/me/orders').set(bearer(customer)).expect(200)
+      ).body as Paginated<unknown>;
+      const refused = await checkout(fromFils(expected.totalFils - 1)).expect(
+        409,
+      );
+      expect(refused.body).toMatchObject({
+        code: 'PRICE_CHANGED',
+        message: expect.stringContaining(
+          `now comes to ${formatMoney(fromFils(expected.totalFils))}`,
+        ),
+      });
+      const ordersAfter = (
+        await http().get('/me/orders').set(bearer(customer)).expect(200)
+      ).body as Paginated<unknown>;
+      expect(ordersAfter.total).toBe(ordersBefore.total);
+      // The total the server computes is accepted.
+      const order = (await checkout(fromFils(expected.totalFils)).expect(201))
+        .body as OrderDto;
+      expect(order.totalAmount).toBe(fromFils(expected.totalFils));
+    });
+
     it('leaves a paid order for Top Flow to cancel, then records the refund', async () => {
       const customer = await sessionFor('customer@example.com');
-      const sales = await sessionFor('sales@topflow.ae');
+      const sales = await sessionFor('sales@topflow.example');
       const addresses = (
         await http().get('/me/addresses').set(bearer(customer)).expect(200)
       ).body as AddressDto[];
@@ -1082,7 +1268,7 @@ describe('TopFlow Hub API (e2e)', () => {
         .expect(409);
       await http()
         .post(`/admin/orders/${order.id}/refund`)
-        .set(bearer(await sessionFor('warehouse@topflow.ae')))
+        .set(bearer(await sessionFor('warehouse@topflow.example')))
         .send({})
         .expect(403);
     });
@@ -1112,7 +1298,7 @@ describe('TopFlow Hub API (e2e)', () => {
       until: 'PROCESSING' | 'DISPATCHED',
     ): Promise<OrderDto> => {
       const customer = await sessionFor('customer@example.com');
-      const warehouse = await sessionFor('warehouse@topflow.ae');
+      const warehouse = await sessionFor('warehouse@topflow.example');
       const addresses = (
         await http().get('/me/addresses').set(bearer(customer)).expect(200)
       ).body as AddressDto[];
@@ -1146,7 +1332,7 @@ describe('TopFlow Hub API (e2e)', () => {
       (
         await http()
           .get(`/admin/orders/${id}`)
-          .set(bearer(await sessionFor('admin@topflow.ae')))
+          .set(bearer(await sessionFor('admin@topflow.example')))
           .expect(200)
       ).body as OrderDto;
 
@@ -1262,7 +1448,7 @@ describe('TopFlow Hub API (e2e)', () => {
       // The warehouse marks the order dispatched: the waiting delivery is applied in that change.
       const dispatched = await http()
         .patch(`/admin/orders/${order.id}/status`)
-        .set(bearer(await sessionFor('warehouse@topflow.ae')))
+        .set(bearer(await sessionFor('warehouse@topflow.example')))
         .send({ status: 'DISPATCHED' })
         .expect(200);
       const after = dispatched.body as OrderDto;
@@ -1386,7 +1572,7 @@ describe('TopFlow Hub API (e2e)', () => {
 
       const dispatched = await http()
         .patch(`/admin/orders/${order.id}/status`)
-        .set(bearer(await sessionFor('warehouse@topflow.ae')))
+        .set(bearer(await sessionFor('warehouse@topflow.example')))
         .send({ status: 'DISPATCHED' })
         .expect(200);
       expect((dispatched.body as OrderDto).status).toBe('DISPATCHED');
@@ -1466,7 +1652,7 @@ describe('TopFlow Hub API (e2e)', () => {
       const order = await retailOrder('PROCESSING');
       await http()
         .patch(`/admin/orders/${order.id}/status`)
-        .set(bearer(await sessionFor('sales@topflow.ae')))
+        .set(bearer(await sessionFor('sales@topflow.example')))
         .send({ status: 'CANCELLED', note: 'Customer changed their mind' })
         .expect(200);
       const cancelled = await send(

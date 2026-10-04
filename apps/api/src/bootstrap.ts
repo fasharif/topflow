@@ -7,6 +7,7 @@ import helmet from 'helmet';
 import { cleanupOpenApiDoc } from 'nestjs-zod';
 import { randomUUID } from 'node:crypto';
 import { clientIp } from './common/client-ip';
+import { documentErrorResponses } from './common/openapi';
 import type { AppRequest } from './common/request-context';
 import type { AppConfig } from './config/env';
 
@@ -74,6 +75,10 @@ export function configureApp(app: INestApplication, config: AppConfig): void {
         .addBearerAuth()
         .build(),
     );
-    SwaggerModule.setup('docs', app, cleanupOpenApiDoc(document));
+    SwaggerModule.setup(
+      'docs',
+      app,
+      documentErrorResponses(cleanupOpenApiDoc(document)),
+    );
   }
 }

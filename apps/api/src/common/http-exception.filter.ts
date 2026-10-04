@@ -10,6 +10,7 @@ import { Prisma } from '@topflow/database';
 import { InvalidTransitionError, type ApiErrorBody } from '@topflow/shared';
 import type { Response } from 'express';
 import { ZodValidationException } from 'nestjs-zod';
+import { reportServerError } from '../observability/sentry';
 import type { AppRequest } from './request-context';
 
 interface ZodIssueLike {
@@ -20,7 +21,8 @@ interface ZodIssueLike {
 /**
  * One error envelope for every failure: validation, domain rule violations, database
  * constraint errors and unexpected crashes. Internal details never leak to clients —
- * they are logged with the request id instead.
+ * they are logged with the request id instead, and server errors also go to Sentry when
+ * SENTRY_DSN is set.
  */
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -38,6 +40,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
         `${request.method} ${request.originalUrl} → ${body.statusCode} [${request.requestId}]`,
         exception instanceof Error ? exception.stack : String(exception),
       );
+      reportServerError(exception, {
+        requestId: request.requestId,
+        method: request.method,
+        path: request.path,
+      });
     }
 
     response.status(body.statusCode).json(body);

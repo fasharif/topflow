@@ -2,8 +2,10 @@ import {
   ExecutionContext,
   SetMetadata,
   UnauthorizedException,
+  applyDecorators,
   createParamDecorator,
 } from '@nestjs/common';
+import { ApiExtension } from '@nestjs/swagger';
 import type { OrgPermission, Permission } from '@topflow/shared';
 import {
   requestMeta,
@@ -12,13 +14,21 @@ import {
   type OrganizationContext,
   type RequestMeta,
 } from './request-context';
+import { PUBLIC_OPERATION } from './openapi';
 
 export const IS_PUBLIC_KEY = 'auth:isPublic';
 export const PERMISSIONS_KEY = 'auth:permissions';
 export const ORG_PERMISSION_KEY = 'auth:orgPermission';
 
-/** Route is reachable without a token (a valid token is still decoded if present). */
-export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
+/**
+ * Route is reachable without a token (a valid token is still decoded if present). The OpenAPI
+ * extension tells documentErrorResponses (common/openapi.ts) to leave out 401 and 403.
+ */
+export const Public = () =>
+  applyDecorators(
+    SetMetadata(IS_PUBLIC_KEY, true),
+    ApiExtension(PUBLIC_OPERATION, true),
+  );
 
 /** Caller's platform role must grant every listed permission (see @topflow/shared ROLE_PERMISSIONS). */
 export const RequirePermissions = (...permissions: Permission[]) =>

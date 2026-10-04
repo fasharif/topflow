@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server';
+import { configuredOrigin } from '@/lib/site';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 
 const API_ORIGIN = (process.env.API_INTERNAL_URL ?? 'http://localhost:3000').replace(/\/$/, '');
@@ -22,10 +23,14 @@ function problem(status: number, error: string, message: string): Response {
   return Response.json({ statusCode: status, error, message }, { status });
 }
 
-/** Browsers send Origin on cross-site requests; state-changing calls must come from this site. */
+/**
+ * Browsers send Origin on cross-site requests; state-changing calls must come from this site. Behind
+ * a reverse proxy the request URL carries the server's own address, so the configured public origin
+ * (NEXT_PUBLIC_SITE_URL) counts as this site too.
+ */
 function isSameSite(request: NextRequest): boolean {
   const origin = request.headers.get('origin');
-  if (origin) return origin === request.nextUrl.origin;
+  if (origin) return origin === request.nextUrl.origin || origin === configuredOrigin();
   const site = request.headers.get('sec-fetch-site');
   return site === null || site === 'same-origin' || site === 'none';
 }

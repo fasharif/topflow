@@ -1,0 +1,286 @@
+# TopFlow Hub: a production-like stack on one machine. It runs the same images CI builds, scans and
+# pushes, with production settings (NODE_ENV=production, staff MFA, HTTPS, read-only containers):
+#
+#   proxy    Caddy: HTTPS for the web app, the API and Supabase Auth (local certificate authority)
+#   local-ca publishes the proxy's root certificate (not its keys) to the servers that call it
+#   web      Next.js standalone server
+#   api      NestJS API
+#   migrate  release step (environment preflight + Prisma migrations); the API starts only after
+#            it has finished successfully, as in a real deployment
+#   auth     Supabase Auth (GoTrue), the service behind a Supabase project's /auth/v1
+#   db       PostgreSQL 17 for the platform and Supabase Auth, like a Supabase project's database
+#   mail     Mailpit: catches the emails Supabase Auth sends (confirmations, recovery, invitations)
+#   seed     demo data and sign-ins, on demand only (profile "demo")
+#
+# Usage (docs/OPERATIONS.md, section 10):
+#   node infra/compose/generate-env.mts
+#   docker compose -f docker-compose.prod.yml --env-file infra/compose/.env up -d --build --wait
+#   docker compose -f docker-compose.prod.yml --env-file infra/compose/.env --profile demo run --rm --build seed
+#
+# Nothing here is exposed beyond this machine: the proxy's HTTPS and HTTP (redirect) ports, Mailpit
+# and PostgreSQL listen on 127.0.0.1 only.
+
+name: ${COMPOSE_PROJECT_NAME:-topflow-hub}
+
+x-hardening: &hardening
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  init: true
+
+x-trust-local-ca: &trust-local-ca
+  # The proxy's local certificate authority, so the servers can call https://$AUTH_HOST.
+  NODE_EXTRA_CA_CERTS: /local-ca/root.crt
+
+x-api-environment: &api-environment
+  NODE_ENV: production
+  PORT: "3000"
+  APP_PUBLIC_URL: ${SITE_URL:?run infra/compose/generate-env.mts first}
+  DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?}@db:5432/topflow
+  DATABASE_POOL_MAX: "10"
+  SUPABASE_URL: ${SUPABASE_URL:?}
+  SUPABASE_SECRET_KEY: ${SERVICE_ROLE_KEY:?}
+  # Supabase Auth in this stack signs with the legacy shared secret (HS256); hosted projects use
+  # asymmetric keys, which the API verifies against their JWKS instead.
+  SUPABASE_JWT_SECRET: ${JWT_SECRET:?}
+  STAFF_MFA_REQUIRED: "true"
+  INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?}
+  CORS_ORIGINS: ${SITE_URL}
+  TRUST_PROXY: "true"
+  MAIL_TRANSPORT: console
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  SENTRY_ENVIRONMENT: compose
+
+x-api-build: &api-build
+  context: .
+  dockerfile: apps/api/Dockerfile
+  args:
+    APP_VERSION: ${IMAGE_TAG:-local}
+
+services:
+  db:
+    image: public.ecr.aws/docker/library/postgres:17.11-alpine3.24@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: topflow
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:?}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./infra/compose/initdb:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:${DB_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d topflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    shm_size: 128mb
+    mem_limit: 512m
+    restart: unless-stopped
+
+  auth:
+    image: public.ecr.aws/supabase/gotrue:v2.197.0@sha256:1736a63078f5922b198c4cbe50f80ab9a2d3b54fe8b7b6cfb2e9dc5dbbc12c6b
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: "9999"
+      API_EXTERNAL_URL: ${SUPABASE_URL}/auth/v1
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${AUTH_DB_PASSWORD}@db:5432/topflow
+      GOTRUE_SITE_URL: ${SITE_URL}
+      GOTRUE_URI_ALLOW_LIST: ${SITE_URL}/**
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: "false"
+      GOTRUE_MAILER_AUTOCONFIRM: "false"
+      GOTRUE_MAILER_SECURE_EMAIL_CHANGE_ENABLED: "true"
+      # Tokens: the API accepts only this issuer and audience (apps/api/src/config/env.ts).
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_JWT_ISSUER: ${SUPABASE_URL}/auth/v1
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_EXP: "3600"
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED: "true"
+      GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL: "10"
+      # Password policy and MFA mirror supabase/config.toml.
+      GOTRUE_PASSWORD_MIN_LENGTH: "8"
+      GOTRUE_PASSWORD_REQUIRED_CHARACTERS: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ:0123456789"
+      GOTRUE_MFA_TOTP_ENROLL_ENABLED: "true"
+      GOTRUE_MFA_TOTP_VERIFY_ENABLED: "true"
+      GOTRUE_MFA_MAX_ENROLLED_FACTORS: "10"
+      GOTRUE_SMTP_HOST: mail
+      GOTRUE_SMTP_PORT: "1025"
+      GOTRUE_SMTP_ADMIN_EMAIL: no-reply@topflow-hub.localhost
+      GOTRUE_SMTP_SENDER_NAME: Top Flow Hub (demo stack)
+      GOTRUE_MAILER_TEMPLATES_CONFIRMATION: http://proxy:8088/confirmation.html
+      GOTRUE_MAILER_TEMPLATES_RECOVERY: http://proxy:8088/recovery.html
+      GOTRUE_MAILER_TEMPLATES_INVITE: http://proxy:8088/invite.html
+      GOTRUE_MAILER_TEMPLATES_MAGIC_LINK: http://proxy:8088/magic_link.html
+      GOTRUE_MAILER_TEMPLATES_EMAIL_CHANGE: http://proxy:8088/email_change.html
+      GOTRUE_MAILER_TEMPLATES_REAUTHENTICATION: http://proxy:8088/reauthentication.html
+      GOTRUE_MAILER_SUBJECTS_CONFIRMATION: Confirm your Top Flow account
+      GOTRUE_MAILER_SUBJECTS_RECOVERY: Reset your Top Flow password
+      GOTRUE_MAILER_SUBJECTS_INVITE: You're invited to Top Flow Hub
+      GOTRUE_MAILER_SUBJECTS_MAGIC_LINK: Your Top Flow sign-in link
+      GOTRUE_MAILER_SUBJECTS_EMAIL_CHANGE: Confirm your new email address
+      GOTRUE_MAILER_SUBJECTS_REAUTHENTICATION: Your Top Flow verification code
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9999/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    <<: *hardening
+    mem_limit: 128m
+    restart: unless-stopped
+
+  mail:
+    image: public.ecr.aws/supabase/mailpit:v1.31.3@sha256:ed9b00c609e77e99c79b93f1178255ebc271868920f2c69a8d166bd5634ed10d
+    ports:
+      - "127.0.0.1:${MAIL_PORT:-8025}:8025"
+    mem_limit: 64m
+    restart: unless-stopped
+
+  proxy:
+    image: public.ecr.aws/docker/library/caddy:2.11.4-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
+    environment:
+      HTTPS_PORT: ${HTTPS_PORT:?}
+      HTTP_PORT: ${HTTP_PORT:?}
+      WEB_HOST: ${WEB_HOST:?}
+      API_HOST: ${API_HOST:?}
+      AUTH_HOST: ${AUTH_HOST:?}
+    ports:
+      - "127.0.0.1:${HTTPS_PORT}:${HTTPS_PORT}"
+      - "127.0.0.1:${HTTP_PORT}:${HTTP_PORT}"
+    volumes:
+      - ./infra/compose/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./supabase/templates:/srv/email-templates:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      default:
+        # The servers reach Supabase Auth at the same URL as everyone else.
+        aliases: ["${AUTH_HOST}"]
+    healthcheck:
+      # Ready once the local certificate authority exists and the internal site answers.
+      test: ["CMD-SHELL", "test -f /data/caddy/pki/authorities/local/root.crt && wget -q --spider http://127.0.0.1:8088/confirmation.html"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 128m
+    restart: unless-stopped
+
+  local-ca:
+    image: public.ecr.aws/docker/library/caddy:2.11.4-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
+    depends_on:
+      proxy:
+        condition: service_healthy
+    # Only the public root certificate leaves the proxy's volume; its private keys never do.
+    command: ["sh", "-c", "install -m 0444 /data/caddy/pki/authorities/local/root.crt /local-ca/root.crt"]
+    volumes:
+      - caddy-data:/data:ro
+      - local-ca:/local-ca
+    network_mode: none
+    mem_limit: 32m
+    restart: "no"
+
+  migrate:
+    image: ${IMAGE_PREFIX:-topflow-hub}-migrate:${IMAGE_TAG:-local}
+    build:
+      <<: *api-build
+      target: migrate
+    command: ["release"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment: *api-environment
+    <<: *hardening
+    mem_limit: 384m
+    restart: "no"
+
+  api:
+    image: ${IMAGE_PREFIX:-topflow-hub}-api:${IMAGE_TAG:-local}
+    build:
+      <<: *api-build
+      target: api
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      local-ca:
+        condition: service_completed_successfully
+      auth:
+        condition: service_healthy
+    environment:
+      <<: [*api-environment, *trust-local-ca]
+    volumes:
+      - local-ca:/local-ca:ro
+    tmpfs:
+      - /tmp:size=16m
+    <<: *hardening
+    mem_limit: 384m
+    restart: unless-stopped
+
+  web:
+    image: ${IMAGE_PREFIX:-topflow-hub}-web:${IMAGE_TAG:-local}
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        APP_VERSION: ${IMAGE_TAG:-local}
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      <<: *trust-local-ca
+      API_INTERNAL_URL: http://api:3000
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?}
+      NEXT_PUBLIC_SITE_URL: ${SITE_URL:?}
+      NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL:?}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${ANON_KEY:?}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: compose
+    volumes:
+      - local-ca:/local-ca:ro
+    tmpfs:
+      # The only writable path: Next.js' fetch and image caches.
+      - /app/apps/web/.next/cache:uid=1000,gid=1000,size=64m
+    <<: *hardening
+    mem_limit: 384m
+    restart: unless-stopped
+
+  seed:
+    profiles: [demo]
+    image: ${IMAGE_PREFIX:-topflow-hub}-seed:${IMAGE_TAG:-local}
+    build:
+      <<: *api-build
+      target: seed
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      auth:
+        condition: service_healthy
+      local-ca:
+        condition: service_completed_successfully
+    environment:
+      <<: *trust-local-ca
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?}@db:5432/topflow
+      SUPABASE_URL: ${SUPABASE_URL:?}
+      SUPABASE_SECRET_KEY: ${SERVICE_ROLE_KEY:?}
+      # Demo sign-ins share this password (the default one is public; see the README).
+      SEED_DEMO_PASSWORD: ${SEED_DEMO_PASSWORD:-TopFlow2026!}
+    volumes:
+      - local-ca:/local-ca:ro
+    mem_limit: 768m
+    restart: "no"
+
+volumes:
+  db-data:
+  caddy-data:
+  caddy-config:
+  local-ca:

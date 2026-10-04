@@ -2,7 +2,7 @@
 
 ## 1. Shape of the system
 
-TopFlow Hub is a **modular monolith**: one NestJS API with strict module boundaries, one Next.js web application serving three audiences, and an Expo mobile app. A shared TypeScript package carries the domain contracts, so the same rules run on the server and in every client. Supabase provides identity and the PostgreSQL database; Vercel runs both the web app and the API.
+TopFlow Hub is a **modular monolith**: one NestJS API with strict module boundaries, one Next.js web application serving three audiences, and an Expo mobile app. A shared TypeScript package carries the domain contracts, so the same rules run on the server and in every client. Supabase provides identity and the PostgreSQL database. The web app and the API are planned for Vercel (ADR-014) and also ship as container images (ADR-023); neither is hosted yet (ADR-019).
 
 | Package | Responsibility |
 | --- | --- |
@@ -29,7 +29,7 @@ TopFlow Hub is a **modular monolith**: one NestJS API with strict module boundar
 
 ## 2. Hosting topology
 
-> **Status (16 September 2026):** nothing is hosted yet. Everything runs locally against the Supabase CLI stack; the diagram is the intended deployment, and the reasoning is in ADR-019 of [DECISIONS.md](DECISIONS.md).
+> **Status (26 September 2026):** nothing is hosted yet. Everything runs locally against the Supabase CLI stack, or as the production-like container stack below; the diagram is the deployment ADR-014 planned, and the reasoning is in ADR-019 of [DECISIONS.md](DECISIONS.md).
 
 ```mermaid
 flowchart LR
@@ -57,6 +57,29 @@ flowchart LR
 
 - Compute and the database belong in the same region, the closest pair to the UAE, so API ↔ database round trips stay short.
 - The API is built to run as a serverless function: its `pg` pool releases idle connections before an instance is suspended (`attachDatabasePool` when it runs on Vercel), the runtime connection string uses Supabase's transaction pooler (port 6543), and migrations use a session connection (`DIRECT_URL`, port 5432).
+
+### Container images (ADR-023)
+
+The same code also runs as three images: `topflow-hub-api` (the compiled API and only the files it loads), `topflow-hub-migrate` (the release step: environment preflight, then `prisma migrate deploy`) and `topflow-hub-web` (the Next.js standalone server). One web image serves every environment: `NEXT_PUBLIC_*` values are read at runtime on the server (except `NEXT_PUBLIC_DEMO_MODE`, fixed at build time), and behind a proxy the app takes its public origin from `NEXT_PUBLIC_SITE_URL`. Every page of every build says the site is a portfolio project (a demo build through its demo banner, ADR-021) and asks search engines not to index it. `docker-compose.prod.yml` runs them as below, with Supabase Auth's own server standing in for a Supabase project:
+
+```mermaid
+flowchart LR
+  B["Browser · curl · mobile"] -- "HTTPS (local CA)" --> C["Caddy"]
+  subgraph STACK["docker-compose.prod.yml"]
+    C -- "localhost" --> W["web<br/>Next.js standalone"]
+    C -- "api.localhost" --> A["api<br/>NestJS"]
+    C -- "auth.localhost/auth/v1" --> G["Supabase Auth<br/>(GoTrue)"]
+    W -- "server-to-server" --> A
+    W -- "sign-in, sessions" --> C
+    A -- "invitations, suspensions" --> C
+    M["migrate<br/>release step"] --> D[("PostgreSQL 17<br/>public · auth")]
+    A --> D
+    G --> D
+    G --> MP["Mailpit"]
+  end
+```
+
+The release step must finish before the API starts, as it would before a new version receives traffic. [infra/terraform](../infra/terraform) describes the same images on AWS ECS Fargate behind a load balancer, with Supabase unchanged (prepared, not applied; [infra/README.md](../infra/README.md)).
 
 ## 3. Request pipeline (API)
 
@@ -198,16 +221,27 @@ sequenceDiagram
 
 | Level | Tooling | Focus |
 | --- | --- | --- |
-| Static | TypeScript strict, ESLint (type-aware), compile-time Prisma ↔ shared enum parity | Contract drift, unsafe code |
-| Unit | Jest | Money/VAT, state machines, permissions, schemas, Supabase token verification, guards, error mapping, config |
-| End-to-end | Jest + Supertest against PostgreSQL | Real middleware stack with simulated Supabase Auth: provisioning, MFA, invitations, RBAC, tenant isolation, procurement and fulfilment journeys, RLS lockdown |
-| Delivery | GitHub Actions | Every push lints, type-checks, tests and builds every workspace; nightly encrypted backups |
+| Static | TypeScript strict, ESLint (type-aware), compile-time Prisma ↔ shared enum parity, shellcheck, actionlint | Contract drift, unsafe code |
+| Unit | Jest, `node:test` | Money/VAT, state machines, permissions, schemas, decision tables for purchase approval and credit release, the web app's basket refresh and order tracker, the mobile app's cart pricing and order request, Supabase token verification, guards, error mapping, OpenAPI post-processing, config, error reporting, the demo mail guard and demo policy, the demo reset's safety checks, the web app's authentication Server Actions in and out of demo mode, its notices, page titles and noindex in both builds, the local setup script |
+| End-to-end | Jest + Supertest against PostgreSQL; `next start` over HTTP | Real middleware stack with simulated Supabase Auth: provisioning, MFA, invitations, RBAC, tenant isolation, procurement and fulfilment journeys, decision-table boundaries, simultaneous credit releases, RLS lockdown, the published OpenAPI description; a second suite in demo mode; the web app's demo and ordinary production builds |
+| System | Playwright against the whole stack (Supabase CLI, production builds), in `tests/` | The three money paths as the demo users, a price changed during checkout, tenant isolation, role limits, cross-site writes, tampered prices, money columns visible at 1280 × 720, tables that are tab stops only while they scroll |
+| Accessibility | axe-core in the Playwright run | WCAG 2.2 A/AA on storefront, account, trade-portal and back-office pages, at desktop and phone size |
+| Load | k6 (container) | p95 targets per endpoint; a smoke run in CI that fails on errors, measured runs on a quiet machine only |
+| API contract | Schemathesis (container), three passes | Responses and validation against the published OpenAPI description as a customer, as back-office staff (reads) and as a trade company, with triaged findings in a baseline per pass |
+| Delivery | GitHub Actions | Every push lints, type-checks, tests and builds every workspace and reports API coverage; pull requests and `develop` run the system tests and upload the Playwright report, which is published to GitHub Pages from `develop` once Pages is enabled for the repository; nightly encrypted backups |
+| Containers | Docker, Trivy, Docker Compose | Images built and scanned (critical vulnerabilities fail the build); the production-like stack started and smoke-tested with a real Supabase sign-in, `/auth/me` and a quotation PDF |
+| Infrastructure | `terraform test` (mocked provider), tflint, Trivy, ShellCheck | Secrets only through SSM, read-only containers, HTTPS, deploy-role trust, alarms, input validation; the deploy script against a fake AWS CLI; the backup restore drill end to end |
+
+The plan behind these levels — scope, risks, environments, entry and exit criteria, decision tables and traceability — is in [testing/TEST-PLAN.md](testing/TEST-PLAN.md), and ADR-022 of [DECISIONS.md](DECISIONS.md) records the strategy.
 
 ## 10. Operations
 
 - **Configuration** is validated with Zod at boot (`apps/api/src/config/env.ts`); production refuses to start without the Supabase secret key, an https Supabase URL and the internal secret.
 - **Releases.** Vercel builds the API from the repository root; on production deployments `apps/api/scripts/release.mjs` runs the environment preflight and `prisma migrate deploy` before the new version receives traffic. A failed release leaves the previous deployment serving.
-- **Health:** `GET /health` (liveness) and `GET /health/ready` (database).
+- **Health:** `GET /health` (liveness) and `GET /health/ready` (database) on the API; `GET /health` on the web app. Both report `version` (`APP_VERSION`, the image tag in containers), so a deployment can be verified.
+- **Error reporting:** optional Sentry for the API's 5xx and the web server's errors (`SENTRY_DSN`); a no-op without it. The SDK collects no cookies, bodies, query strings, client addresses or user details, and a scrubber removes any that remain from errors, breadcrumbs and (when tracing is on) spans; console output is not sent, and error messages go as written.
+- **Container releases:** on `develop`, CI publishes exactly the images it scanned and smoke-tested, with signed provenance (first published on 2 October 2026). The `topflow-hub-migrate` image runs the same preflight and migrations before new code serves traffic; on AWS the Deploy workflow verifies each image's provenance, pins its digest, runs the release step first, keeps both services on one release if a rollout fails and rolls back in one step (OPERATIONS.md section 11).
 - **Tracing:** every response carries `x-request-id`, also included in error bodies and server logs.
 - **Rate limiting:** per-client limits, stricter on public forms. The web app's server forwards the shopper's IP with a shared secret (`INTERNAL_API_SECRET`); server-rendered catalogue fetches carry the secret without an IP and are not limited. The store is in memory per instance — move it to a shared store if abuse patterns require global limits.
-- **Backups:** a nightly GitHub Actions job dumps roles, schema and data with the Supabase CLI and uploads an age-encrypted archive. Restore steps are in [OPERATIONS.md](OPERATIONS.md).
+- **Backups:** a nightly GitHub Actions job dumps roles, schema and data with the Supabase CLI and uploads an age-encrypted archive. Restore steps are in [OPERATIONS.md](OPERATIONS.md); `infra/scripts/restore-drill.sh` rehearses them against a disposable container and checks every row count.
+- **Public demo:** `DEMO_MODE=true` (API) and `NEXT_PUBLIC_DEMO_MODE=true` (web) turn a deployment into the portfolio demo. `MailService` delivers business email only to `DEMO_MAIL_ALLOWLIST`, `DemoPolicy` refuses Supabase invitations and changes to the published demo accounts and the demo organisation, and the web app shows the demo banner in place of the portfolio notice, names itself a portfolio demo in page titles and link previews, and refuses password and two-factor changes on the shared accounts. `npm run demo:reset` empties and reseeds the demo every night (ADR-021, [OPERATIONS.md, *Public demo*](OPERATIONS.md#public-demo)).

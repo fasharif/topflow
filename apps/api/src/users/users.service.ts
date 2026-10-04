@@ -23,6 +23,7 @@ import type { AuthenticatedUser, RequestMeta } from '../common/request-context';
 import { isoOrNull, pageArgs, paginated } from '../common/serialization';
 import { InjectConfig } from '../config/config.module';
 import type { AppConfig } from '../config/env';
+import { DemoPolicy } from '../demo/demo-policy';
 import { PrismaService } from '../prisma/prisma.service';
 
 const userAdminInclude = {
@@ -62,6 +63,7 @@ export class UsersService {
     private readonly identities: IdentityAdminService,
     private readonly accounts: AccountProvisioningService,
     private readonly audit: AuditService,
+    private readonly demo: DemoPolicy,
     @InjectConfig() private readonly config: AppConfig,
   ) {}
 
@@ -118,12 +120,14 @@ export class UsersService {
   /**
    * Invites a colleague through Supabase Auth. They receive an email, choose their own password
    * and land in the back office with the assigned role; no administrator handles a password.
+   * The public demo refuses invitations to addresses outside its allow-list.
    */
   async createStaff(
     input: CreateStaffUserInput,
     actor: AuthenticatedUser,
     meta: RequestMeta,
   ): Promise<UserAdminDto> {
+    this.demo.assertMayInvite('staff', input.email);
     if (
       await this.prisma.user.findUnique({
         where: { email: input.email },
@@ -185,6 +189,11 @@ export class UsersService {
         'You cannot change your own role or deactivate your own account',
       );
     }
+    const target = await this.prisma.user.findUnique({
+      where: { id },
+      select: { email: true },
+    });
+    if (target) this.demo.assertMayChangeAccount(target.email);
     // Suspend or restore sign-in in Supabase first, so a failure leaves the account unchanged.
     // Role changes need no sign-out: the API reloads the role on every request.
     if (input.isActive !== undefined) {

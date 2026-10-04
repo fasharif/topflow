@@ -1,23 +1,15 @@
 'use client';
 
-import { loginSchema } from '@topflow/shared';
+import { DEMO_ACCOUNTS, DEMO_ACCOUNT_PASSWORD, loginSchema } from '@topflow/shared';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { Alert, Button, Field, Input } from '@/components/ui';
 import { resendConfirmation, signInWithPassword } from '@/lib/auth/actions';
 import { landingPath, safeNextPath } from '@/lib/auth/redirects';
+import { DEMO_MODE } from '@/lib/demo';
 import { zodFieldErrors, type FieldErrors } from '@/lib/forms';
 import { refreshSession, sessionStore } from '@/lib/session';
-
-const DEMO_ACCOUNTS = [
-  ['customer@example.com', 'Retail customer'],
-  ['buyer@desertbloom.ae', 'Trade buyer (AED 5,000 limit)'],
-  ['approver@desertbloom.ae', 'Trade approver'],
-  ['sales@topflow.ae', 'Top Flow sales'],
-  ['warehouse@topflow.ae', 'Top Flow warehouse'],
-  ['admin@topflow.ae', 'Administrator'],
-] as const;
 
 const UNEXPECTED = 'We could not reach the sign-in service. Please try again.';
 
@@ -115,31 +107,37 @@ export function LoginForm() {
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-slate-600">
-        New to Top Flow?{' '}
-        <Link href="/register" className="font-medium text-brand-700 hover:underline">
-          Create an account
-        </Link>
-      </p>
+      {!DEMO_MODE && (
+        <p className="mt-6 text-center text-sm text-slate-600">
+          New to Top Flow?{' '}
+          <Link href="/register" className="font-medium text-brand-700 hover:underline">
+            Create an account
+          </Link>
+        </p>
+      )}
 
-      {process.env.NEXT_PUBLIC_DEMO_MODE === 'true' && (
-        <details className="mt-8 rounded-lg border border-slate-200 bg-white p-4 text-sm">
+      {DEMO_MODE && (
+        <details open className="mt-8 rounded-lg border border-slate-200 bg-white p-4 text-sm">
           <summary className="cursor-pointer font-medium text-ink-900">Demo accounts</summary>
-          <p className="mt-2 text-xs text-slate-500">Password for all demo accounts: TopFlow2026!</p>
-          <ul className="mt-3 space-y-1">
-            {DEMO_ACCOUNTS.map(([demoEmail, label]) => (
-              <li key={demoEmail}>
+          <p className="mt-2 text-xs text-slate-500">
+            Choose an account to fill in the form. They all use the password {DEMO_ACCOUNT_PASSWORD}, and the data resets every night.
+          </p>
+          <ul className="mt-3 space-y-1.5">
+            {DEMO_ACCOUNTS.map((account) => (
+              <li key={account.email}>
                 <button
                   type="button"
-                  className="text-left text-brand-700 hover:underline"
+                  className="text-left font-medium text-brand-700 hover:underline"
                   onClick={() => {
-                    setEmail(demoEmail);
-                    setPassword('TopFlow2026!');
+                    setEmail(account.email);
+                    setPassword(DEMO_ACCOUNT_PASSWORD);
                   }}
                 >
-                  {demoEmail}
-                </button>{' '}
-                <span className="text-slate-500">— {label}</span>
+                  {account.email}
+                </button>
+                <span className="block text-xs text-slate-500">
+                  {account.label} · {account.tryThis}
+                </span>
               </li>
             ))}
           </ul>

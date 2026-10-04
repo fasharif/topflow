@@ -39,6 +39,7 @@ import type {
 import { pageArgs, paginated } from '../common/serialization';
 import { InjectConfig } from '../config/config.module';
 import type { AppConfig } from '../config/env';
+import { DemoPolicy } from '../demo/demo-policy';
 import { MailService } from '../mail/mail.service';
 import { quoteRequestReceivedEmail } from '../mail/templates';
 import { PrismaService } from '../prisma/prisma.service';
@@ -76,6 +77,7 @@ export class RfqService {
     private readonly audit: AuditService,
     private readonly mail: MailService,
     private readonly identities: IdentityAdminService,
+    private readonly demo: DemoPolicy,
     @InjectConfig() private readonly config: AppConfig,
   ) {}
 
@@ -442,6 +444,7 @@ export class RfqService {
         'An account already uses this email address — link it instead of sending an invitation',
       );
     }
+    this.demo.assertMayInvite('customer', email);
     const fullName = rfq.contactName?.trim() || email;
     const id = await this.identities.inviteCustomer({
       email,

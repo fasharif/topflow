@@ -120,7 +120,7 @@ function RfqList() {
       ) : (
         <div className={cx('motion-safe:transition-opacity', loading && 'opacity-60')} aria-busy={loading}>
           <p className="mb-2 text-sm text-slate-500">{pluralize(data.total, 'request')}</p>
-          <Table>
+          <Table label="RFQs">
             <thead>
               <tr>
                 <Th>RFQ</Th>

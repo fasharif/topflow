@@ -1,0 +1,27 @@
+# Schemathesis settings for run-schemathesis.sh. Each deviation from the defaults is a triaged
+# finding; the reasons are recorded in docs/testing/BUGS-FOUND.md (Schemathesis triage). The
+# unsupported_method check is excluded on the command line: Express answers 404 rather than 405
+# for a method a route does not define (for example TRACE), which exposes nothing.
+# Reference: https://schemathesis.readthedocs.io/en/stable/reference/configuration/
+
+[generation]
+# The API ignores unknown query parameters and strips unknown body fields by design: clients may
+# send extra fields such as a price, and the server never reads them (ADR-009). Sending extra
+# parameters is therefore not treated as invalid input.
+allow-extra-parameters = false
+
+[checks.positive_data_acceptance]
+# 422 is how the API rejects well-formed input that breaks a business rule, for example an
+# unknown or archived product at checkout.
+expected-statuses = ["2xx", 401, 403, 404, 409, 422, 429]
+
+# Test data for the customer pass: run-schemathesis.sh creates a saved address and an order for
+# the throwaway customer and exports their ids, so these operations reach the code behind the
+# lookup instead of answering 404 for a random id. The other passes do not include them.
+[[operations]]
+include-path = "/me/addresses/{id}"
+parameters = { "path.id" = "${FUZZ_ADDRESS_ID}" }
+
+[[operations]]
+include-path-regex = "^/me/orders/\\{id\\}"
+parameters = { "path.id" = "${FUZZ_ORDER_ID}" }

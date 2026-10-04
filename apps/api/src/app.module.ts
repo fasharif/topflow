@@ -14,9 +14,11 @@ import { CatalogModule } from './catalog/catalog.module';
 import { HttpExceptionFilter } from './common/http-exception.filter';
 import { NumberingModule } from './common/numbering.service';
 import { ClientThrottlerGuard } from './common/throttle';
+import { StripNulPipe } from './common/strip-nul.pipe';
 import { APP_CONFIG, ConfigModule } from './config/config.module';
 import type { AppConfig } from './config/env';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { DemoModule } from './demo/demo-policy';
 import { HealthController } from './health/health.controller';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { MailModule } from './mail/mail.service';
@@ -46,6 +48,7 @@ import { UsersModule } from './users/users.module';
       ],
     }),
     MailModule,
+    DemoModule,
     AuditModule,
     NumberingModule,
     AuthModule,
@@ -59,6 +62,8 @@ import { UsersModule } from './users/users.module';
   ],
   controllers: [HealthController, AuditController],
   providers: [
+    // Pipes run in this order: NUL characters are removed before Zod validates the input.
+    { provide: APP_PIPE, useClass: StripNulPipe },
     { provide: APP_PIPE, useClass: ZodValidationPipe },
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
     // Guards run in registration order: rate limit → authenticate → authorise → tenant.

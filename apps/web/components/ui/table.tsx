@@ -3,12 +3,14 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { Button } from './button';
 import { cx } from './cx';
+import { ScrollRegion } from './scroll-region';
 
-export function Table({ children, className }: { children: ReactNode; className?: string }) {
+/** Data table in a card. `label` names its scroll region for keyboard and screen-reader users. */
+export function Table({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
   return (
-    <div className={cx('overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-xs', className)}>
+    <ScrollRegion label={label} className={cx('rounded-xl border border-slate-200 bg-white shadow-xs', className)}>
       <table className="w-full min-w-[640px] text-left text-sm">{children}</table>
-    </div>
+    </ScrollRegion>
   );
 }
 

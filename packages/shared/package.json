@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Domain contracts shared by the API, web and mobile apps: enums, permissions, workflow state machines, money/VAT maths and Zod request schemas",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "type": "commonjs",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -23,12 +23,12 @@
     "test": "jest"
   },
   "dependencies": {
-    "zod": "4.6.4"
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
-    "jest": "^30.0.0",
-    "ts-jest": "^29.2.5"
+    "jest": "^30.5.2",
+    "ts-jest": "^29.4.14"
   },
   "jest": {
     "preset": "ts-jest",

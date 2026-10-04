@@ -1,46 +1,23 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  calculateTotals,
-  RETAIL_FREE_DELIVERY_THRESHOLD_FILS,
-  retailDeliveryFeeFils,
-  toFils,
-  UnitOfMeasure,
-  type DocumentTotals,
-  type Fils,
-  type ProductDto,
-} from '@topflow/shared';
-import { useSyncExternalStore } from 'react';
+import { toFils, UnitOfMeasure, type ProductDto } from '@topflow/shared';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+
+import { api } from './api';
+import { withCataloguePrices, type CartLine } from './cart-pricing';
+
+export { cartTotals, checkoutRequest, type CartLine, type CartTotals } from './cart-pricing';
 
 /**
- * Cart store persisted to AsyncStorage. Prices on a line are a snapshot for previewing totals
- * only — the API re-prices every line at checkout.
+ * Cart store persisted to AsyncStorage. Prices on a line are a snapshot of the catalogue, which the
+ * cart screen refreshes when it opens (useCartPriceRefresh), so the total shown is the one charged.
+ * The API prices every order again, and checkout sends the total it showed, so an order whose total
+ * changed in between is refused rather than charged (BUG-02 in docs/testing/BUGS-FOUND.md).
  */
-
-export interface CartLine {
-  productId: string;
-  sku: string;
-  slug: string;
-  name: string;
-  /** Catalogue image as returned by the API (may be site-relative); resolved when rendered. */
-  imageUrl: string | null;
-  uom: UnitOfMeasure;
-  /** Net unit price (excl. VAT) as a decimal string. */
-  unitPrice: string;
-  /** VAT-inclusive unit price as a decimal string. */
-  retailPrice: string;
-  minOrderQty: number;
-  quantity: number;
-}
 
 export interface CartState {
   readonly lines: readonly CartLine[];
   /** `false` until the saved cart has been read from storage. */
   readonly hydrated: boolean;
-}
-
-export interface CartTotals extends DocumentTotals {
-  /** Net amount still needed to qualify for free delivery (0 when it already applies). */
-  freeDeliveryRemainingFils: Fils;
 }
 
 const STORAGE_KEY = 'topflow.cart.v1';
@@ -233,16 +210,59 @@ export function clearCart(): void {
   commit([]);
 }
 
-// ─── Totals preview ──────────────────────────────────────────────────────────
+// ─── Catalogue prices ────────────────────────────────────────────────────────
 
-/** Previews totals with the same money maths and delivery policy the API uses to invoice. */
-export function cartTotals(lines: readonly CartLine[]): CartTotals {
-  const inputs = lines.map((line) => ({ listPriceFils: toFils(line.unitPrice), quantity: line.quantity }));
-  const netSubtotalFils = inputs.reduce((sum, line) => sum + line.listPriceFils * line.quantity, 0);
-  const totals = calculateTotals(inputs, { deliveryFeeFils: retailDeliveryFeeFils(netSubtotalFils) });
-  return {
-    ...totals,
-    freeDeliveryRemainingFils:
-      totals.deliveryFeeFils > 0 ? Math.max(0, RETAIL_FREE_DELIVERY_THRESHOLD_FILS - netSubtotalFils) : 0,
-  };
+/**
+ * Replaces the names and prices cached in the cart with the catalogue's current ones, so a price
+ * changed since the product was added is what the customer sees before ordering. Lines whose
+ * product cannot be loaded are kept, and their ids are returned so the screen can say that those
+ * prices could not be checked.
+ */
+export async function refreshCartPrices(
+  loadProduct: (productId: string) => Promise<ProductDto>,
+): Promise<{ unchecked: string[] }> {
+  const ids = [...new Set(state.lines.map((line) => line.productId))];
+  const loaded = await Promise.all(ids.map((id) => loadProduct(id).catch(() => null)));
+  const products = new Map(ids.map((id, index) => [id, loaded[index] ?? null] as const));
+  // Applied to the cart as it is now; a line added while loading is checked on the next refresh.
+  const result = withCataloguePrices(
+    state.lines.filter((line) => products.has(line.productId)),
+    products,
+  );
+  if (result.changed) {
+    const updated = new Map(result.lines.map((line) => [line.productId, line] as const));
+    commit(state.lines.map((line) => updated.get(line.productId) ?? line));
+  }
+  return { unchecked: result.unchecked };
+}
+
+/** Loads a product from the catalogue (by id) for refreshCartPrices. */
+export function loadCatalogueProduct(productId: string): Promise<ProductDto> {
+  return api<ProductDto>(`/catalog/products/${encodeURIComponent(productId)}`);
+}
+
+/** Whether the cart's prices have been checked against the catalogue on this screen. */
+export type PriceCheck = 'checking' | 'current' | 'unverified';
+
+/**
+ * Refreshes the cart from the catalogue once it has been read, and whenever its products change.
+ * Returns `unverified` when a product could not be loaded, so the screen can say that its price may
+ * be out of date instead of silently showing the cached one.
+ */
+export function useCartPriceRefresh(): PriceCheck {
+  const { lines, hydrated } = useCart();
+  const productIds = lines.map((line) => line.productId).join(',');
+  const [checked, setChecked] = useState<{ productIds: string; unverified: boolean } | null>(null);
+  useEffect(() => {
+    if (!hydrated || productIds === '') return;
+    let current = true;
+    void refreshCartPrices(loadCatalogueProduct).then(({ unchecked }) => {
+      if (current) setChecked({ productIds, unverified: unchecked.length > 0 });
+    });
+    return () => {
+      current = false;
+    };
+  }, [hydrated, productIds]);
+  if (checked?.productIds !== productIds) return 'checking';
+  return checked.unverified ? 'unverified' : 'current';
 }

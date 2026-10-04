@@ -1,0 +1,37 @@
+# Build context for apps/api/Dockerfile and apps/web/Dockerfile (both build from the repository
+# root). Only sources and manifests go in: dependencies and build output are recreated inside the
+# image, and local environment files never leave the machine.
+
+.git
+.github
+**/node_modules
+**/.turbo
+**/.next
+**/dist
+**/coverage
+**/*.tsbuildinfo
+**/*.log
+packages/database/generated
+apps/api/test/.cache
+
+# Secrets and local state
+**/.env
+**/.env.*
+!**/.env.example
+*.pem
+supabase/.temp
+supabase/.branches
+**/.terraform
+**/*.tfstate
+**/*.tfstate.*
+
+# Not part of either image. The manifests of the mobile app and of the system tests stay, so the
+# workspace graph is complete.
+apps/mobile/*
+!apps/mobile/package.json
+tests/*
+!tests/package.json
+docs
+infra
+**/.claude
+**/.vercel

@@ -34,5 +34,9 @@ export const ErrorCode = {
   ACCOUNT_DISABLED: 'ACCOUNT_DISABLED',
   /** The sign-in email already belongs to a different platform account. */
   ACCOUNT_CONFLICT: 'ACCOUNT_CONFLICT',
+  /** The action is switched off in the public portfolio demo (ADR-021). */
+  DEMO_RESTRICTED: 'DEMO_RESTRICTED',
+  /** Checkout: the order would cost a different total from the one the customer was shown. */
+  PRICE_CHANGED: 'PRICE_CHANGED',
 } as const;
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

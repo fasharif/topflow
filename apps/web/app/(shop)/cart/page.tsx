@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { OrderSummary, retailTotals } from '@/components/cart/order-summary';
+import { PriceCheckNotice } from '@/components/cart/price-check-notice';
 import { ProductImage } from '@/components/catalog/product-card';
 import {
   Alert,
@@ -25,7 +26,7 @@ import {
   Textarea,
 } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
-import { clearCart, removeFromCart, setQuantity, useCart, useCartHydrated } from '@/lib/cart';
+import { clearCart, removeFromCart, setQuantity, useCart, useCartHydrated, useCartPriceRefresh } from '@/lib/cart';
 import { aed, pluralize } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { useApiQuery } from '@/lib/use-api';
@@ -104,6 +105,7 @@ export default function CartPage() {
   const router = useRouter();
   const { lines } = useCart();
   const hydrated = useCartHydrated();
+  const priceCheck = useCartPriceRefresh();
   const session = useSession();
   const tradeOnlyLines = lines.filter((line) => line.isTradeOnly);
   const totals = retailTotals(lines);
@@ -229,6 +231,7 @@ export default function CartPage() {
             <div className="mt-4">
               <OrderSummary lines={lines} />
             </div>
+            <PriceCheckNotice check={priceCheck} className="mt-4" />
             {tradeOnlyLines.length > 0 ? (
               <Alert tone="warning" className="mt-5">
                 Trade-only items can only be supplied on quotation. Remove them to check out online.

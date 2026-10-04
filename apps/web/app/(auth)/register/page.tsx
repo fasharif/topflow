@@ -2,11 +2,14 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { RegisterForm } from '@/components/auth/register-form';
+import { DemoNotice } from '@/components/demo-notice';
+import { DEMO_MODE, DEMO_NOTICES } from '@/lib/demo';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 
 export const metadata: Metadata = { title: 'Create an account' };
 
 export default async function RegisterPage({ searchParams }: PageProps<'/register'>) {
+  if (DEMO_MODE) return <DemoNotice title="Create an account">{DEMO_NOTICES.signUp}</DemoNotice>;
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase.auth.getClaims();
   if (data?.claims) {

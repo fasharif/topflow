@@ -1,14 +1,15 @@
 'use client';
 
-import { EMIRATE_LABELS, Emirate, addressSchema, type AddressDto, type OrderDto } from '@topflow/shared';
+import { EMIRATE_LABELS, Emirate, ErrorCode, addressSchema, type AddressDto, type OrderDto } from '@topflow/shared';
 import { Banknote, CreditCard, ShoppingBasket } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { OrderSummary } from '@/components/cart/order-summary';
+import { OrderSummary, retailTotals } from '@/components/cart/order-summary';
+import { PriceCheckNotice } from '@/components/cart/price-check-notice';
 import { RequireAuth } from '@/components/require-auth';
 import { Alert, Button, Card, CardHeader, Container, EmptyState, Field, Input, LinkButton, LoadingBlock, PageHeader, Select, Textarea, cx } from '@/components/ui';
-import { api, errorMessage } from '@/lib/api';
-import { clearCart, useCart } from '@/lib/cart';
+import { ApiError, api, errorMessage } from '@/lib/api';
+import { clearCart, loadCatalogueProduct, refreshCartPrices, useCart, useCartPriceRefresh } from '@/lib/cart';
 import { apiFieldErrors, zodFieldErrors, type FieldErrors } from '@/lib/forms';
 import { useSession } from '@/lib/session';
 import { useApiQuery } from '@/lib/use-api';
@@ -24,6 +25,7 @@ const choiceClass = (selected: boolean) =>
 function CheckoutForm() {
   const router = useRouter();
   const { lines } = useCart();
+  const priceCheck = useCartPriceRefresh();
   const { user } = useSession();
   const addresses = useApiQuery<AddressDto[]>('/me/addresses');
   const [selected, setSelected] = useState<string | null>(null);
@@ -70,11 +72,15 @@ function CheckoutForm() {
           ...(useNew ? { address, saveAddress } : { addressId }),
           paymentMethod: 'CASH_ON_DELIVERY',
           notes,
+          // The total shown on this page: the API refuses the order if its own total differs.
+          expectedTotal: retailTotals(lines).total,
         },
       });
       clearCart();
       router.push(`/account/orders/${order.id}?placed=1`);
     } catch (err) {
+      // Prices changed since the page was opened: show the current ones before the customer retries.
+      if (err instanceof ApiError && err.code === ErrorCode.PRICE_CHANGED) await refreshCartPrices(loadCatalogueProduct);
       setError(errorMessage(err));
       setErrors(apiFieldErrors(err));
       setPlacing(false);
@@ -189,6 +195,7 @@ function CheckoutForm() {
         <div className="mt-4">
           <OrderSummary lines={lines} />
         </div>
+        <PriceCheckNotice check={priceCheck} className="mt-4" />
         {error && (
           <Alert tone="danger" className="mt-4">
             {error}

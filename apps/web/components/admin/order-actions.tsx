@@ -17,6 +17,7 @@ import {
 import { useState } from 'react';
 import { Alert, Button, Card, CardHeader, Field, Input, Textarea } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
+import { DEMO_MODE, DEMO_NO_EMAIL } from '@/lib/demo';
 import { apiFieldErrors, zodFieldErrors, type FieldErrors } from '@/lib/forms';
 import { useSession } from '@/lib/session';
 
@@ -135,7 +136,7 @@ export function OrderActions({ order, onUpdated }: { order: OrderDto; onUpdated:
     }
     void run(
       () => api<OrderDto>(`/admin/orders/${order.id}/refund`, { method: 'POST', body: parsed.data }),
-      'Refund recorded. The customer has been emailed.',
+      DEMO_MODE ? `Refund recorded. ${DEMO_NO_EMAIL}` : 'Refund recorded. The customer has been emailed.',
     );
   };
 
