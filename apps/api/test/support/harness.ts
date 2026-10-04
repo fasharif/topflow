@@ -45,6 +45,10 @@ export class E2eHarness {
     this.nest = moduleRef.createNestApplication();
     configureApp(this.nest, this.nest.get<AppConfig>(APP_CONFIG));
     await this.nest.init();
+    // Listen once for the whole suite. SuperTest then reuses this server instead of starting and
+    // closing its own per request, which fails (since SuperTest 7.3) when a request is built
+    // while another one is still running, as the simultaneous acceptances of table B are.
+    await this.nest.listen(0, '127.0.0.1');
   }
 
   async stop(): Promise<void> {
