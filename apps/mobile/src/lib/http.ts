@@ -1,6 +1,6 @@
 import { isAuthRetryableFetchError } from '@supabase/supabase-js';
-import type { ApiErrorBody } from '@topflow/shared';
 
+import { ApiError, isApiError, SESSION_EXPIRED_MESSAGE, SIGN_IN_REQUIRED_MESSAGE, toApiError } from '@/lib/api-error';
 import { API_URL } from '@/lib/config';
 import { getSupabase, isSupabaseConfigured, signOutLocally, SUPABASE_NOT_CONFIGURED_MESSAGE } from '@/lib/supabase';
 
@@ -11,12 +11,14 @@ import { getSupabase, isSupabaseConfigured, signOutLocally, SUPABASE_NOT_CONFIGU
  * Authenticated calls send `Authorization: Bearer <Supabase access token>`. The token comes from
  * `supabase.auth.getSession()`, which refreshes it when it is about to expire. When the API still
  * rejects it (401), the session is no longer valid and the app signs out on this device.
+ *
+ * The error type and the normalisation of the API's error body live in `api-error.ts`.
  */
+
+export { ApiError, errorMessage, isApiError, SESSION_EXPIRED_MESSAGE, SIGN_IN_REQUIRED_MESSAGE } from '@/lib/api-error';
 
 const REQUEST_TIMEOUT_MS = 20_000;
 
-export const SIGN_IN_REQUIRED_MESSAGE = 'Please sign in to continue.';
-export const SESSION_EXPIRED_MESSAGE = 'Your session has expired. Please sign in again.';
 const OFFLINE_MESSAGE = 'Could not reach Top Flow. Check your connection and try again.';
 
 export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
@@ -44,33 +46,6 @@ export interface RequestOptions {
 }
 
 type TransportOptions = Omit<RequestOptions, 'auth'>;
-
-type ErrorDetail = NonNullable<ApiErrorBody['details']>[number];
-
-/** A failed API call. `status` is the HTTP status, or 0 when the server could not be reached. */
-export class ApiError extends Error {
-  readonly status: number;
-  /** Machine-readable reason from the API (`ErrorCode` in `@topflow/shared`), when it sent one. */
-  readonly code: string | null;
-  readonly details: ErrorDetail[];
-
-  constructor(status: number, message: string, options: { code?: string | null; details?: ErrorDetail[] } = {}) {
-    super(message);
-    this.name = 'ApiError';
-    this.status = status;
-    this.code = options.code ?? null;
-    this.details = options.details ?? [];
-  }
-}
-
-export function isApiError(error: unknown, status?: number): error is ApiError {
-  return error instanceof ApiError && (status === undefined || error.status === status);
-}
-
-/** A user-presentable message for any thrown value. */
-export function errorMessage(error: unknown, fallback = 'Something went wrong. Please try again.'): string {
-  return error instanceof Error && error.message ? error.message : fallback;
-}
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   if (!API_URL) {
@@ -188,33 +163,4 @@ function parseJson(text: string): unknown {
   } catch {
     return undefined;
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
-function isErrorDetail(value: unknown): value is ErrorDetail {
-  return isRecord(value) && typeof value.path === 'string' && typeof value.message === 'string';
-}
-
-/** Normalises the API's `ApiErrorBody` (`{ statusCode, message, code?, details? }`). */
-function toApiError(status: number, data: unknown): ApiError {
-  if (!isRecord(data)) return new ApiError(status, fallbackMessage(status));
-  const raw = data.message;
-  const first: unknown = Array.isArray(raw) ? (raw as unknown[])[0] : raw;
-  const code = typeof data.code === 'string' && data.code ? data.code : null;
-  const details = Array.isArray(data.details) ? (data.details as unknown[]).filter(isErrorDetail) : [];
-  const message = typeof first === 'string' && first.trim() ? first : fallbackMessage(status);
-  return new ApiError(status, message, { code, details });
-}
-
-function fallbackMessage(status: number): string {
-  if (status === 400) return 'Please check the details and try again.';
-  if (status === 401) return SIGN_IN_REQUIRED_MESSAGE;
-  if (status === 403) return 'You do not have access to this.';
-  if (status === 404) return 'We could not find what you were looking for.';
-  if (status === 429) return 'Too many attempts. Please wait a moment and try again.';
-  if (status >= 500) return 'Top Flow is having trouble right now. Please try again shortly.';
-  return `The request failed (${status}).`;
 }
