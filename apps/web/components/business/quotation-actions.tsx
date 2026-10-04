@@ -8,10 +8,9 @@ import {
   QuotationStatus,
   approvalDecisionSchema,
   fromFils,
+  netPurchaseFils,
   requiresApproval,
   respondQuotationSchema,
-  toFils,
-  type Fils,
   type QuotationDto,
 } from '@topflow/shared';
 import { useState, type FormEvent } from 'react';
@@ -21,11 +20,6 @@ import { DEMO_MODE, DEMO_NO_EMAIL } from '@/lib/demo';
 import { apiFieldErrors, zodFieldErrors, type FieldErrors } from '@/lib/forms';
 import { aed, formatDate, formatDateTime } from '@/lib/format';
 import { useOrg } from './use-org';
-
-/** Value that counts against spending limits: goods after discount plus delivery, excluding VAT (same rule as the API). */
-export function netPurchaseFils(quotation: Pick<QuotationDto, 'subtotal' | 'deliveryFee'>): Fils {
-  return toFils(quotation.subtotal) + toFils(quotation.deliveryFee);
-}
 
 type OnUpdated = (quotation: QuotationDto, message: string) => void;
 

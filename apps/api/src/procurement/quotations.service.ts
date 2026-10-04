@@ -28,6 +28,7 @@ import {
   formatMoney,
   fromFils,
   isQuotationExpired,
+  netPurchaseFils,
   percentToBps,
   quotationDisplayNumber,
   requiresApproval,
@@ -554,8 +555,7 @@ export class QuotationsService {
           'Your business account must be verified by Top Flow before you can accept quotations',
         );
       }
-      const netFils =
-        toFils(quotation.subtotal) + toFils(quotation.deliveryFee);
+      const netFils = netPurchaseFils(quotation);
       const needsApproval = requiresApproval(
         {
           orgRole: ctx.role,
@@ -673,7 +673,7 @@ export class QuotationsService {
         'You cannot approve your own purchase request',
       );
     }
-    const netFils = toFils(quotation.subtotal) + toFils(quotation.deliveryFee);
+    const netFils = netPurchaseFils(quotation);
     if (
       requiresApproval(
         {

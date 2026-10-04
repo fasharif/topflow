@@ -1,5 +1,5 @@
 import { OrgRole } from '../enums';
-import type { Fils } from '../money';
+import { toFils, type Fils } from '../money';
 
 export interface ApprovalContext {
   orgRole: OrgRole;
@@ -20,6 +20,20 @@ export function requiresApproval(ctx: ApprovalContext, amountFils: Fils): boolea
     return amountFils > ctx.approvalLimitFils;
   }
   return ctx.orgRole === OrgRole.BUYER;
+}
+
+/** A money amount as the API stores it (a decimal value) or sends it (a decimal string such as "4990.00"). */
+type MoneyAmount = Parameters<typeof toFils>[0];
+
+/**
+ * The amount a purchase counts for against spending limits, in fils: goods after discount plus
+ * delivery, excluding VAT. `requiresApproval` is called with it.
+ *
+ * The API decides with this amount whether an acceptance needs approval, and the trade portal uses
+ * the same function to offer "Accept quotation" or "Send for approval", so the two cannot differ.
+ */
+export function netPurchaseFils(document: { subtotal: MoneyAmount; deliveryFee: MoneyAmount }): Fils {
+  return toFils(document.subtotal) + toFils(document.deliveryFee);
 }
 
 /** Only these roles may approve a colleague's purchase. */
