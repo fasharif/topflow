@@ -98,12 +98,13 @@ jobs:
           npx tsc --noEmit -p apps/mobile
           npm test -w mobile
 
-      # The suites themselves run in system-tests.yml against the whole stack.
-      - name: System tests — lint, typecheck and shellcheck
+      # The suites themselves run in system-tests.yml against the whole stack. ShellCheck is the
+      # pinned version the infra-scripts job uses, not the one the runner ships.
+      - name: System tests — lint, typecheck and ShellCheck
         run: |
           npm run lint -w @topflow/system-tests
           npm run check-types -w @topflow/system-tests
-          shellcheck -x tests/load/*.sh tests/contract/run-schemathesis.sh tests/scripts/*.sh
+          docker run --rm -v "$PWD:/mnt:ro" -w /mnt koalaman/shellcheck:v0.11.0 -x tests/load/*.sh tests/contract/run-schemathesis.sh tests/scripts/*.sh
 
       # The script guard that keeps Schemathesis off shared stacks, and the load profile's p95 gates,
       # which CI's smoke runs never evaluate (k6 inspect in the pinned container; no stack needed).
