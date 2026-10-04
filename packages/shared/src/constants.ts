@@ -34,6 +34,13 @@ export const ErrorCode = {
   ACCOUNT_DISABLED: 'ACCOUNT_DISABLED',
   /** The sign-in email already belongs to a different platform account. */
   ACCOUNT_CONFLICT: 'ACCOUNT_CONFLICT',
+  /**
+   * A dispatch webhook (ADR-024) without a valid signature: missing, malformed, outside the time
+   * window or not matching the body.
+   */
+  INVALID_SIGNATURE: 'INVALID_SIGNATURE',
+  /** The dispatch integration (ADR-024) is switched off; the sender should try again later. */
+  INTEGRATION_DISABLED: 'INTEGRATION_DISABLED',
   /** The action is switched off in the public portfolio demo (ADR-021). */
   DEMO_RESTRICTED: 'DEMO_RESTRICTED',
   /** Checkout: the order would cost a different total from the one the customer was shown. */

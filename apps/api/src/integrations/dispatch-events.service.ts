@@ -8,6 +8,7 @@ import type { Prisma } from '@topflow/database';
 import {
   DISPATCH_EVENT_ID_HEADER,
   DispatchEventOutcome,
+  ErrorCode,
   dispatchEventEnvelopeSchema,
   dispatchEventSchema,
   isKnownDispatchEventType,
@@ -71,7 +72,7 @@ export class DispatchEventsService {
       // 503 so the dispatch service retries; not reported as a server error (see the exception).
       throw new FeatureDisabledException(
         'The dispatch integration is not configured',
-        'INTEGRATION_DISABLED',
+        ErrorCode.INTEGRATION_DISABLED,
       );
     }
     if (!rawBody || rawBody.length === 0) {
@@ -89,7 +90,7 @@ export class DispatchEventsService {
       );
       throw new UnauthorizedException({
         message: SIGNATURE_ERRORS[check.reason],
-        code: 'INVALID_SIGNATURE',
+        code: ErrorCode.INVALID_SIGNATURE,
       });
     }
 
