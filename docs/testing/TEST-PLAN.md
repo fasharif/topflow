@@ -12,8 +12,8 @@ TopFlow Hub is a portfolio project built with Top Flow's permission; every accou
 | --- | --- |
 | Shared domain rules (`@topflow/shared`): money and VAT, state machines, permissions, request schemas, purchase approval | Unit tests |
 | API (NestJS): guards, workflows, pricing, credit release, OpenAPI description | Unit tests, end-to-end tests over HTTP against PostgreSQL |
-| Web app (Next.js): storefront, customer account, trade portal, back office, the `/api` backend-for-frontend | Unit tests of the basket and the order tracker; Playwright against the running stack, Chromium at desktop and phone size |
-| Mobile app (Expo): the cart's totals and price refresh, and the order request | Unit tests with Node's test runner (`apps/mobile/src/lib/cart-pricing.spec.ts`) |
+| Web app (Next.js): storefront, customer account, trade portal, back office, the `/api` backend-for-frontend | Unit tests of the basket, the order tracker, the session store's answer to an account the API refuses, the rate-limit message and the rule for showing trade prices; Playwright against the running stack, Chromium at desktop and phone size |
+| Mobile app (Expo): the cart's totals and price refresh, the order request, API error messages, the message for an account the API refuses, and the pages its sign-up and reset emails lead to | Unit tests with Node's test runner (`apps/mobile/src/lib/*.spec.ts`: `cart-pricing`, `api-error`, `account-problem`, `auth-links`) |
 | Identity with Supabase Auth: sign-in, sign-up with email confirmation, sessions in httpOnly cookies | Playwright against a real local Supabase Auth; token verification in the API suites |
 | Accessibility and layout | axe-core scans (WCAG 2.2 A and AA rules); a layout check at 1280 × 720 |
 | Performance of key API endpoints | k6 load test with p95 thresholds |
@@ -24,7 +24,7 @@ TopFlow Hub is a portfolio project built with Top Flow's permission; every accou
 
 | Area | Reason, and what covers it today |
 | --- | --- |
-| Mobile app on devices (for example Maestro flows on an Android emulator or iOS simulator) | Needs emulators or devices in CI. The app shares `@topflow/shared` and the API with the web app, both tested above; CI type-checks it and runs the unit tests of its cart pricing. Its screens, including the checkout's handling of a changed price, have no automated test |
+| Mobile app on devices (for example Maestro flows on an Android emulator or iOS simulator) | Needs emulators or devices in CI. The app shares `@topflow/shared` and the API with the web app, both tested above; CI type-checks it and runs the unit tests of its modules that have no React Native imports (cart pricing, API errors, account refusals, email links). Its screens, including the checkout's handling of a changed price, have no automated test |
 | Firefox and WebKit | Not run yet: a decision to keep the run short, not evidence that the pages behave the same in those browsers. Another browser is one more project in `tests/playwright.config.ts` |
 | Real email delivery (Resend) and SMTP | The API uses the console transport and Supabase sends to Mailpit; templates are checked by reading Mailpit |
 | Online card payments | Not offered (payment on delivery, bank transfer and credit only) |
@@ -203,6 +203,8 @@ The unit table covers every rule, with boundary rows one fils below the limit (B
 | BUG-13: `FOR UPDATE` removed from the credit release | 5 | 5; 5 rounds that released both orders on credit | killed |
 
 The three failures of table A are the three rows exactly at a limit, out of its 13 rows (`approval.spec.ts` also holds three tests of who may approve); the three of table B are its three at-limit B4 rows. Without the row lock, all five concurrency rounds released both orders on credit, in each of four runs on 27 and 28 September 2026. Each round now uses its own company, so no round inherits another's orders: an earlier version shared one company, and after a failing round the later ones started from its leftover exposure.
+
+`approval.spec.ts` has since gained seven tests of `netPurchaseFils`, the net purchase amount the limit is compared with, two of them exactly at a limit. On 4 October 2026 the same command, at commit `3ac8ab8` on Windows 11 with Node 24.19 and a new `postgres:17` container (PostgreSQL 17.11) prepared with `db:deploy`, `db:seed` and the demo reset, reported 23 tests and 5 failures for table A, and the counts above for the other two mutants.
 
 **Observations.** The two rules compare different amounts (net for approval, gross for credit), and orders waiting for payment keep counting against the credit limit until paid or cancelled. Both look intentional and are listed for review in BUGS-FOUND.md.
 
