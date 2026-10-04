@@ -606,3 +606,69 @@ describe('changes to one order at the same moment', () => {
     },
   );
 });
+
+describe('owner changes at the same moment', () => {
+  const owners = async (organizationId: string) =>
+    harness.prisma.organizationMember.count({
+      where: { organizationId, role: 'OWNER' },
+    });
+
+  /** A new organization with two owners; each entry is an owner's session and membership id. */
+  async function twoOwners(name: string) {
+    const { owner, organizationId } = await trade.organization(name);
+    const second = await trade.member(owner, organizationId, 'OWNER');
+    const first = (await trade.members(owner, organizationId)).find(
+      (member) => member.userId === owner.user.id,
+    );
+    if (!first) throw new Error('The founding owner is not a member');
+    return {
+      organizationId,
+      a: { session: owner, memberId: first.id },
+      b: second,
+    };
+  }
+
+  /** The second request is refused by the rule itself: it would have left no owner. */
+  function expectOneOwnerKept(responses: Response[], success: number): void {
+    expect(responses.map((r) => r.status).sort()).toEqual([success, 409]);
+    const [refused] = responses.filter((r) => r.status === 409);
+    expect(refused.body).toMatchObject({
+      message: 'An organization must always have at least one owner',
+    });
+  }
+
+  it.each(ROUNDS)(
+    'round %i: two owners demote each other: one remains an owner',
+    async (round) => {
+      const { organizationId, a, b } = await twoOwners(`Race Owners ${round}`);
+      const demote = (
+        actor: { session: TestSession },
+        target: { memberId: string },
+      ) =>
+        harness
+          .http()
+          .patch(`/org/members/${target.memberId}`)
+          .set(harness.member(actor.session, organizationId))
+          .send({ role: 'BUYER' });
+      expectOneOwnerKept(await atOnce(demote(a, b), demote(b, a)), 200);
+      expect(await owners(organizationId)).toBe(1);
+    },
+  );
+
+  it.each(ROUNDS)(
+    'round %i: two owners remove each other: one remains',
+    async (round) => {
+      const { organizationId, a, b } = await twoOwners(`Race Removal ${round}`);
+      const remove = (
+        actor: { session: TestSession },
+        target: { memberId: string },
+      ) =>
+        harness
+          .http()
+          .delete(`/org/members/${target.memberId}`)
+          .set(harness.member(actor.session, organizationId));
+      expectOneOwnerKept(await atOnce(remove(a, b), remove(b, a)), 204);
+      expect(await owners(organizationId)).toBe(1);
+    },
+  );
+});
