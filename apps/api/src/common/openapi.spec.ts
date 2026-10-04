@@ -48,7 +48,7 @@ describe('errorStatusesFor', () => {
   it.each`
     case                                         | method      | operation                             | isPublic | expected
     ${'public read without input'}               | ${'get'}    | ${{ responses: {} }}                  | ${true}  | ${['429', '5XX']}
-    ${'public write (website quote request)'}    | ${'post'}   | ${{ requestBody: {}, responses: {} }} | ${true}  | ${['400', '404', '409', '422', '429', '5XX']}
+    ${'public write (website quote request)'}    | ${'post'}   | ${{ requestBody: {}, responses: {} }} | ${true}  | ${['400', '404', '409', '413', '415', '422', '429', '5XX']}
     ${'signed-in list with query parameters'}    | ${'get'}    | ${{ parameters: [{ in: 'query' }] }}  | ${false} | ${['400', '401', '403', '429', '5XX']}
     ${'signed-in read by id'}                    | ${'get'}    | ${{ parameters: [{ in: 'path' }] }}   | ${false} | ${['400', '401', '403', '404', '429', '5XX']}
     ${'signed-in read without input (/auth/me)'} | ${'get'}    | ${{ responses: {} }}                  | ${false} | ${['401', '403', '429', '5XX']}

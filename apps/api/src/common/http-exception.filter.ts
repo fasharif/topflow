@@ -86,6 +86,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
       };
     }
 
+    const refused = refusedByBodyParser(exception);
+    if (refused) {
+      return {
+        statusCode: refused.status,
+        error: httpStatusName(refused.status),
+        message: refused.message,
+      };
+    }
+
     if (exception instanceof InvalidTransitionError) {
       return {
         statusCode: HttpStatus.CONFLICT,
@@ -124,6 +133,33 @@ export class HttpExceptionFilter implements ExceptionFilter {
       message: 'Something went wrong. Please try again later.',
     };
   }
+}
+
+/**
+ * A request the body parser refused before it reached a controller: a body over the size limit
+ * (413), or a content encoding or character set it does not read (415). The parser raises these
+ * as plain errors that carry `status` and `expose` (the http-errors convention: `expose` marks a
+ * message that may be shown to the client). They are the caller's mistake, so they keep their
+ * 4xx status; answered as 500, anyone could raise server errors at will, and the caller would be
+ * told to try again. Malformed JSON never gets here: NestJS turns it into a 400 itself.
+ */
+function refusedByBodyParser(
+  exception: unknown,
+): { status: number; message: string } | null {
+  if (!(exception instanceof Error)) return null;
+  const { status, expose } = exception as Error & {
+    status?: unknown;
+    expose?: unknown;
+  };
+  if (expose !== true || typeof status !== 'number') return null;
+  if (!Number.isInteger(status) || status < 400 || status > 499) return null;
+  const message = exception.message.trim();
+  return {
+    status,
+    message: message
+      ? message.charAt(0).toUpperCase() + message.slice(1)
+      : httpStatusName(status),
+  };
 }
 
 /** Unique-constraint fields: `meta.target` (classic engine) or the driver adapter's constraint info (Prisma 7). */

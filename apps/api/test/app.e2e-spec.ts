@@ -201,6 +201,8 @@ describe('TopFlow Hub API (e2e)', () => {
         '403',
         '404',
         '409',
+        '413',
+        '415',
         '422',
         '429',
         '5XX',
@@ -277,6 +279,29 @@ describe('TopFlow Hub API (e2e)', () => {
       const plain = await search('drip');
       expect(plain.total).toBeGreaterThan(0);
       expect((await search('dr\u0000ip')).total).toBe(plain.total);
+    });
+
+    it('answers 413 to a body over the size limit and 415 to an encoding it does not read', async () => {
+      // The body parser refuses both before any controller runs; they were answered as 500.
+      const tooLarge = await http()
+        .post('/quote-requests')
+        .set('content-type', 'application/json')
+        .send(JSON.stringify({ message: 'x'.repeat(1_100_000) }))
+        .expect(413);
+      expect(tooLarge.body).toMatchObject({
+        statusCode: 413,
+        error: 'Payload Too Large',
+      });
+      const encoding = await http()
+        .post('/quote-requests')
+        .set('content-type', 'application/json')
+        .set('content-encoding', 'bogus')
+        .send('{}')
+        .expect(415);
+      expect(encoding.body).toMatchObject({
+        statusCode: 415,
+        error: 'Unsupported Media Type',
+      });
     });
 
     it('trusts a forwarded client address only from the web app', async () => {
@@ -1660,6 +1685,18 @@ describe('TopFlow Hub API (e2e)', () => {
       expect(cancelled.body.message).toMatch(
         /cancelled and cannot be delivered/,
       );
+    });
+
+    it('refuses a signed body over the size limit without recording the event', async () => {
+      const order = await retailOrder('DISPATCHED');
+      const event = dispatchEvent('delivery.completed', order.orderNumber);
+      const body = JSON.stringify({ ...event, padding: 'x'.repeat(1_100_000) });
+      const refused = await send(event, { body }).expect(413);
+      expect(refused.body).toMatchObject({ error: 'Payload Too Large' });
+      expect(
+        await prisma.dispatchEvent.count({ where: { id: event.id } }),
+      ).toBe(0);
+      expect((await orderById(order.id)).status).toBe('DISPATCHED');
     });
 
     it('validates the event body and its id header', async () => {
