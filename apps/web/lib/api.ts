@@ -65,8 +65,35 @@ function send(path: string, options: RequestOptions): Promise<Response> {
   });
 }
 
+/**
+ * The message for a 429, with the wait from the `Retry-After` header when the response has one. The
+ * header holds a number of seconds (what the API sends) or an HTTP date.
+ */
+export function rateLimitMessage(retryAfter: string | null, now: number = Date.now()): string {
+  const seconds = retryAfterSeconds(retryAfter, now);
+  if (seconds === null) return 'Too many requests. Please wait a moment and try again.';
+  return `Too many requests. Please wait ${waitText(seconds)} and try again.`;
+}
+
+function retryAfterSeconds(retryAfter: string | null, now: number): number | null {
+  const value = retryAfter?.trim();
+  if (!value) return null;
+  const seconds = /^\d+$/.test(value) ? Number(value) : Math.ceil((Date.parse(value) - now) / 1000);
+  return Number.isSafeInteger(seconds) && seconds > 0 ? seconds : null;
+}
+
+/** Whole minutes are rounded up, so the stated wait is never too short. */
+function waitText(seconds: number): string {
+  if (seconds < 60) return seconds === 1 ? '1 second' : `${seconds} seconds`;
+  const minutes = Math.ceil(seconds / 60);
+  return minutes === 1 ? '1 minute' : `${minutes} minutes`;
+}
+
 async function toError(response: Response): Promise<ApiError> {
   const body = (await response.json().catch(() => ({}))) as Partial<ApiErrorBody>;
+  // The API's rate limiter answers with its framework's default text ("ThrottlerException: Too Many
+  // Requests"), which is not written for customers.
+  if (response.status === 429) body.message = rateLimitMessage(response.headers.get('retry-after'));
   const error = new ApiError(response.status, body);
 
   // The session ended (expired, signed out elsewhere or suspended): update the whole UI.
