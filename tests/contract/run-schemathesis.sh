@@ -4,16 +4,22 @@
 # signed in as a throwaway account created for the run, so the demo accounts the browser journeys
 # rely on are never changed:
 #
-#   customer  every operation outside the trade portal, as a new customer with a saved address and
-#             one order (the ids are supplied to the operations that need them); the back office
-#             must refuse it. The trade portal (/org/...) is left to the trade pass: a customer has
-#             no company, so every request there is refused before it reaches the code
+#   customer  every operation outside the trade portal and the integrations, as a new customer
+#             with a saved address and one order (the ids are supplied to the operations that need
+#             them); the back office must refuse it. The trade portal (/org/...) is left to the
+#             trade pass: a customer has no company, so every request there is refused before it
+#             reaches the code
 #   staff     the back office's read-only operations (GET /admin/...), as a new account that the
 #             demo administrator promotes to Administrator. Back-office writes are not fuzzed: they
 #             would change the shared demo catalogue, users and companies. The API end-to-end suite
 #             covers them.
 #   trade     the trade portal (/org/...), as the owner of a new company waiting for verification,
 #             with its id in the x-organization-id header
+#
+# No pass calls the dispatch webhook (POST /integrations/dispatch/events). It accepts only requests
+# signed with a shared secret, which Schemathesis cannot produce, and it answers 503 on a stack
+# without DISPATCH_WEBHOOK_SECRET, which the server-error check would report on every call. The
+# API's unit and end-to-end suites cover it, with signed requests.
 #
 # The passes create accounts (one of them an Administrator), a company, an address and an order on
 # the stack under test, so the script runs only against a stack on this machine (localhost,
@@ -163,7 +169,7 @@ if [[ " $passes " == *" customer "* ]]; then
   # The saved address and the order are the only ones this customer has: the operations that read,
   # change or cancel them by id get real ids (schemathesis.toml reads these variables).
   export FUZZ_ADDRESS_ID="$address" FUZZ_ORDER_ID="$order"
-  run_pass customer baseline.json -H "Authorization: Bearer $token" --exclude-path-regex '^/org'
+  run_pass customer baseline.json -H "Authorization: Bearer $token" --exclude-path-regex '^/(org|integrations)'
 fi
 
 if [[ " $passes " == *" staff "* ]]; then
