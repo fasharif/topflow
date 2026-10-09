@@ -1,5 +1,5 @@
 import { UOM_LABELS, bpsToPercent, fromFils, toFils, type DocumentLineDto } from '@topflow/shared';
-import { Th } from '@/components/ui';
+import { ScrollRegion, Th } from '@/components/ui';
 import { aed } from '@/lib/format';
 
 /** "10.00" → "10%", "12.50" → "12.5%". */
@@ -14,16 +14,18 @@ function hasDiscount(line: DocumentLineDto): boolean {
 }
 
 /**
- * Priced lines of a quotation or order. A full table from `md`, stacked cards on phones.
- * List price and discount columns appear only when the document carries them.
+ * Priced lines of a quotation or order: a full table when the space it is given is at least 48rem
+ * wide (a container query, so a side panel next to it counts), stacked lines otherwise, so no money
+ * column is ever hidden behind a sideways scroll. List price and discount columns appear only when
+ * the document carries them.
  */
 export function DocumentLines({ items }: { items: DocumentLineDto[] }) {
   const showListPrice = items.some((line) => line.listPrice !== null);
   const showDiscount = showListPrice || items.some(hasDiscount);
 
   return (
-    <>
-      <div className="hidden overflow-x-auto md:block">
+    <div className="@container">
+      <ScrollRegion label="Priced lines" className="hidden @3xl:block">
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead>
             <tr className="border-b border-slate-200">
@@ -65,9 +67,9 @@ export function DocumentLines({ items }: { items: DocumentLineDto[] }) {
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollRegion>
 
-      <ul className="divide-y divide-slate-200 md:hidden">
+      <ul aria-label="Priced lines" className="divide-y divide-slate-200 @3xl:hidden">
         {items.map((line) => (
           <li key={line.id} className="px-4 py-3 text-sm">
             <div className="flex items-start justify-between gap-3">
@@ -93,7 +95,7 @@ export function DocumentLines({ items }: { items: DocumentLineDto[] }) {
           </li>
         ))}
       </ul>
-    </>
+    </div>
   );
 }
 

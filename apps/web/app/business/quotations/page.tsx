@@ -70,7 +70,7 @@ function QuotationList() {
         )
       ) : (
         <div className={cx('transition-opacity', loading && 'opacity-60')} aria-busy={loading}>
-          <Table>
+          <Table label="Quotations">
             <thead>
               <tr>
                 <Th>Quotation</Th>

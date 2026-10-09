@@ -223,7 +223,7 @@ function Dashboard({
         {stats.recentOrders.length === 0 ? (
           <EmptyState title="No orders yet" description="Orders placed online or accepted from quotations appear here." icon={<Package aria-hidden="true" />} />
         ) : (
-          <Table>
+          <Table label="Recent orders">
             <thead>
               <tr>
                 <Th>Order</Th>
@@ -283,7 +283,7 @@ function Dashboard({
         {stats.lowStockProducts.length === 0 ? (
           <EmptyState title="Stock levels look healthy" description="Every active product is above its reorder threshold." icon={<Boxes aria-hidden="true" />} />
         ) : (
-          <Table>
+          <Table label="Low stock">
             <thead>
               <tr>
                 <Th>SKU</Th>

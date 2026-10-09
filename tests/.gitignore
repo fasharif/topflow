@@ -1,0 +1,10 @@
+# Signed-in browser sessions written by e2e/auth.setup.ts
+.auth/
+
+# Playwright output, HTML report, k6 and Schemathesis reports
+test-results/
+reports/
+
+# Schemathesis and Hypothesis working state
+contract/.hypothesis/
+contract/.schemathesis/

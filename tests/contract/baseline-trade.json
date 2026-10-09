@@ -1,0 +1,33 @@
+{
+  "format_version": 1,
+  "schemathesis_version": "4.28.0",
+  "entries": [
+    {
+      "id": "970a63",
+      "operation": "PATCH /org/members/{memberId}",
+      "check": "positive_data_acceptance",
+      "failure": "RejectedPositiveData",
+      "signature": "400",
+      "first_seen": "2026-09-26",
+      "last_seen": "2026-09-26"
+    },
+    {
+      "id": "30a7a8",
+      "operation": "POST /org/invitations",
+      "check": "positive_data_acceptance",
+      "failure": "RejectedPositiveData",
+      "signature": "400",
+      "first_seen": "2026-09-26",
+      "last_seen": "2026-09-26"
+    },
+    {
+      "id": "b555ff",
+      "operation": "POST /org/quotations/{id}/respond",
+      "check": "positive_data_acceptance",
+      "failure": "RejectedPositiveData",
+      "signature": "400",
+      "first_seen": "2026-09-26",
+      "last_seen": "2026-09-26"
+    }
+  ]
+}

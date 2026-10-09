@@ -3,10 +3,11 @@
   "version": "1.0.1",
   "private": true,
   "license": "MIT",
-  "description": "TopFlow Hub — B2B/B2C irrigation & flow-control commerce platform for Top Flow (Turborepo monorepo)",
+  "description": "TopFlow Hub: a portfolio B2B/B2C commerce platform built on Top Flow's irrigation and flow-control catalogue (Turborepo monorepo)",
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "tests"
   ],
   "packageManager": "npm@11.17.0",
   "overrides": {
@@ -40,7 +41,8 @@
     "supabase": "^2.118.0",
     "tsx": "^4.23.13",
     "turbo": "^2.11.5",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "zod": "4.6.5"
   },
   "engines": {
     "node": ">=22"

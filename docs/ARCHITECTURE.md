@@ -220,12 +220,18 @@ sequenceDiagram
 
 | Level | Tooling | Focus |
 | --- | --- | --- |
-| Static | TypeScript strict, ESLint (type-aware), compile-time Prisma ↔ shared enum parity | Contract drift, unsafe code |
-| Unit | Jest, `node:test` | Money/VAT, state machines, permissions, schemas, Supabase token verification, guards, error mapping, config, error reporting, the demo mail guard and demo policy, the demo reset's safety checks, the web app's authentication Server Actions in and out of demo mode, its notices, page titles and noindex in both builds, the local setup script |
-| End-to-end | Jest + Supertest against PostgreSQL; `next start` over HTTP | Real middleware stack with simulated Supabase Auth: provisioning, MFA, invitations, RBAC, tenant isolation, procurement and fulfilment journeys, RLS lockdown; a second suite in demo mode; the web app's demo and ordinary production builds |
-| Delivery | GitHub Actions | Every push lints, type-checks, tests and builds every workspace; nightly encrypted backups |
+| Static | TypeScript strict, ESLint (type-aware), compile-time Prisma ↔ shared enum parity, shellcheck, actionlint | Contract drift, unsafe code |
+| Unit | Jest, `node:test` | Money/VAT, state machines, permissions, schemas, decision tables for purchase approval and credit release, the web app's basket refresh and order tracker, the mobile app's cart pricing and order request, Supabase token verification, guards, error mapping, OpenAPI post-processing, config, error reporting, the demo mail guard and demo policy, the demo reset's safety checks, the web app's authentication Server Actions in and out of demo mode, its notices, page titles and noindex in both builds, the local setup script |
+| End-to-end | Jest + Supertest against PostgreSQL; `next start` over HTTP | Real middleware stack with simulated Supabase Auth: provisioning, MFA, invitations, RBAC, tenant isolation, procurement and fulfilment journeys, decision-table boundaries, simultaneous credit releases, RLS lockdown, the published OpenAPI description; a second suite in demo mode; the web app's demo and ordinary production builds |
+| System | Playwright against the whole stack (Supabase CLI, production builds), in `tests/` | The three money paths as the demo users, a price changed during checkout, tenant isolation, role limits, cross-site writes, tampered prices, money columns visible at 1280 × 720, tables that are tab stops only while they scroll |
+| Accessibility | axe-core in the Playwright run | WCAG 2.2 A/AA on storefront, account, trade-portal and back-office pages, at desktop and phone size |
+| Load | k6 (container) | p95 targets per endpoint; a smoke run in CI that fails on errors, measured runs on a quiet machine only |
+| API contract | Schemathesis (container), three passes | Responses and validation against the published OpenAPI description as a customer, as back-office staff (reads) and as a trade company, with triaged findings in a baseline per pass |
+| Delivery | GitHub Actions | Every push lints, type-checks, tests and builds every workspace and reports API coverage; pull requests and `develop` run the system tests and upload the Playwright report, which is published to GitHub Pages from `develop` once Pages is enabled for the repository; nightly encrypted backups |
 | Containers | Docker, Trivy, Docker Compose | Images built and scanned (critical vulnerabilities fail the build); the production-like stack started and smoke-tested with a real Supabase sign-in, `/auth/me` and a quotation PDF |
 | Infrastructure | `terraform test` (mocked provider), tflint, Trivy, ShellCheck | Secrets only through SSM, read-only containers, HTTPS, deploy-role trust, alarms, input validation; the deploy script against a fake AWS CLI; the backup restore drill end to end |
+
+The plan behind these levels — scope, risks, environments, entry and exit criteria, decision tables and traceability — is in [testing/TEST-PLAN.md](testing/TEST-PLAN.md), and ADR-022 of [DECISIONS.md](DECISIONS.md) records the strategy.
 
 ## 10. Operations
 

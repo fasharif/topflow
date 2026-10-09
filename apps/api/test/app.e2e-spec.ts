@@ -2,7 +2,9 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import {
   calculateTotals,
+  formatMoney,
   fromFils,
+  ORGANIZATION_HEADER,
   retailDeliveryFeeFils,
   toFils,
   type AddressDto,
@@ -136,6 +138,142 @@ describe('TopFlow Hub API (e2e)', () => {
       const exposed = await prisma.$queryRaw<Array<{ tablename: string }>>`
         SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND NOT rowsecurity`;
       expect(exposed).toEqual([]);
+    });
+
+    it('publishes the validation rules and the error envelope in its OpenAPI description', async () => {
+      const document = (await http().get('/docs-json').expect(200)).body as {
+        paths: Record<
+          string,
+          Record<
+            string,
+            { responses: Record<string, unknown>; security?: unknown }
+          >
+        >;
+        components: {
+          schemas: Record<
+            string,
+            { properties?: Record<string, Record<string, unknown>> }
+          >;
+        };
+      };
+      const { schemas } = document.components;
+      expect(schemas.InvitationTokenDto.properties?.token).toMatchObject({
+        minLength: 20,
+      });
+      expect(
+        schemas.CreateWebsiteQuoteRequestDto.properties?.phone,
+      ).toHaveProperty('pattern');
+      // Money is a number or a digits string; it was published as an array of numbers (BUG-16).
+      expect(
+        schemas.ReviewOrganizationDto.properties?.creditLimit,
+      ).toMatchObject({
+        anyOf: [
+          { type: 'number', minimum: 0 },
+          { type: 'string', pattern: expect.any(String) },
+        ],
+      });
+      expect(JSON.stringify(document)).not.toContain(
+        '"type":"array","items":{"type":"number"}',
+      );
+      expect(schemas.InviteMemberDto.properties?.email).toMatchObject({
+        format: 'email',
+      });
+      // OpenAPI 3.0 only allows boolean exclusive bounds next to minimum/maximum.
+      expect(JSON.stringify(document)).not.toMatch(
+        /"exclusive(Minimum|Maximum)":-?\d/,
+      );
+      const envelope = expect.objectContaining({
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/ApiError' },
+          },
+        },
+      });
+      // Each operation lists the error statuses it can answer, not a catch-all default (BUG-04).
+      const checkout = document.paths['/me/orders'].post.responses;
+      expect(Object.keys(checkout).sort()).toEqual([
+        '201',
+        '400',
+        '401',
+        '403',
+        '404',
+        '409',
+        '422',
+        '429',
+        '5XX',
+      ]);
+      expect(checkout['422']).toEqual(envelope);
+      const operations = Object.values(document.paths).flatMap((item) =>
+        Object.values(item),
+      );
+      expect(operations.filter((o) => 'default' in o.responses)).toEqual([]);
+      // Public operations answer no 401 or 403 and need no token; the rest need the bearer token.
+      const quoteRequest = document.paths['/quote-requests'].post;
+      expect(quoteRequest.responses).not.toHaveProperty('401');
+      expect(quoteRequest).not.toHaveProperty('security');
+      expect(document.paths['/me/orders'].get).toMatchObject({
+        security: [{ bearer: [] }],
+      });
+    });
+
+    it('describes ids and the organization header as UUIDs in its OpenAPI description', async () => {
+      type Parameter = {
+        in: string;
+        name: string;
+        required?: boolean;
+        schema?: { type?: string; format?: string };
+      };
+      const document = (await http().get('/docs-json').expect(200)).body as {
+        paths: Record<string, Record<string, { parameters?: Parameter[] }>>;
+      };
+      const parameters = Object.entries(document.paths).flatMap(
+        ([path, item]) =>
+          Object.entries(item).flatMap(([method, operation]) =>
+            (operation.parameters ?? []).map((parameter) => ({
+              operation: `${method.toUpperCase()} ${path}`,
+              ...parameter,
+            })),
+          ),
+      );
+      // Every path id is validated with ParseUUIDPipe, except the product slug and the numeric
+      // category ids; the organisation guard refuses a header that is not a UUID (BUG-06).
+      const stringIds = parameters.filter(
+        (p) =>
+          p.in === 'path' && p.schema?.type === 'string' && p.name !== 'slug',
+      );
+      expect(stringIds.length).toBeGreaterThan(30);
+      expect(stringIds.filter((p) => p.schema?.format !== 'uuid')).toEqual([]);
+      // The catalogue's optional header ignores other values, so only /org requires a UUID.
+      const headers = parameters.filter(
+        (p) =>
+          p.in === 'header' &&
+          p.name === ORGANIZATION_HEADER &&
+          p.operation.includes(' /org'),
+      );
+      expect(headers.length).toBeGreaterThan(20);
+      expect(headers.filter((p) => p.schema?.format !== 'uuid')).toEqual([]);
+      expect(headers.filter((p) => p.required !== true)).toEqual([]);
+    });
+
+    it('treats an empty includeInactive filter as absent', async () => {
+      const page = (
+        await http().get('/catalog/products?includeInactive=').expect(200)
+      ).body as Paginated<ProductDto>;
+      expect(page.items.length).toBeGreaterThan(0);
+      await http().get('/catalog/products?includeInactive=maybe').expect(400);
+    });
+
+    it('ignores NUL characters in input instead of failing on them', async () => {
+      const search = async (term: string) =>
+        (
+          await http()
+            .get('/catalog/products')
+            .query({ search: term, pageSize: 5 })
+            .expect(200)
+        ).body as Paginated<ProductDto>;
+      const plain = await search('drip');
+      expect(plain.total).toBeGreaterThan(0);
+      expect((await search('dr\u0000ip')).total).toBe(plain.total);
     });
 
     it('trusts a forwarded client address only from the web app', async () => {
@@ -993,6 +1131,50 @@ describe('TopFlow Hub API (e2e)', () => {
       expect((await product('AX-EFS-002')).stockQuantity).toBe(
         fitting.stockQuantity - 2,
       );
+    });
+
+    it('refuses an order whose total differs from the total the customer was shown', async () => {
+      const customer = await sessionFor('customer@example.com');
+      const addresses = (
+        await http().get('/me/addresses').set(bearer(customer)).expect(200)
+      ).body as AddressDto[];
+      const fitting = await product('AX-EFS-002');
+      const netSubtotal = toFils(fitting.unitPrice);
+      const expected = calculateTotals(
+        [{ listPriceFils: netSubtotal, quantity: 1 }],
+        { deliveryFeeFils: retailDeliveryFeeFils(netSubtotal) },
+      );
+      const checkout = (expectedTotal: string) =>
+        http()
+          .post('/me/orders')
+          .set(bearer(customer))
+          .send({
+            items: [{ productId: fitting.id, quantity: 1 }],
+            addressId: addresses[0].id,
+            paymentMethod: 'CASH_ON_DELIVERY',
+            expectedTotal,
+          });
+      // A total shown from a stale or edited basket (one fils less) is refused, nothing is ordered.
+      const ordersBefore = (
+        await http().get('/me/orders').set(bearer(customer)).expect(200)
+      ).body as Paginated<unknown>;
+      const refused = await checkout(fromFils(expected.totalFils - 1)).expect(
+        409,
+      );
+      expect(refused.body).toMatchObject({
+        code: 'PRICE_CHANGED',
+        message: expect.stringContaining(
+          `now comes to ${formatMoney(fromFils(expected.totalFils))}`,
+        ),
+      });
+      const ordersAfter = (
+        await http().get('/me/orders').set(bearer(customer)).expect(200)
+      ).body as Paginated<unknown>;
+      expect(ordersAfter.total).toBe(ordersBefore.total);
+      // The total the server computes is accepted.
+      const order = (await checkout(fromFils(expected.totalFils)).expect(201))
+        .body as OrderDto;
+      expect(order.totalAmount).toBe(fromFils(expected.totalFils));
     });
 
     it('leaves a paid order for Top Flow to cancel, then records the refund', async () => {

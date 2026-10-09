@@ -139,7 +139,7 @@ function CategoriesManager() {
               {pluralize(groups.length, 'category', 'categories')} · {pluralize(lineTotal, 'product line')}
               {loading && <Spinner className="size-4 text-brand-600" />}
             </div>
-            <Table>
+            <Table label="Categories">
               <thead>
                 <tr>
                   <Th>Category</Th>

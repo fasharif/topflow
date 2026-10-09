@@ -1,0 +1,38 @@
+# Tool containers for the system tests (see tests/README.md). They run one-off against the stack on
+# the host, which they reach as host.docker.internal. Images are pinned; Dependabot proposes updates.
+# On Linux they run as the calling user (TOOL_USER, set by scripts/common.sh), so the reports they
+# write belong to that user; HOME points at /tmp because that user has no home in the image.
+name: topflow-system-tests
+
+x-host-access: &host-access
+  user: '${TOOL_USER:-0:0}'
+  environment:
+    HOME: /tmp
+  extra_hosts:
+    - 'host.docker.internal:host-gateway'
+
+services:
+  k6:
+    <<: *host-access
+    image: grafana/k6:2.3.0
+    mem_limit: 512m
+    working_dir: /load
+    volumes:
+      - ./load:/load:ro
+      - ./reports:/reports
+
+  schemathesis:
+    <<: *host-access
+    image: schemathesis/schemathesis:4.28.0
+    mem_limit: 1g
+    working_dir: /contract
+    volumes:
+      - ./contract:/contract
+      - ./reports:/reports
+
+  ffmpeg:
+    image: linuxserver/ffmpeg:9.0-cli-ls83
+    user: '0:0'
+    mem_limit: 512m
+    volumes:
+      - ./reports:/reports

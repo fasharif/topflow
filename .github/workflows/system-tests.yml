@@ -1,0 +1,178 @@
+name: System tests
+
+# Starts the whole stack on the runner (Supabase Auth, PostgreSQL and Mailpit from the Supabase CLI;
+# the API and the web app from production builds), seeds the demo data and tests it from outside:
+# Playwright journeys with axe accessibility scans, a k6 smoke run and Schemathesis. The Playwright
+# HTML report is uploaded as an artifact; test-report-pages.yml publishes the one from develop
+# once GitHub Pages is enabled for the repository. Local equivalent: tests/README.md.
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [develop]
+  workflow_dispatch:
+
+concurrency:
+  group: system-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: 24
+  TURBO_TELEMETRY_DISABLED: 1
+  NEXT_TELEMETRY_DISABLED: 1
+
+jobs:
+  system-tests:
+    name: Playwright + axe, k6 smoke, Schemathesis
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      E2E_API_URL: http://localhost:3000
+      E2E_WEB_URL: http://localhost:3002
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Start Supabase (Auth, PostgreSQL, Mailpit)
+        run: |
+          npx supabase start -x realtime,storage-api,imgproxy,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+          npx supabase status -o env > "$RUNNER_TEMP/supabase.env"
+          value() { sed -n "s/^$1=\"\{0,1\}\([^\"]*\)\"\{0,1\}$/\1/p" "$RUNNER_TEMP/supabase.env"; }
+          secret_key="$(value SECRET_KEY)"
+          internal_secret="$(openssl rand -hex 32)"
+          echo "::add-mask::$secret_key"
+          echo "::add-mask::$internal_secret"
+          {
+            echo "E2E_SUPABASE_URL=$(value API_URL)"
+            echo "E2E_SUPABASE_PUBLISHABLE_KEY=$(value PUBLISHABLE_KEY)"
+            echo "E2E_SUPABASE_SECRET_KEY=$secret_key"
+            echo "E2E_MAILPIT_URL=$(value MAILPIT_URL)"
+            echo "E2E_INTERNAL_API_SECRET=$internal_secret"
+            echo "DATABASE_URL=$(value DB_URL)"
+          } >> "$GITHUB_ENV"
+          rm "$RUNNER_TEMP/supabase.env"
+
+      - name: Build shared packages
+        run: npx turbo run build --filter=@topflow/shared --filter=@topflow/database
+
+      - name: Apply migrations and seed the demo profile, with sign-in identities
+        run: |
+          npm run db:deploy
+          npm run db:seed
+        env:
+          SUPABASE_URL: ${{ env.E2E_SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ env.E2E_SUPABASE_SECRET_KEY }}
+
+      - name: Build the API and the web app
+        run: npx turbo run build --filter=@topflow/api --filter=web
+        env:
+          API_INTERNAL_URL: ${{ env.E2E_API_URL }}
+          NEXT_PUBLIC_SITE_URL: ${{ env.E2E_WEB_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.E2E_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ env.E2E_SUPABASE_PUBLISHABLE_KEY }}
+
+      # Browser traffic reaches the API through the web app's server as one shopper (127.0.0.1),
+      # so the per-client rate limits are raised; staff MFA is covered by the API suite.
+      - name: Start the API
+        run: |
+          mkdir -p tests/reports
+          nohup npm run start:prod -w @topflow/api > tests/reports/api.log 2>&1 &
+        env:
+          NODE_ENV: test
+          PORT: 3000
+          APP_PUBLIC_URL: ${{ env.E2E_WEB_URL }}
+          CORS_ORIGINS: ${{ env.E2E_WEB_URL }}
+          SUPABASE_URL: ${{ env.E2E_SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ env.E2E_SUPABASE_SECRET_KEY }}
+          INTERNAL_API_SECRET: ${{ env.E2E_INTERNAL_API_SECRET }}
+          STAFF_MFA_REQUIRED: false
+          THROTTLE_LIMIT: 100000
+          AUTH_THROTTLE_LIMIT: 1000
+          MAIL_TRANSPORT: console
+
+      - name: Start the web app
+        run: nohup npm run start -w web > tests/reports/web.log 2>&1 &
+        env:
+          API_INTERNAL_URL: ${{ env.E2E_API_URL }}
+          INTERNAL_API_SECRET: ${{ env.E2E_INTERNAL_API_SECRET }}
+
+      - name: Wait for the API and the web app
+        run: |
+          for url in "$E2E_API_URL/health/ready" "$E2E_WEB_URL/login"; do
+            if ! timeout 120 bash -c "until curl -sf -o /dev/null '$url'; do sleep 2; done"; then
+              echo "::error::$url did not become ready"
+              cat tests/reports/api.log tests/reports/web.log
+              exit 1
+            fi
+          done
+
+      - name: Install Chromium for Playwright
+        run: npx -w @topflow/system-tests playwright install --with-deps chromium
+
+      - name: Playwright journeys, security checks and axe scans
+        run: npm run e2e -w @topflow/system-tests
+
+      - name: k6 smoke run
+        if: ${{ !cancelled() }}
+        run: npm run load -w @topflow/system-tests
+        env:
+          K6_PROFILE: smoke
+
+      - name: Schemathesis
+        if: ${{ !cancelled() }}
+        run: npm run contract -w @topflow/system-tests
+
+      - name: Summarise the k6 run (functional check, not a measurement)
+        if: ${{ !cancelled() && hashFiles('tests/reports/k6/summary-smoke.json') != '' }}
+        run: |
+          {
+            echo "### k6 smoke run"
+            echo
+            echo "One virtual user per scenario (three in all) on a shared CI runner. The run fails on errors and failed checks; timings are shown for information, are not gated in the smoke profile and are not a performance measurement."
+            echo
+            node tests/scripts/k6-summary-table.mts tests/reports/k6/summary-smoke.json
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Summarise the Schemathesis passes
+        if: ${{ !cancelled() && hashFiles('tests/reports/schemathesis/run-*.json') != '' }}
+        run: |
+          {
+            echo "### Schemathesis"
+            echo
+            node tests/scripts/schemathesis-summary.mts tests/reports/schemathesis
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: tests/reports/playwright
+          retention-days: 30
+
+      - name: Upload traces, k6 and Schemathesis reports, and server logs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: system-test-results
+          path: |
+            tests/test-results
+            tests/reports/k6
+            tests/reports/schemathesis
+            tests/reports/*.log
+          retention-days: 14
+
+      - name: Stop Supabase
+        if: always()
+        run: npx supabase stop --no-backup

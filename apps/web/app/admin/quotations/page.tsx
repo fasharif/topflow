@@ -83,7 +83,7 @@ function QuotationList() {
       ) : (
         <div className={cx('motion-safe:transition-opacity', loading && 'opacity-60')} aria-busy={loading}>
           <p className="mb-2 text-sm text-slate-500">{pluralize(data.total, 'quotation')}</p>
-          <Table>
+          <Table label="Quotations">
             <thead>
               <tr>
                 <Th>Quotation</Th>

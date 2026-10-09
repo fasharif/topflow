@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { StockStatus, UnitOfMeasure } from '../enums';
 import { toFils } from '../money';
-import { moneySchema, optionalText, paginationSchema, slugSchema } from './common';
+import { moneySchema, optionalText, paginationSchema, queryFlagSchema, slugSchema } from './common';
 
 /** An absolute http(s) URL, or a path served by the web app such as `/catalog/products/disc-filter.webp`. */
 const imageUrlSchema = z
@@ -34,7 +34,7 @@ export const productQuerySchema = paginationSchema.extend({
   stockStatus: z.enum(StockStatus).optional(),
   sort: z.enum(ProductSort).default(ProductSort.NEWEST),
   /** Staff only: include unpublished products. */
-  includeInactive: z.stringbool().optional(),
+  includeInactive: queryFlagSchema,
 });
 export type ProductQuery = z.infer<typeof productQuerySchema>;
 
@@ -51,7 +51,7 @@ const productShape = {
   name: z.string().trim().min(2).max(160),
   slug: slugSchema,
   brand: optionalText(60),
-  categoryId: z.number().int().positive().nullable(),
+  categoryId: z.number().int().min(1).nullable(),
   description: optionalText(5000),
   specifications: z.record(z.string().trim().min(1).max(60), specificationValue),
   unitPrice: moneySchema,
@@ -106,7 +106,7 @@ const categoryShape = {
   description: optionalText(1000),
   imageUrl: imageUrlSchema.nullable(),
   displayOrder: z.number().int().min(0).max(10_000),
-  parentId: z.number().int().positive().nullable(),
+  parentId: z.number().int().min(1).nullable(),
 };
 
 export const createCategorySchema = z.object({

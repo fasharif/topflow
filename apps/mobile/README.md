@@ -92,12 +92,14 @@ Supabase Auth owns identities, passwords, sessions, email confirmation and passw
 
 DTO types, enum labels, the order workflow (`ORDER_PROGRESS`), money helpers, error codes and Zod schemas all come from `packages/shared`, so the app stays in lockstep with the API and the web app. Forms validate with the same schemas the API uses: `loginSchema`, `registerSchema`, `forgotPasswordSchema`, `addressSchema`, `cancelOrderSchema` and `createWebsiteQuoteRequestSchema`.
 
-### Cart and server-side pricing (`src/lib/cart.ts`)
+### Cart and server-side pricing (`src/lib/cart.ts`, `src/lib/cart-pricing.ts`)
 
 - The cart is an external store persisted to AsyncStorage. Quantities never go below a product's minimum order quantity.
 - Totals are previewed with the shared integer-fils helpers (`toFils`, `calculateTotals`, `retailDeliveryFeeFils`); the app never uses floating-point money maths.
-- These totals are **only a preview**. Checkout sends product IDs, quantities, the address ID and the payment method, and the API re-prices every line, delivery and VAT.
+- Each line keeps the product's price from when it was added. The cart screen loads every product from the catalogue when it opens (`useCartPriceRefresh`) and shows the current prices; when a product cannot be loaded, it says that the total may be out of date.
+- Checkout sends product IDs, quantities, the address ID, the payment method and the total the cart shows (`expectedTotal`). The API re-prices every line, delivery and VAT, and refuses the order with 409 `PRICE_CHANGED` when its total differs; the app then loads the current prices and shows the API's message with the new total, so the customer is never charged an amount they were not shown (BUG-02 in `docs/testing/BUGS-FOUND.md`).
 - Stock (409) and minimum-order or availability (422) problems come back as API messages and are shown to the customer.
+- The pricing rules live in `cart-pricing.ts`, which has no React Native imports; `npm test -w mobile` runs its unit tests with Node's test runner.
 
 ### Prices and quote requests (`src/components/product-price.tsx`, `src/app/quote-request.tsx`)
 

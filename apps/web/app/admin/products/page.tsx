@@ -147,7 +147,7 @@ function ProductsList() {
       <>
         <ResultSummary page={data.page} pageSize={data.pageSize} total={data.total} singular="product" loading={loading} />
         <div aria-busy={loading} className={loading ? 'opacity-70 transition-opacity' : 'transition-opacity'}>
-          <Table>
+          <Table label="Products">
             <thead>
               <tr>
                 <Th>SKU</Th>

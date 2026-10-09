@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { OrgRole, UnitOfMeasure } from '../enums';
 import {
   changePasswordSchema,
@@ -7,7 +8,7 @@ import {
   signUpMetadataSchema,
 } from './auth';
 import { createProductSchema, productQuerySchema, updateProductSchema } from './catalog';
-import { moneySchema, optionalText } from './common';
+import { emailSchema, moneySchema, optionalText } from './common';
 import { checkoutSchema } from './orders';
 import { acceptInvitationSchema, inviteMemberSchema } from './organizations';
 import {
@@ -75,6 +76,29 @@ describe('request schemas', () => {
     expect(moneySchema.safeParse('12,5').success).toBe(false);
   });
 
+  it('publishes money as a non-negative number or a digits string, not as an array (BUG-16)', () => {
+    const schema = z.toJSONSchema(z.object({ amount: moneySchema }), { io: 'input', target: 'openapi-3.0' }) as {
+      properties: Record<string, unknown>;
+    };
+    expect(schema.properties.amount).toEqual({
+      anyOf: [
+        { type: 'number', minimum: 0 },
+        { type: 'string', pattern: expect.any(String) },
+      ],
+    });
+    expect(moneySchema.safeParse('abc').error?.issues[0]?.message).toBe('Enter a valid amount, e.g. 125.50');
+    expect(moneySchema.safeParse(-3).error?.issues[0]?.message).toBe('Amount cannot be negative');
+    expect(moneySchema.parse(' 12.5 ')).toBe('12.50');
+  });
+
+  it('publishes email addresses with the email format and still trims them', () => {
+    const schema = z.toJSONSchema(z.object({ email: emailSchema }), { io: 'input', target: 'openapi-3.0' }) as {
+      properties: Record<string, unknown>;
+    };
+    expect(schema.properties.email).toMatchObject({ type: 'string', format: 'email' });
+    expect(emailSchema.parse('  Jane@TopFlow.example ')).toBe('jane@topflow.example');
+  });
+
   it('treats blank optional text as absent', () => {
     expect(optionalText(10).parse('   ')).toBeUndefined();
   });
@@ -83,6 +107,28 @@ describe('request schemas', () => {
     const created = createProductSchema.parse({ sku: 'ws-533', name: 'Rotor', unitPrice: '45.5' });
     expect(created).toMatchObject({ sku: 'WS-533', uom: UnitOfMeasure.PIECE, isActive: true, unitPrice: '45.50' });
     expect(updateProductSchema.parse({ name: 'Rotor v2' })).toEqual({ name: 'Rotor v2' });
+  });
+
+  it('accepts category ids from 1 and no category at all', () => {
+    expect(updateProductSchema.safeParse({ categoryId: 0 }).success).toBe(false);
+    expect(updateProductSchema.parse({ categoryId: 1 })).toEqual({ categoryId: 1 });
+    expect(updateProductSchema.parse({ categoryId: null })).toEqual({ categoryId: null });
+  });
+
+  it('reads the includeInactive flag and ignores an empty value (BUG-07)', () => {
+    expect(productQuerySchema.parse({ includeInactive: '' }).includeInactive).toBeUndefined();
+    expect(productQuerySchema.parse({}).includeInactive).toBeUndefined();
+    expect(productQuerySchema.parse({ includeInactive: '1' }).includeInactive).toBe(true);
+    expect(productQuerySchema.parse({ includeInactive: 'false' }).includeInactive).toBe(false);
+    expect(productQuerySchema.parse({ includeInactive: '0' }).includeInactive).toBe(false);
+    expect(productQuerySchema.safeParse({ includeInactive: 'maybe' }).success).toBe(false);
+  });
+
+  it('publishes the values the includeInactive flag accepts', () => {
+    const schema = z.toJSONSchema(productQuerySchema, { io: 'input' }) as { properties: Record<string, { type?: string; enum?: string[] }> };
+    const flag = schema.properties.includeInactive ?? {};
+    expect(flag.type).toBe('string');
+    expect([...(flag.enum ?? [])].sort()).toEqual(['', '0', '1', 'false', 'true']);
   });
 
   it('coerces catalog query strings', () => {

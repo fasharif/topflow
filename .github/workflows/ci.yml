@@ -46,12 +46,21 @@ jobs:
           npm run check-types -w @topflow/database
           npm test -w @topflow/database
 
-      - name: API — lint, typecheck, unit tests, build
+      - name: API — lint, typecheck, unit tests with coverage, build
         run: |
           npm run lint -w @topflow/api
           npm run check-types -w @topflow/api
-          npm test -w @topflow/api
+          npm run test:cov -w @topflow/api
           npm run build -w @topflow/api
+
+      - name: API — unit test coverage summary
+        run: node apps/api/scripts/coverage-summary.mjs >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: api-coverage-unit
+          path: apps/api/coverage/unit
+          retention-days: 14
 
       # The smoke test starts the production build and checks, over HTTP, that an ordinary build shows the
       # portfolio notice, noindex and a robots.txt that lets crawlers read it, and no demo banner, demo
@@ -84,8 +93,25 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
 
-      - name: Mobile — typecheck
-        run: npx tsc --noEmit -p apps/mobile
+      - name: Mobile — typecheck and unit tests
+        run: |
+          npx tsc --noEmit -p apps/mobile
+          npm test -w mobile
+
+      # The suites themselves run in system-tests.yml against the whole stack. ShellCheck is the
+      # pinned version the infra-scripts job uses, not the one the runner ships.
+      - name: System tests — lint, typecheck and ShellCheck
+        run: |
+          npm run lint -w @topflow/system-tests
+          npm run check-types -w @topflow/system-tests
+          docker run --rm -v "$PWD:/mnt:ro" -w /mnt koalaman/shellcheck:v0.11.0 -x tests/load/*.sh tests/contract/run-schemathesis.sh tests/scripts/*.sh
+
+      # The script guard that keeps Schemathesis off shared stacks, and the load profile's p95 gates,
+      # which CI's smoke runs never evaluate (k6 inspect in the pinned container; no stack needed).
+      - name: System tests — script guards and the k6 load profile's thresholds
+        run: |
+          bash tests/scripts/common.test.sh
+          npm run load:check -w @topflow/system-tests
 
   e2e:
     name: API end-to-end tests (PostgreSQL)
@@ -138,8 +164,26 @@ jobs:
         run: npm run demo:rehearse -w @topflow/database
 
       # Supabase Auth is simulated inside the suite (locally signed test tokens), so no network is needed.
-      - name: Run end-to-end suite
-        run: npm run test:e2e -w @topflow/api
+      - name: Run end-to-end suite with coverage
+        run: npm run test:e2e:cov -w @topflow/api
+
+      - name: End-to-end coverage summary
+        run: node apps/api/scripts/coverage-summary.mjs >> "$GITHUB_STEP_SUMMARY"
+
+      # Breaks each decision-table rule and the credit row lock in turn; fails if the tests miss one.
+      - name: Mutation check of the money rules
+        run: |
+          {
+            echo "### Mutation check"
+            echo
+            node tests/scripts/mutation-check.mts --with-db
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: api-coverage-e2e
+          path: apps/api/coverage/e2e
+          retention-days: 14
 
   infra-scripts:
     name: Infrastructure scripts and workflows

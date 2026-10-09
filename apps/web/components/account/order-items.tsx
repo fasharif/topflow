@@ -1,5 +1,5 @@
 import { UOM_LABELS, toFils, type OrderDto } from '@topflow/shared';
-import { Card, CardHeader, Td, Th, cx } from '@/components/ui';
+import { Card, CardHeader, ScrollRegion, Td, Th, cx } from '@/components/ui';
 import { aed, pluralize } from '@/lib/format';
 
 function TotalRow({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
@@ -13,43 +13,65 @@ function TotalRow({ label, value, strong = false }: { label: string; value: stri
 
 type ItemsOrder = Pick<OrderDto, 'items' | 'subtotal' | 'deliveryFee' | 'vatAmount' | 'vatRateBps' | 'totalAmount'>;
 
-/** Line items with per-line VAT, followed by the document totals exactly as invoiced. */
+/**
+ * Line items with per-line VAT, followed by the document totals exactly as invoiced. The table
+ * needs 42rem; where the card is narrower (phones, or beside the order's side panel) each line is
+ * stacked instead, so the totals are never hidden behind a sideways scroll.
+ */
 export function OrderItemsCard({ order }: { order: ItemsOrder }) {
   const freeDelivery = toFils(order.deliveryFee) === 0;
 
   return (
     <Card>
       <CardHeader title="Items" description={pluralize(order.items.length, 'product')} />
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-left text-sm">
-          <thead>
-            <tr>
-              <Th>Product</Th>
-              <Th className="text-right">Qty</Th>
-              <Th className="text-right">Unit price</Th>
-              <Th className="text-right">Subtotal</Th>
-              <Th className="text-right">VAT</Th>
-              <Th className="text-right">Total</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {order.items.map((item) => (
-              <tr key={item.id}>
-                <Td>
+      <div className="@container">
+        <ScrollRegion label="Order items" className="hidden @2xl:block">
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead>
+              <tr>
+                <Th>Product</Th>
+                <Th className="text-right">Qty</Th>
+                <Th className="text-right">Unit price</Th>
+                <Th className="text-right">Subtotal</Th>
+                <Th className="text-right">VAT</Th>
+                <Th className="text-right">Total</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {order.items.map((item) => (
+                <tr key={item.id}>
+                  <Td>
+                    <p className="font-medium text-ink-900">{item.productName}</p>
+                    <p className="font-mono text-xs text-slate-500">{item.sku}</p>
+                  </Td>
+                  <Td className="whitespace-nowrap text-right tabular-nums">
+                    {item.quantity} {UOM_LABELS[item.uom]}
+                  </Td>
+                  <Td className="whitespace-nowrap text-right tabular-nums">{aed(item.unitPrice)}</Td>
+                  <Td className="whitespace-nowrap text-right tabular-nums">{aed(item.lineSubtotal)}</Td>
+                  <Td className="whitespace-nowrap text-right tabular-nums text-slate-600">{aed(item.vatAmount)}</Td>
+                  <Td className="whitespace-nowrap text-right font-semibold tabular-nums text-ink-900">{aed(item.lineTotal)}</Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </ScrollRegion>
+        <ul aria-label="Order items" className="divide-y divide-slate-200 @2xl:hidden">
+          {order.items.map((item) => (
+            <li key={item.id} className="px-5 py-3 text-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
                   <p className="font-medium text-ink-900">{item.productName}</p>
                   <p className="font-mono text-xs text-slate-500">{item.sku}</p>
-                </Td>
-                <Td className="whitespace-nowrap text-right tabular-nums">
-                  {item.quantity} {UOM_LABELS[item.uom]}
-                </Td>
-                <Td className="whitespace-nowrap text-right tabular-nums">{aed(item.unitPrice)}</Td>
-                <Td className="whitespace-nowrap text-right tabular-nums">{aed(item.lineSubtotal)}</Td>
-                <Td className="whitespace-nowrap text-right tabular-nums text-slate-600">{aed(item.vatAmount)}</Td>
-                <Td className="whitespace-nowrap text-right font-semibold tabular-nums text-ink-900">{aed(item.lineTotal)}</Td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </div>
+                <p className="whitespace-nowrap font-semibold tabular-nums text-ink-900">{aed(item.lineTotal)}</p>
+              </div>
+              <p className="mt-1 text-xs text-slate-600">
+                {item.quantity} {UOM_LABELS[item.uom]} × {aed(item.unitPrice)} · subtotal {aed(item.lineSubtotal)} + VAT {aed(item.vatAmount)}
+              </p>
+            </li>
+          ))}
+        </ul>
       </div>
       <div className="border-t border-slate-200 px-5 py-4">
         <dl className="ml-auto max-w-xs space-y-2 text-sm">
