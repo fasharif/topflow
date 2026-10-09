@@ -23,7 +23,7 @@ services:
 
   schemathesis:
     <<: *host-access
-    image: schemathesis/schemathesis:4.28.0
+    image: schemathesis/schemathesis:v4.29.3
     mem_limit: 1g
     working_dir: /contract
     volumes:
