@@ -1,4 +1,4 @@
-import type { INestApplication } from '@nestjs/common';
+import type { INestApplication, NestApplicationOptions } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ORGANIZATION_HEADER } from '@topflow/shared';
@@ -19,6 +19,14 @@ function requestId(req: AppRequest, res: Response, next: NextFunction): void {
   res.setHeader('x-request-id', id);
   next();
 }
+
+/**
+ * The options every instance of the application is created with: main.ts and the end-to-end
+ * tests pass the same object. rawBody keeps the exact bytes of a request body next to the parsed
+ * one, because webhooks are verified against the bytes that were signed (ADR-024). Without it
+ * the dispatch endpoint refuses every request for having no body.
+ */
+export const APP_OPTIONS: NestApplicationOptions = { rawBody: true };
 
 /**
  * HTTP hardening shared by main.ts and the end-to-end tests, so tests exercise exactly

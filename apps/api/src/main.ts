@@ -4,12 +4,15 @@ import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
-import { configureApp } from './bootstrap';
+import { APP_OPTIONS, configureApp } from './bootstrap';
 import { APP_CONFIG } from './config/config.module';
 import type { AppConfig } from './config/env';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(
+    AppModule,
+    APP_OPTIONS,
+  );
   const config = app.get<AppConfig>(APP_CONFIG);
   configureApp(app, config);
 

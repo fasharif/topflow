@@ -41,4 +41,32 @@ describe('StripNulPipe', () => {
     const date = new Date(0);
     expect(pipe.transform({ at: date }, as('body'))).toEqual({ at: date });
   });
+
+  it('walks deeply nested input without exhausting the call stack', () => {
+    // 50,000 levels: a recursive walk failed from about 6,000 (a 12 KB body), answered as a 500.
+    const DEPTH = 50_000;
+    let nested: unknown = 'x\u0000';
+    for (let depth = 0; depth < DEPTH; depth += 1) {
+      nested = depth % 2 === 0 ? [nested] : { next: nested };
+    }
+    let cursor = pipe.transform(nested, as('body'));
+    for (let depth = 0; depth < DEPTH; depth += 1) {
+      cursor = Array.isArray(cursor)
+        ? (cursor as unknown[])[0]
+        : (cursor as { next: unknown }).next;
+    }
+    expect(cursor).toBe('x');
+  });
+
+  it('keeps a key named __proto__ as an ordinary key', () => {
+    const body = JSON.parse(
+      '{"__proto__":{"admin":"y\\u0000"},"name":"n"}',
+    ) as object;
+    const cleaned = pipe.transform(body, as('body')) as Record<string, unknown>;
+    expect(Object.keys(cleaned)).toEqual(['__proto__', 'name']);
+    expect(Object.getPrototypeOf(cleaned)).toBe(Object.prototype);
+    expect(JSON.stringify(cleaned)).toBe(
+      '{"__proto__":{"admin":"y"},"name":"n"}',
+    );
+  });
 });

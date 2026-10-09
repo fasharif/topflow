@@ -66,6 +66,8 @@ const ERROR_STATUSES: Record<string, string> = {
   '404': 'Not found, or not visible to the caller',
   '409':
     'Conflict with the current state (for example stock, a duplicate or a finished workflow)',
+  '413': 'The request body is over the size limit (1 MB)',
+  '415': 'The content encoding or character set of the body is not supported',
   '422': 'Well-formed, but breaks a business rule',
   '429': 'Too many requests: rate limit reached',
   '5XX': 'Server error',
@@ -75,7 +77,9 @@ const ERROR_STATUSES: Record<string, string> = {
  * The error statuses an operation can answer, from how the API is built: the global validation
  * pipe (400) for any input, the authentication and permission guards (401, 403) unless the route
  * is public, a lookup by id (404) for path parameters and writes, the state and business checks of
- * writes (409, 422), and the global rate limit (429). Anything else is a server error.
+ * writes (409, 422), the body parser's refusals for operations that take a body (413 over the
+ * size limit, 415 for an encoding or character set it does not read), and the global rate limit
+ * (429). Anything else is a server error.
  */
 export function errorStatusesFor(
   method: string,
@@ -84,13 +88,16 @@ export function errorStatusesFor(
 ): string[] {
   const parameters = (operation.parameters ?? []) as Array<{ in?: string }>;
   const hasPathParameter = parameters.some((p) => p.in === 'path');
-  const hasInput = parameters.length > 0 || operation.requestBody !== undefined;
+  const hasBody = operation.requestBody !== undefined;
+  const hasInput = parameters.length > 0 || hasBody;
   const writes = MUTATIONS.has(method);
   return [
     ...(hasInput ? ['400'] : []),
     ...(isPublic ? [] : ['401', '403']),
     ...(hasPathParameter || writes ? ['404'] : []),
-    ...(writes ? ['409', '422'] : []),
+    ...(writes ? ['409'] : []),
+    ...(hasBody ? ['413', '415'] : []),
+    ...(writes ? ['422'] : []),
     '429',
     '5XX',
   ];

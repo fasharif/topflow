@@ -140,6 +140,17 @@ export const PaymentStatus = {
 } as const;
 export type PaymentStatus = ValueOf<typeof PaymentStatus>;
 
+/**
+ * What a received dispatch event did: changed an order, needed no change, or (a completed delivery
+ * for an order the warehouse has not marked dispatched yet) waits to be applied at dispatch.
+ */
+export const DispatchEventOutcome = {
+  APPLIED: 'APPLIED',
+  IGNORED: 'IGNORED',
+  PENDING: 'PENDING',
+} as const;
+export type DispatchEventOutcome = ValueOf<typeof DispatchEventOutcome>;
+
 // ─── Human-readable labels for UIs and PDFs ───────────────────────────────
 
 export const ROLE_LABELS: Record<Role, string> = {

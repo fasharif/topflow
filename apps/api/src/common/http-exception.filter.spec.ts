@@ -1,9 +1,10 @@
-import { ArgumentsHost, NotFoundException } from '@nestjs/common';
+import { ArgumentsHost, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@topflow/database';
 import { InvalidTransitionError } from '@topflow/shared';
 import { ZodValidationException } from 'nestjs-zod';
 import { z } from 'zod';
 import { initErrorReporting } from '../observability/sentry';
+import { FeatureDisabledException } from './feature-disabled.exception';
 import { HttpExceptionFilter } from './http-exception.filter';
 
 function run(exception: unknown) {
@@ -88,6 +89,93 @@ describe('HttpExceptionFilter', () => {
       });
     } finally {
       initErrorReporting({});
+    }
+  });
+
+  it('answers 503 for a switched-off feature without treating it as a server error', () => {
+    const sdk = { init: jest.fn(), captureException: jest.fn() };
+    initErrorReporting(
+      { SENTRY_DSN: 'https://key@o1.ingest.sentry.io/1' },
+      sdk,
+    );
+    const error = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+    const warn = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+    try {
+      expect(
+        run(
+          new FeatureDisabledException(
+            'The dispatch integration is not configured',
+            'INTEGRATION_DISABLED',
+          ),
+        ),
+      ).toMatchObject({
+        status: 503,
+        body: {
+          statusCode: 503,
+          error: 'Service Unavailable',
+          message: 'The dispatch integration is not configured',
+          code: 'INTEGRATION_DISABLED',
+          requestId: 'req-42',
+        },
+      });
+      expect(sdk.captureException).not.toHaveBeenCalled();
+      expect(error).not.toHaveBeenCalled();
+      // One line with the path (no query string) and the request id.
+      expect(warn).toHaveBeenCalledWith(
+        'GET /test → 503: The dispatch integration is not configured [req-42]',
+      );
+    } finally {
+      error.mockRestore();
+      warn.mockRestore();
+      initErrorReporting({});
+    }
+  });
+
+  it('keeps the 4xx status of a request the body parser refused', () => {
+    // What body-parser raises (through http-errors) for a body over the limit.
+    const tooLarge = Object.assign(new Error('request entity too large'), {
+      status: 413,
+      statusCode: 413,
+      expose: true,
+      type: 'entity.too.large',
+    });
+    expect(run(tooLarge)).toMatchObject({
+      status: 413,
+      body: {
+        statusCode: 413,
+        error: 'Payload Too Large',
+        message: 'Request entity too large',
+      },
+    });
+    const encoding = Object.assign(
+      new Error('unsupported content encoding "bogus"'),
+      { status: 415, expose: true, type: 'encoding.unsupported' },
+    );
+    expect(run(encoding)).toMatchObject({
+      status: 415,
+      body: { error: 'Unsupported Media Type' },
+    });
+  });
+
+  it('does not take a status from an error that is not marked for the client', () => {
+    // http-errors sets expose only on 4xx; a 5xx, or a status on some other error, stays a 500.
+    for (const error of [
+      Object.assign(new Error('stream encoding should not be set'), {
+        status: 500,
+        expose: false,
+      }),
+      Object.assign(new Error('upstream said no'), { status: 404 }),
+      Object.assign(new Error('odd'), { status: 200, expose: true }),
+    ]) {
+      const { status, body } = run(error);
+      expect(status).toBe(500);
+      expect(body.message).toBe(
+        'Something went wrong. Please try again later.',
+      );
     }
   });
 

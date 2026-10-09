@@ -6,6 +6,7 @@
 //   Catalog ................. Category, Product
 //   Procurement ............. QuoteRequest (RFQ) -> Quotation (revisions) -> Order
 //   Fulfilment .............. Order, OrderItem, OrderStatusEvent
+//   Integrations ............ DispatchEvent (webhooks from the dispatch delivery service)
 //   Platform ................ AuditLog, DocumentSequence
 //
 // Money is stored as DECIMAL (AED, 2dp) and always computed server-side in integer fils
@@ -529,8 +530,9 @@ model Order {
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
 
-  items  OrderItem[]
-  events OrderStatusEvent[]
+  items          OrderItem[]
+  events         OrderStatusEvent[]
+  dispatchEvents DispatchEvent[]
 
   @@index([userId])
   @@index([organizationId, status])
@@ -573,6 +575,40 @@ model OrderStatusEvent {
 
   @@index([orderId])
   @@map("order_status_events")
+}
+
+// ─────────────────────────────── Integrations ───────────────────────────────
+
+/// What a received dispatch event did.
+enum DispatchEventOutcome {
+  /// It changed an order (delivery.completed moved it to DELIVERED).
+  APPLIED
+  /// Nothing to change: an event type TopFlow does not act on, or an order already delivered.
+  IGNORED
+  /// delivery.completed for an order the warehouse has not marked DISPATCHED yet; it is applied
+  /// in the same transaction as that change.
+  PENDING
+}
+
+/// Every webhook event received from the dispatch delivery service, keyed by the sender's event
+/// id. The row is written in the same transaction as the order change it causes, so a repeated
+/// event is recognised and never applied twice.
+model DispatchEvent {
+  /// The event id chosen by dispatch (x-dispatch-event-id).
+  id             String               @id
+  type           String
+  deliveryId     String
+  orderReference String
+  orderId        String?
+  order          Order?               @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  outcome        DispatchEventOutcome
+  occurredAt     DateTime
+  payload        Json
+  receivedAt     DateTime             @default(now())
+
+  @@index([orderId])
+  @@index([receivedAt])
+  @@map("dispatch_events")
 }
 
 // ─────────────────────────────── Platform ───────────────────────────────

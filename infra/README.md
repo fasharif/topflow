@@ -145,6 +145,7 @@ The order matters: ECS services are created without tasks, so nothing starts bef
      --name /topflow-hub/staging/api/DATABASE_URL --value 'postgresql://...'
    ```
    `DATABASE_URL` is Supabase's transaction pooler (port 6543), `DIRECT_URL` its session pooler (5432), `INTERNAL_API_SECRET` 32+ random characters, `SUPABASE_SECRET_KEY` the project's secret key, `RESEND_API_KEY` the email key.
+   The secret of the dispatch webhooks (`DISPATCH_WEBHOOK_SECRET`, ADR-024) is not one of these parameters: the layout does not pass it to the API, so the delivery-tracking integration is off on AWS, and its endpoint answers 503, until the layout provides it ([runbook, section 13](../docs/OPERATIONS.md#13-delivery-tracking-the-dispatch-service)).
 7. **Point DNS** for both host names at the `load_balancer_dns_name` output, and set the `aws-staging` environment's variables: `AWS_DEPLOY_ROLE_ARN` (the `deploy_role_arn` output), `WEB_URL` and `API_URL`.
 8. **Run the first release**: the Deploy workflow with `staging`, `deploy` and a `sha-<commit>` tag from the Containers workflow. It migrates the database, then starts each service at its auto scaling minimum.
 9. For the uptime check, set the repository variables `UPTIME_WEB_URL` and `UPTIME_API_URL`, then uncomment the schedule in `.github/workflows/uptime.yml` (off until then, so the Actions tab is not filled with runs that only skip).

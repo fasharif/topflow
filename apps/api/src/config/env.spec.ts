@@ -190,4 +190,26 @@ describe('loadConfig', () => {
       'https://topflow-hub.vercel.app',
     ]);
   });
+
+  it('accepts the current and the previous dispatch webhook secret, current first', () => {
+    const off = loadConfig({ DATABASE_URL: 'postgres://db' });
+    expect(off.integrations.dispatchWebhookSecrets).toEqual([]);
+    expect(off.integrations.dispatchWebhookToleranceSeconds).toBe(300);
+
+    const rotating = loadConfig({
+      DATABASE_URL: 'postgres://db',
+      DISPATCH_WEBHOOK_SECRET: 'n'.repeat(32),
+      DISPATCH_WEBHOOK_SECRET_PREVIOUS: 'o'.repeat(32),
+    });
+    expect(rotating.integrations.dispatchWebhookSecrets).toEqual([
+      'n'.repeat(32),
+      'o'.repeat(32),
+    ]);
+    expect(() =>
+      loadConfig({
+        DATABASE_URL: 'postgres://db',
+        DISPATCH_WEBHOOK_SECRET: 'short',
+      }),
+    ).toThrow(/DISPATCH_WEBHOOK_SECRET/);
+  });
 });

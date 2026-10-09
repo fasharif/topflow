@@ -9,6 +9,7 @@ import {
 } from './auth';
 import { createProductSchema, productQuerySchema, updateProductSchema } from './catalog';
 import { emailSchema, moneySchema, optionalText } from './common';
+import { dispatchEventEnvelopeSchema, dispatchEventSchema, isKnownDispatchEventType } from './integrations';
 import { checkoutSchema } from './orders';
 import { acceptInvitationSchema, inviteMemberSchema } from './organizations';
 import {
@@ -183,5 +184,56 @@ describe('request schemas', () => {
 
   it('defaults invited members to BUYER', () => {
     expect(inviteMemberSchema.parse({ email: 'buyer@oasis.ae' }).role).toBe(OrgRole.BUYER);
+  });
+
+  it('accepts a signed-off delivery.completed event from dispatch and rejects unknown event types', () => {
+    const event = {
+      id: '7b0e8f2e-8d0a-4c55-9d6f-2f1d3c4b5a61',
+      type: 'delivery.completed',
+      createdAt: '2026-09-20T10:00:00.000Z',
+      data: {
+        deliveryId: '1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f',
+        orderReference: 'TF-SO-2026-000123',
+        status: 'delivered',
+        occurredAt: '2026-09-20T09:59:30.000+04:00',
+        driver: { id: PRODUCT_ID, name: 'Omar Haddad' },
+        proof: {
+          recipientName: 'Aisha Rahman',
+          capturedAt: '2026-09-20T09:59:00.000Z',
+          withinGeofence: true,
+          distanceMeters: 12.4,
+          hasPhoto: true,
+          hasSignature: true,
+        },
+      },
+    };
+    expect(dispatchEventSchema.parse(event).data.proof?.withinGeofence).toBe(true);
+    expect(dispatchEventSchema.safeParse({ ...event, type: 'delivery.teleported' }).success).toBe(false);
+    expect(dispatchEventSchema.safeParse({ ...event, id: 'not-a-uuid' }).success).toBe(false);
+    // Dates that are not ISO 8601 with an offset, that do not exist, or that cannot be stored (year 0000).
+    for (const occurredAt of ['2026-09-20 10:00', '2026-09-20T10:00:00', '2026-02-30T10:00:00.000Z', '0000-01-01T00:00:00.000Z']) {
+      const changed = { ...event, data: { ...event.data, occurredAt } };
+      expect(dispatchEventSchema.safeParse(changed).success).toBe(false);
+      expect(dispatchEventEnvelopeSchema.safeParse(changed).success).toBe(false);
+    }
+  });
+
+  it('reads the envelope of an event type it does not know, so it can be recorded', () => {
+    const future = {
+      id: '7b0e8f2e-8d0a-4c55-9d6f-2f1d3c4b5a62',
+      type: 'delivery.rescheduled',
+      createdAt: '2026-09-20T10:00:00.000Z',
+      data: {
+        deliveryId: '1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f',
+        orderReference: 'TF-SO-2026-000123',
+        occurredAt: '2026-09-20T10:00:00.000Z',
+        newWindow: { from: '2026-09-21T08:00:00.000Z' },
+      },
+    };
+    expect(isKnownDispatchEventType(future.type)).toBe(false);
+    expect(isKnownDispatchEventType('delivery.completed')).toBe(true);
+    const envelope = dispatchEventEnvelopeSchema.parse(future);
+    expect(envelope.data.newWindow).toEqual({ from: '2026-09-21T08:00:00.000Z' });
+    expect(dispatchEventEnvelopeSchema.safeParse({ ...future, data: { orderReference: 'x' } }).success).toBe(false);
   });
 });

@@ -98,7 +98,7 @@ The defaults match the commands above; set these to test another stack. Schemath
 
 | Pass | Operations | Account and test data |
 | --- | --- | --- |
-| `customer` | all except the trade portal (`/org/...`), which refuses a customer before any code behind it runs | `fuzz.<run>@e2e.topflow.test`, with a saved address and one order whose ids `schemathesis.toml` gives to the operations that read, change or cancel them |
+| `customer` | all except the trade portal (`/org/...`), which refuses a customer before any code behind it runs, and the dispatch webhook (`/integrations/...`), which only accepts requests signed with a shared secret and is covered by the API's own suites | `fuzz.<run>@e2e.topflow.test`, with a saved address and one order whose ids `schemathesis.toml` gives to the operations that read, change or cancel them |
 | `staff` | `GET /admin/...` only | `staff.<run>@e2e.topflow.test`, promoted to Administrator by the demo administrator. Back-office writes are not fuzzed, because they would change the shared demo catalogue, users and companies |
 | `trade` | `/org/...` | `trade.<run>@e2e.topflow.test`, owner of a new company ("Fuzz Trading …") waiting for verification, whose id goes in the `x-organization-id` header |
 

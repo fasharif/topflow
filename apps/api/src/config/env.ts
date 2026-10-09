@@ -160,6 +160,21 @@ export const envSchema = z
     COMPANY_WEBSITE: z.string().default('www.topflow.ae'),
     COMPANY_BANK_DETAILS: z.string().optional(),
 
+    /**
+     * Shared with the dispatch delivery service, which signs its webhooks with it (ADR-024).
+     * Unset, POST /integrations/dispatch/events answers 503. The previous secret stays valid
+     * while a new one is rolled out.
+     */
+    DISPATCH_WEBHOOK_SECRET: z.string().min(32).optional(),
+    DISPATCH_WEBHOOK_SECRET_PREVIOUS: z.string().min(32).optional(),
+    /** How old (or how far in the future) a signed timestamp may be before it is refused. */
+    DISPATCH_WEBHOOK_TOLERANCE_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(30)
+      .max(3600)
+      .default(300),
+
     ...sentryEnvShape,
   })
   .superRefine((env, ctx) => {
@@ -274,6 +289,11 @@ export interface AppConfig {
     website: string;
     bankDetails?: string;
   };
+  integrations: {
+    /** Secrets accepted on dispatch webhooks, current first. Empty: the integration is off. */
+    dispatchWebhookSecrets: string[];
+    dispatchWebhookToleranceSeconds: number;
+  };
 }
 
 export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -332,6 +352,13 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       email: env.COMPANY_EMAIL,
       website: env.COMPANY_WEBSITE,
       bankDetails: env.COMPANY_BANK_DETAILS,
+    },
+    integrations: {
+      dispatchWebhookSecrets: [
+        env.DISPATCH_WEBHOOK_SECRET,
+        env.DISPATCH_WEBHOOK_SECRET_PREVIOUS,
+      ].filter((secret): secret is string => Boolean(secret)),
+      dispatchWebhookToleranceSeconds: env.DISPATCH_WEBHOOK_TOLERANCE_SECONDS,
     },
   };
 }

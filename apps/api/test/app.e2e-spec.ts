@@ -1,4 +1,4 @@
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import {
   calculateTotals,
@@ -9,6 +9,8 @@ import {
   toFils,
   type AddressDto,
   type AuthUser,
+  type DispatchEvent,
+  type DispatchEventReceiptDto,
   type CategoryDto,
   type OrderDto,
   type Paginated,
@@ -22,11 +24,12 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { IdentityAdminService } from '../src/auth/identity-admin.service';
-import { configureApp } from '../src/bootstrap';
+import { APP_OPTIONS, configureApp } from '../src/bootstrap';
 import { APP_CONFIG } from '../src/config/config.module';
 import type { AppConfig } from '../src/config/env';
 import { MailService } from '../src/mail/mail.service';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { dispatchEvent, signDispatchBody } from './support/dispatch';
 import {
   FakeIdentityAdmin,
   signAccessToken,
@@ -100,7 +103,7 @@ describe('TopFlow Hub API (e2e)', () => {
       .overrideProvider(IdentityAdminService)
       .useValue(identities)
       .compile();
-    app = moduleRef.createNestApplication();
+    app = moduleRef.createNestApplication(APP_OPTIONS);
     configureApp(app, app.get<AppConfig>(APP_CONFIG));
     await app.init();
     // Listen once for the whole suite. SuperTest then reuses this server instead of starting and
@@ -198,6 +201,8 @@ describe('TopFlow Hub API (e2e)', () => {
         '403',
         '404',
         '409',
+        '413',
+        '415',
         '422',
         '429',
         '5XX',
@@ -274,6 +279,42 @@ describe('TopFlow Hub API (e2e)', () => {
       const plain = await search('drip');
       expect(plain.total).toBeGreaterThan(0);
       expect((await search('dr\u0000ip')).total).toBe(plain.total);
+    });
+
+    it('validates a body nested thousands of levels deep instead of failing on it', async () => {
+      // About 40 KB of brackets. Removing NUL characters used to walk the body recursively, ran
+      // out of call stack from about 6,000 levels, and the request was answered as a 500.
+      const depth = 20_000;
+      const refused = await http()
+        .post('/quote-requests')
+        .set('content-type', 'application/json')
+        .send(`{"message":${'['.repeat(depth)}${']'.repeat(depth)}}`)
+        .expect(400);
+      expect(refused.body).toMatchObject({ statusCode: 400 });
+      expect(Array.isArray(refused.body.details)).toBe(true);
+    });
+
+    it('answers 413 to a body over the size limit and 415 to an encoding it does not read', async () => {
+      // The body parser refuses both before any controller runs; they were answered as 500.
+      const tooLarge = await http()
+        .post('/quote-requests')
+        .set('content-type', 'application/json')
+        .send(JSON.stringify({ message: 'x'.repeat(1_100_000) }))
+        .expect(413);
+      expect(tooLarge.body).toMatchObject({
+        statusCode: 413,
+        error: 'Payload Too Large',
+      });
+      const encoding = await http()
+        .post('/quote-requests')
+        .set('content-type', 'application/json')
+        .set('content-encoding', 'bogus')
+        .send('{}')
+        .expect(415);
+      expect(encoding.body).toMatchObject({
+        statusCode: 415,
+        error: 'Unsupported Media Type',
+      });
     });
 
     it('trusts a forwarded client address only from the web app', async () => {
@@ -1267,6 +1308,647 @@ describe('TopFlow Hub API (e2e)', () => {
         .set(bearer(await sessionFor('warehouse@topflow.example')))
         .send({})
         .expect(403);
+    });
+  });
+
+  describe('dispatch integration (delivery webhooks)', () => {
+    const secret = () => process.env.DISPATCH_WEBHOOK_SECRET ?? '';
+    const send = (
+      event: DispatchEvent,
+      options: { signature?: string; body?: string } = {},
+    ) => {
+      const body = options.body ?? JSON.stringify(event);
+      return http()
+        .post('/integrations/dispatch/events')
+        .set('content-type', 'application/json')
+        .set('x-dispatch-event-id', event.id)
+        .set('x-dispatch-event-type', event.type)
+        .set(
+          'x-dispatch-signature',
+          options.signature ?? signDispatchBody(secret(), body),
+        )
+        .send(body);
+    };
+
+    /** A retail cash-on-delivery order, moved by the warehouse up to the given status. */
+    const retailOrder = async (
+      until: 'PROCESSING' | 'DISPATCHED',
+    ): Promise<OrderDto> => {
+      const customer = await sessionFor('customer@example.com');
+      const warehouse = await sessionFor('warehouse@topflow.example');
+      const addresses = (
+        await http().get('/me/addresses').set(bearer(customer)).expect(200)
+      ).body as AddressDto[];
+      const order = (
+        await http()
+          .post('/me/orders')
+          .set(bearer(customer))
+          .send({
+            items: [
+              { productId: (await product('AX-EFS-002')).id, quantity: 1 },
+            ],
+            addressId: addresses[0].id,
+            paymentMethod: 'CASH_ON_DELIVERY',
+          })
+          .expect(201)
+      ).body as OrderDto;
+      const steps =
+        until === 'DISPATCHED'
+          ? (['PROCESSING', 'DISPATCHED'] as const)
+          : (['PROCESSING'] as const);
+      for (const status of steps) {
+        await http()
+          .patch(`/admin/orders/${order.id}/status`)
+          .set(bearer(warehouse))
+          .send({ status })
+          .expect(200);
+      }
+      return order;
+    };
+    const orderById = async (id: string): Promise<OrderDto> =>
+      (
+        await http()
+          .get(`/admin/orders/${id}`)
+          .set(bearer(await sessionFor('admin@topflow.example')))
+          .expect(200)
+      ).body as OrderDto;
+
+    it('marks a dispatched order delivered, once, from a signed delivery.completed event', async () => {
+      const order = await retailOrder('DISPATCHED');
+      const event = dispatchEvent('delivery.completed', order.orderNumber);
+
+      const first = await send(event).expect(200);
+      expect(first.body as DispatchEventReceiptDto).toEqual({
+        eventId: event.id,
+        outcome: 'APPLIED',
+        orderNumber: order.orderNumber,
+        orderStatus: 'DELIVERED',
+      });
+      const delivered = await orderById(order.id);
+      expect(delivered).toMatchObject({
+        status: 'DELIVERED',
+        // The same rule as for the warehouse: cash on delivery is collected at the door.
+        paymentStatus: 'PAID',
+      });
+      const confirmation = delivered.events.find(
+        (e) => e.toStatus === 'DELIVERED',
+      );
+      expect(confirmation?.note).toContain(
+        'Delivery confirmed by dispatch (driver Omar Haddad): signed by Aisha Rahman, 12 m from the drop-off point',
+      );
+      expect(confirmation?.note).toContain('Payment collected on delivery');
+      expect(mail.lastMessageTo('customer@example.com')?.subject).toContain(
+        'Delivered',
+      );
+      const audit = await prisma.auditLog.findFirstOrThrow({
+        where: { entityId: order.id, action: 'orders.status_changed' },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(audit).toMatchObject({ userId: null });
+      expect(audit.details).toMatchObject({
+        from: 'DISPATCHED',
+        to: 'DELIVERED',
+        source: 'dispatch',
+        eventId: event.id,
+      });
+
+      // dispatch delivers at least once: the same event again changes nothing.
+      const again = await send(event).expect(200);
+      expect((again.body as DispatchEventReceiptDto).outcome).toBe('DUPLICATE');
+      const after = await orderById(order.id);
+      expect(
+        after.events.filter((e) => e.toStatus === 'DELIVERED'),
+      ).toHaveLength(1);
+      expect(
+        await prisma.dispatchEvent.findUniqueOrThrow({
+          where: { id: event.id },
+        }),
+      ).toMatchObject({ outcome: 'APPLIED', orderId: order.id });
+    });
+
+    it('refuses unsigned, tampered, stale and foreign-secret requests', async () => {
+      const order = await retailOrder('DISPATCHED');
+      const event = dispatchEvent('delivery.completed', order.orderNumber);
+      const body = JSON.stringify(event);
+
+      const unsigned = await http()
+        .post('/integrations/dispatch/events')
+        .set('content-type', 'application/json')
+        .send(body)
+        .expect(401);
+      expect(unsigned.body).toMatchObject({ code: 'INVALID_SIGNATURE' });
+      await send(event, {
+        body: body.replace('Aisha Rahman', 'Someone Else'),
+        signature: signDispatchBody(secret(), body),
+      }).expect(401);
+      const stale = await send(event, {
+        signature: signDispatchBody(
+          secret(),
+          body,
+          Math.floor(Date.now() / 1000) - 3600,
+        ),
+      }).expect(401);
+      expect(stale.body.message).toMatch(/outside the accepted window/);
+      await send(event, {
+        signature: signDispatchBody('x'.repeat(48), body),
+      }).expect(401);
+
+      expect((await orderById(order.id)).status).toBe('DISPATCHED');
+      expect(
+        await prisma.dispatchEvent.count({ where: { id: event.id } }),
+      ).toBe(0);
+    });
+
+    it('keeps a completion that arrives before the warehouse dispatches the order, and applies it then', async () => {
+      const order = await retailOrder('PROCESSING');
+      const event = dispatchEvent('delivery.completed', order.orderNumber);
+
+      // Acknowledged, so dispatch does not retry or give up; the order waits for the warehouse.
+      const early = await send(event).expect(200);
+      expect(early.body as DispatchEventReceiptDto).toEqual({
+        eventId: event.id,
+        outcome: 'PENDING',
+        orderNumber: order.orderNumber,
+        orderStatus: 'PROCESSING',
+      });
+      expect((await orderById(order.id)).status).toBe('PROCESSING');
+      expect(
+        await prisma.dispatchEvent.findUniqueOrThrow({
+          where: { id: event.id },
+        }),
+      ).toMatchObject({ outcome: 'PENDING', orderId: order.id });
+
+      // A repeat of the same event is still a duplicate.
+      const again = await send(event).expect(200);
+      expect((again.body as DispatchEventReceiptDto).outcome).toBe('DUPLICATE');
+
+      // The warehouse marks the order dispatched: the waiting delivery is applied in that change.
+      const dispatched = await http()
+        .patch(`/admin/orders/${order.id}/status`)
+        .set(bearer(await sessionFor('warehouse@topflow.example')))
+        .send({ status: 'DISPATCHED' })
+        .expect(200);
+      const after = dispatched.body as OrderDto;
+      expect(after).toMatchObject({
+        status: 'DELIVERED',
+        paymentStatus: 'PAID',
+      });
+      expect(after.events.map((e) => e.toStatus).slice(-2)).toEqual([
+        'DISPATCHED',
+        'DELIVERED',
+      ]);
+      expect(after.events.at(-1)?.note).toContain(
+        'The driver completed it before the order was marked dispatched',
+      );
+      expect(Date.parse(after.deliveredAt ?? '')).toBeGreaterThanOrEqual(
+        Date.parse(after.dispatchedAt ?? ''),
+      );
+      expect(
+        await prisma.dispatchEvent.findUniqueOrThrow({
+          where: { id: event.id },
+        }),
+      ).toMatchObject({ outcome: 'APPLIED' });
+      const audit = await prisma.auditLog.findFirstOrThrow({
+        where: { entityId: order.id, action: 'orders.status_changed' },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(audit).toMatchObject({ userId: null });
+      expect(audit.details).toMatchObject({
+        to: 'DELIVERED',
+        source: 'dispatch',
+        eventId: event.id,
+        waitedForDispatch: true,
+      });
+      expect(mail.lastMessageTo('customer@example.com')?.subject).toContain(
+        'Delivered',
+      );
+    });
+
+    it('applies one of two copies of an event that arrive at the same moment', async () => {
+      const order = await retailOrder('DISPATCHED');
+      const event = dispatchEvent('delivery.completed', order.orderNumber);
+
+      // The second copy waits for the first transaction (order row lock, then the event's key).
+      const [first, second] = await Promise.all([
+        send(event).expect(200),
+        send(event).expect(200),
+      ]);
+      expect(
+        [first, second]
+          .map((r) => (r.body as DispatchEventReceiptDto).outcome)
+          .sort(),
+      ).toEqual(['APPLIED', 'DUPLICATE']);
+      const after = await orderById(order.id);
+      expect(
+        after.events.filter((e) => e.toStatus === 'DELIVERED'),
+      ).toHaveLength(1);
+      expect(
+        await prisma.auditLog.count({
+          where: {
+            entityId: order.id,
+            action: 'orders.status_changed',
+            details: { path: ['to'], equals: 'DELIVERED' },
+          },
+        }),
+      ).toBe(1);
+    });
+
+    it('never dates a delivery before dispatch, whatever the phone clock says', async () => {
+      const order = await retailOrder('DISPATCHED');
+      const dayAgo = new Date(Date.now() - 24 * 3_600_000).toISOString();
+      const base = dispatchEvent('delivery.completed', order.orderNumber);
+      const event: DispatchEvent = {
+        ...base,
+        data: {
+          ...base.data,
+          occurredAt: dayAgo,
+          proof: base.data.proof && { ...base.data.proof, capturedAt: dayAgo },
+        },
+      };
+
+      await send(event).expect(200);
+      const after = await orderById(order.id);
+      expect(after.status).toBe('DELIVERED');
+      // Delivered, and cash on delivery collected, no earlier than the warehouse dispatched it.
+      expect(after.deliveredAt).toBe(after.dispatchedAt);
+      expect(after.events.at(-1)?.note).toContain(
+        'The reported time was before dispatch, so the dispatch time is recorded',
+      );
+      const audit = await prisma.auditLog.findFirstOrThrow({
+        where: { entityId: order.id, action: 'orders.status_changed' },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(audit.details).toMatchObject({
+        source: 'dispatch',
+        reportedDeliveredAt: new Date(dayAgo).toISOString(),
+      });
+    });
+
+    it('dispatches an order whose waiting completion no longer parses, and sets that event aside', async () => {
+      const order = await retailOrder('PROCESSING');
+      const event = dispatchEvent('delivery.completed', order.orderNumber);
+      // Stored when it was valid; a stricter schema would now refuse it.
+      await prisma.dispatchEvent.create({
+        data: {
+          id: event.id,
+          type: event.type,
+          deliveryId: event.data.deliveryId,
+          orderReference: order.orderNumber,
+          orderId: order.id,
+          outcome: 'PENDING',
+          occurredAt: new Date(event.data.occurredAt),
+          payload: {
+            ...event,
+            data: {
+              ...event.data,
+              proof: { ...event.data.proof, distanceMeters: -5 },
+            },
+          },
+        },
+      });
+
+      const dispatched = await http()
+        .patch(`/admin/orders/${order.id}/status`)
+        .set(bearer(await sessionFor('warehouse@topflow.example')))
+        .send({ status: 'DISPATCHED' })
+        .expect(200);
+      expect((dispatched.body as OrderDto).status).toBe('DISPATCHED');
+      expect(
+        await prisma.dispatchEvent.findUniqueOrThrow({
+          where: { id: event.id },
+        }),
+      ).toMatchObject({ outcome: 'IGNORED' });
+    });
+
+    it('records event types it does not know yet and acknowledges them', async () => {
+      const order = await retailOrder('DISPATCHED');
+      const base = dispatchEvent('delivery.assigned', order.orderNumber);
+      const future = {
+        ...base,
+        type: 'delivery.rescheduled',
+        data: { ...base.data, window: { from: '2026-10-01T08:00:00.000Z' } },
+      };
+      const body = JSON.stringify(future);
+      const receipt = await http()
+        .post('/integrations/dispatch/events')
+        .set('content-type', 'application/json')
+        .set('x-dispatch-event-id', future.id)
+        .set('x-dispatch-signature', signDispatchBody(secret(), body))
+        .send(body)
+        .expect(200);
+      expect(receipt.body as DispatchEventReceiptDto).toMatchObject({
+        outcome: 'IGNORED',
+        orderStatus: null,
+      });
+      expect(
+        await prisma.dispatchEvent.findUniqueOrThrow({
+          where: { id: future.id },
+        }),
+      ).toMatchObject({
+        type: 'delivery.rescheduled',
+        outcome: 'IGNORED',
+        orderId: order.id,
+      });
+      expect((await orderById(order.id)).status).toBe('DISPATCHED');
+
+      // The type is the sender's text. It goes to the log quoted, so that a line break in it
+      // cannot start a second, made-up log line.
+      const forged = {
+        ...future,
+        id: randomUUID(),
+        type: 'delivery.rescheduled\nERROR [HTTP] made-up line',
+      };
+      const forgedBody = JSON.stringify(forged);
+      const log = jest.spyOn(Logger.prototype, 'log');
+      try {
+        await http()
+          .post('/integrations/dispatch/events')
+          .set('content-type', 'application/json')
+          .set('x-dispatch-event-id', forged.id)
+          .set('x-dispatch-signature', signDispatchBody(secret(), forgedBody))
+          .send(forgedBody)
+          .expect(200);
+        const lines = log.mock.calls.map(([message]) => String(message));
+        expect(lines).toEqual([
+          'Recorded a dispatch event of a type TopFlow does not act on: "delivery.rescheduled\\nERROR [HTTP] made-up line"',
+        ]);
+      } finally {
+        log.mockRestore();
+      }
+    });
+
+    it('records other event types and repeat completions without changing the order', async () => {
+      const order = await retailOrder('DISPATCHED');
+      const assigned = dispatchEvent('delivery.assigned', order.orderNumber, {
+        trackingUrl: 'http://localhost:57300/track/v1.example',
+      });
+      const receipt = await send(assigned).expect(200);
+      expect(receipt.body as DispatchEventReceiptDto).toMatchObject({
+        outcome: 'IGNORED',
+        orderStatus: null,
+      });
+      expect(
+        await prisma.dispatchEvent.findUniqueOrThrow({
+          where: { id: assigned.id },
+        }),
+      ).toMatchObject({ type: 'delivery.assigned', orderId: order.id });
+
+      await send(dispatchEvent('delivery.completed', order.orderNumber)).expect(
+        200,
+      );
+      // A second completion under a new event id (a delivery sent again) changes nothing.
+      const repeat = await send(
+        dispatchEvent('delivery.completed', order.orderNumber),
+      ).expect(200);
+      expect(repeat.body as DispatchEventReceiptDto).toMatchObject({
+        outcome: 'IGNORED',
+        orderStatus: 'DELIVERED',
+      });
+    });
+
+    it('rejects events for unknown or cancelled orders as unprocessable', async () => {
+      await send(
+        dispatchEvent('delivery.completed', 'TF-SO-2026-999999'),
+      ).expect(422);
+
+      const order = await retailOrder('PROCESSING');
+      await http()
+        .patch(`/admin/orders/${order.id}/status`)
+        .set(bearer(await sessionFor('sales@topflow.example')))
+        .send({ status: 'CANCELLED', note: 'Customer changed their mind' })
+        .expect(200);
+      const cancelled = await send(
+        dispatchEvent('delivery.completed', order.orderNumber),
+      ).expect(422);
+      expect(cancelled.body.message).toMatch(
+        /cancelled and cannot be delivered/,
+      );
+    });
+
+    it('keeps one delivery when the warehouse and the dispatch service confirm it at the same moment', async () => {
+      const order = await retailOrder('DISPATCHED');
+      const event = dispatchEvent('delivery.completed', order.orderNumber);
+      const warehouse = await sessionFor('warehouse@topflow.example');
+      /** Requests of this test that are waiting for a row lock. */
+      const waiting = async (count: number): Promise<void> => {
+        for (let attempt = 0; attempt < 100; attempt += 1) {
+          const [{ n }] = await prisma.$queryRaw<{ n: number }[]>`
+            SELECT count(*)::int AS n FROM pg_stat_activity
+            WHERE datname = current_database() AND wait_event_type = 'Lock'`;
+          if (n >= count) return;
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        throw new Error(`${count} request(s) never waited for the order row`);
+      };
+
+      // Hold the order row, so both confirmations queue behind it in a known order: the event
+      // first, then the warehouse, which has by then read the order as DISPATCHED.
+      let locked!: () => void;
+      const isLocked = new Promise<void>((resolve) => (locked = resolve));
+      let release!: () => void;
+      const released = new Promise<void>((resolve) => (release = resolve));
+      const holder = prisma.$transaction(
+        async (tx) => {
+          await tx.$queryRaw`SELECT 1 FROM "orders" WHERE "id" = ${order.id} FOR UPDATE`;
+          locked();
+          await released;
+        },
+        { timeout: 30_000 },
+      );
+      await isLocked;
+      let fromDispatch: Promise<request.Response>;
+      let byHand: Promise<request.Response>;
+      try {
+        // SuperTest sends a request when it is awaited; then() starts it without waiting here.
+        fromDispatch = send(event).then((response) => response);
+        await waiting(1);
+        byHand = http()
+          .patch(`/admin/orders/${order.id}/status`)
+          .set(bearer(warehouse))
+          .send({ status: 'DELIVERED' })
+          .then((response) => response);
+        await waiting(2);
+      } finally {
+        release();
+        await holder;
+      }
+
+      const [received, manual] = await Promise.all([fromDispatch, byHand]);
+      expect(received.status).toBe(200);
+      expect((received.body as DispatchEventReceiptDto).outcome).toBe(
+        'APPLIED',
+      );
+      // The warehouse's change was checked against DISPATCHED; the order is no longer in it.
+      // Refused with 409, whatever the wording, and nothing of it is written (below).
+      expect(manual.status).toBe(409);
+      const after = await orderById(order.id);
+      expect(after.status).toBe('DELIVERED');
+      expect(
+        after.events.filter((e) => e.toStatus === 'DELIVERED'),
+      ).toHaveLength(1);
+      expect(after.events.at(-1)?.note).toContain(
+        'Delivery confirmed by dispatch',
+      );
+    });
+
+    it('answers 200 or 400, never 500, to signed events whose content cannot be stored as sent', async () => {
+      const order = await retailOrder('DISPATCHED');
+      const base = dispatchEvent('delivery.completed', order.orderNumber);
+      const event: DispatchEvent = {
+        ...base,
+        data: {
+          ...base.data,
+          proof: base.data.proof && {
+            ...base.data.proof,
+            recipientName: 'Aisha\u0000 Rahman',
+          },
+        },
+      };
+      // PostgreSQL stores U+0000 neither in text nor in JSON: this was a 500, retried by dispatch.
+      const receipt = await send(event).expect(200);
+      expect((receipt.body as DispatchEventReceiptDto).outcome).toBe('APPLIED');
+      const stored = await prisma.dispatchEvent.findUniqueOrThrow({
+        where: { id: event.id },
+      });
+      expect(stored.payload).toMatchObject({
+        data: { proof: { recipientName: 'Aisha Rahman' } },
+      });
+      expect((await orderById(order.id)).events.at(-1)?.note).toContain(
+        'signed by Aisha Rahman',
+      );
+
+      // Year 0000 is valid ISO 8601, but PostgreSQL has no year zero.
+      const refused = await send(
+        dispatchEvent('delivery.assigned', order.orderNumber, {
+          occurredAt: '0000-01-01T00:00:00.000Z',
+        }),
+      ).expect(400);
+      expect(refused.body.message).toMatch(/data\.occurredAt/);
+
+      // Far deeper than any real event (theirs are 3 levels deep): it could not be written as JSON.
+      const deep = dispatchEvent('delivery.assigned', order.orderNumber);
+      const body = JSON.stringify(deep).replace(
+        '"driver":',
+        `"extra":${'['.repeat(40)}${']'.repeat(40)},"driver":`,
+      );
+      const tooDeep = await send(deep, { body }).expect(400);
+      expect(tooDeep.body.message).toMatch(/nested more than 32 levels/);
+      expect(await prisma.dispatchEvent.count({ where: { id: deep.id } })).toBe(
+        0,
+      );
+    });
+
+    it('refuses a signed body over the size limit without recording the event', async () => {
+      const order = await retailOrder('DISPATCHED');
+      const event = dispatchEvent('delivery.completed', order.orderNumber);
+      const body = JSON.stringify({ ...event, padding: 'x'.repeat(1_100_000) });
+      const refused = await send(event, { body }).expect(413);
+      expect(refused.body).toMatchObject({ error: 'Payload Too Large' });
+      expect(
+        await prisma.dispatchEvent.count({ where: { id: event.id } }),
+      ).toBe(0);
+      expect((await orderById(order.id)).status).toBe('DISPATCHED');
+    });
+
+    it('publishes what the endpoint takes and answers in the OpenAPI description', async () => {
+      const document = (await http().get('/docs-json').expect(200)).body as {
+        paths: Record<
+          string,
+          Record<
+            string,
+            {
+              responses: Record<string, unknown>;
+              requestBody?: unknown;
+              security?: unknown;
+            }
+          >
+        >;
+        components: { schemas: Record<string, { required?: string[] }> };
+      };
+      const operation = document.paths['/integrations/dispatch/events'].post;
+      // Public to Supabase Auth, so no bearer token; but it has its own 401, for a bad signature,
+      // and a 503 while the integration is switched off, which the sender retries.
+      expect(operation).not.toHaveProperty('security');
+      expect(Object.keys(operation.responses).sort()).toEqual([
+        '200',
+        '400',
+        '401',
+        '404',
+        '409',
+        '413',
+        '415',
+        '422',
+        '429',
+        '503',
+        '5XX',
+      ]);
+      expect(operation.responses['200']).toMatchObject({
+        content: {
+          'application/json': {
+            schema: {
+              properties: {
+                outcome: {
+                  enum: ['APPLIED', 'IGNORED', 'PENDING', 'DUPLICATE'],
+                },
+              },
+            },
+          },
+        },
+      });
+      for (const status of ['401', '503']) {
+        expect(operation.responses[status]).toMatchObject({
+          description: expect.any(String),
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ApiError' },
+            },
+          },
+        });
+      }
+      expect(operation.requestBody).toMatchObject({
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/DispatchEventEnvelopeDto' },
+          },
+        },
+      });
+      expect(
+        document.components.schemas.DispatchEventEnvelopeDto.required,
+      ).toEqual(['id', 'type', 'createdAt', 'data']);
+    });
+
+    it('validates the event body and its id header', async () => {
+      const event = dispatchEvent('delivery.completed', 'TF-SO-2026-000001');
+      const post = (body: string, eventId: string | null) => {
+        const request = http()
+          .post('/integrations/dispatch/events')
+          .set('content-type', 'application/json')
+          .set('x-dispatch-signature', signDispatchBody(secret(), body));
+        if (eventId) request.set('x-dispatch-event-id', eventId);
+        return request.send(body);
+      };
+      // A known type is checked in full: a completion needs a valid proof.
+      const invalid = JSON.stringify({
+        ...event,
+        data: {
+          ...event.data,
+          proof: { ...event.data.proof, distanceMeters: -5 },
+        },
+      });
+      const refused = await post(invalid, event.id).expect(400);
+      expect(refused.body.message).toMatch(/proof\.distanceMeters/);
+      // Every event needs the envelope, whatever its type.
+      await post(
+        JSON.stringify({ ...event, type: 'delivery.rescheduled', data: {} }),
+        event.id,
+      ).expect(400);
+      // The event id header is required and must match the body.
+      const missing = await post(JSON.stringify(event), null).expect(400);
+      expect(missing.body.message).toMatch(
+        /x-dispatch-event-id header is missing/,
+      );
+      await post(JSON.stringify(event), randomUUID()).expect(400);
     });
   });
 });

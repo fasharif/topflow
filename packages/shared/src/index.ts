@@ -19,5 +19,6 @@ export * from './schemas/catalog';
 export * from './schemas/procurement';
 export * from './schemas/orders';
 export * from './schemas/platform';
+export * from './schemas/integrations';
 
 export type * from './types';
