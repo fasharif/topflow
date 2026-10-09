@@ -16,7 +16,7 @@
 
 # The base image, pinned by tag and digest, on a literal FROM line so Dependabot can update both
 # (it does not read images from build arguments). Every other stage starts from this one.
-FROM public.ecr.aws/docker/library/node:26.10.0-alpine3.24@sha256:0b36e8c136b94cd4fcf02188228e76c31ad5872eef3fec8cbd2eee500cfd9e80 AS node-base
+FROM public.ecr.aws/docker/library/node:26.11.1-alpine3.24@sha256:143494b1da2945f061539253adc65e4f1569ddf07da2d384c022c791a9d90a4a AS node-base
 
 # ── Prune the monorepo to the workspaces each image needs ────────────────────────────────────
 FROM node-base AS prune
