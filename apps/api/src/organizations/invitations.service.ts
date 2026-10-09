@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -14,6 +13,7 @@ import {
 } from '@topflow/shared';
 import { AuditAction } from '../audit/audit-actions';
 import { AuditService } from '../audit/audit.service';
+import { concurrentUpdate } from '../common/concurrency';
 import type {
   AuthenticatedUser,
   OrganizationContext,
@@ -181,6 +181,19 @@ export class InvitationsService {
     }
 
     await this.prisma.$transaction(async (tx) => {
+      // The invitation is taken first, and only if it is still what findValid saw: not accepted,
+      // not revoked and not expired. A revocation (or a second acceptance) that commits first
+      // leaves nothing to take: this request answers 409 and no membership is created.
+      const { count } = await tx.organizationInvitation.updateMany({
+        where: {
+          id: invitation.id,
+          acceptedAt: null,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        data: { acceptedAt: new Date() },
+      });
+      if (count !== 1) throw concurrentUpdate('invitation');
       const alreadyMember = await tx.organizationMember.findUnique({
         where: {
           organizationId_userId: {
@@ -201,13 +214,6 @@ export class InvitationsService {
           role: invitation.role,
         },
       });
-      const { count } = await tx.organizationInvitation.updateMany({
-        where: { id: invitation.id, acceptedAt: null },
-        data: { acceptedAt: new Date() },
-      });
-      if (count !== 1) {
-        throw new BadRequestException('This invitation has already been used');
-      }
       await this.audit.record(
         {
           action: AuditAction.INVITATION_ACCEPTED,

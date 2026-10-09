@@ -4,6 +4,7 @@ import type {
   PathItemObject,
   SchemaObject,
 } from '@nestjs/swagger';
+import { ErrorCode } from '@topflow/shared';
 
 /** JSON schema of ApiErrorBody (@topflow/shared): the body HttpExceptionFilter returns for every failure. */
 export const API_ERROR_SCHEMA: SchemaObject = {
@@ -15,6 +16,7 @@ export const API_ERROR_SCHEMA: SchemaObject = {
     message: { type: 'string', example: 'Enter a valid email address' },
     code: {
       type: 'string',
+      enum: Object.values(ErrorCode),
       description:
         'Machine-readable reason (ErrorCode), when the client can act on it',
       example: 'MFA_REQUIRED',
@@ -65,7 +67,7 @@ const ERROR_STATUSES: Record<string, string> = {
     'Not allowed: missing permission, second factor, or organisation membership',
   '404': 'Not found, or not visible to the caller',
   '409':
-    'Conflict with the current state (for example stock, a duplicate or a finished workflow)',
+    'Conflict with the current state (for example stock, a duplicate or a finished workflow). With the code CONCURRENT_UPDATE, another request changed the record first and nothing was written: load it again before deciding',
   '422': 'Well-formed, but breaks a business rule',
   '429': 'Too many requests: rate limit reached',
   '5XX': 'Server error',

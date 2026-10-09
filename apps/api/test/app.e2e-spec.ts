@@ -203,6 +203,22 @@ describe('TopFlow Hub API (e2e)', () => {
         '5XX',
       ]);
       expect(checkout['422']).toEqual(envelope);
+      // A change that lost a race is a 409 with a code clients can test for (BUG-18 to BUG-22).
+      expect(schemas.ApiError.properties?.code).toMatchObject({
+        enum: expect.arrayContaining(['CONCURRENT_UPDATE', 'PRICE_CHANGED']),
+      });
+      for (const [path, method] of [
+        ['/org/quotations/{id}/respond', 'post'],
+        ['/admin/orders/{id}/status', 'patch'],
+        ['/org/members/{memberId}', 'patch'],
+        ['/invitations/accept', 'post'],
+      ]) {
+        const conflict = document.paths[path][method].responses['409'];
+        expect(conflict).toEqual(envelope);
+        expect(conflict).toMatchObject({
+          description: expect.stringContaining('CONCURRENT_UPDATE'),
+        });
+      }
       const operations = Object.values(document.paths).flatMap((item) =>
         Object.values(item),
       );

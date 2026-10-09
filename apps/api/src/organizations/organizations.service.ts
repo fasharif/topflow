@@ -17,6 +17,7 @@ import {
 } from '@topflow/shared';
 import { AuditAction } from '../audit/audit-actions';
 import { AuditService } from '../audit/audit.service';
+import { concurrentUpdate } from '../common/concurrency';
 import type {
   AuthenticatedUser,
   OrganizationContext,
@@ -76,8 +77,14 @@ export class OrganizationsService {
     const requiresReverification =
       identifiersChanged && current.status === OrgStatus.ACTIVE;
 
-    const org = await this.prisma.organization.update({
-      where: { id: ctx.organizationId },
+    // A change of legal identifier is decided on the status that was read (it may send a verified
+    // account back to review), so it is written only if the status is still that one. Otherwise a
+    // suspension or a KYC decision made at the same moment would be overwritten or bypassed.
+    const { count } = await this.prisma.organization.updateMany({
+      where: {
+        id: ctx.organizationId,
+        ...(identifiersChanged && { status: current.status }),
+      },
       data: {
         ...input,
         ...(requiresReverification && {
@@ -85,6 +92,10 @@ export class OrganizationsService {
           verifiedAt: null,
         }),
       },
+    });
+    if (count !== 1) throw concurrentUpdate('company profile');
+    const org = await this.prisma.organization.findUniqueOrThrow({
+      where: { id: ctx.organizationId },
       include: withMemberCount,
     });
     await this.audit.record({
@@ -117,17 +128,20 @@ export class OrganizationsService {
   ): Promise<MemberDto> {
     const member = await this.findMember(ctx.organizationId, memberId);
     this.demo.assertMayChangeAccount(member.user.email);
-    if (
-      member.role === OrgRole.OWNER &&
-      input.role !== undefined &&
-      input.role !== OrgRole.OWNER
-    ) {
-      await this.assertAnotherOwner(ctx.organizationId, member.id);
-    }
-    const updated = await this.prisma.organizationMember.update({
-      where: { id: member.id },
-      data: { role: input.role, approvalLimit: input.approvalLimit },
-      include: memberInclude,
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const current = await this.lockedMember(tx, ctx.organizationId, memberId);
+      if (
+        current.role === OrgRole.OWNER &&
+        input.role !== undefined &&
+        input.role !== OrgRole.OWNER
+      ) {
+        await this.assertAnotherOwner(tx, ctx.organizationId, current.id);
+      }
+      return tx.organizationMember.update({
+        where: { id: current.id },
+        data: { role: input.role, approvalLimit: input.approvalLimit },
+        include: memberInclude,
+      });
     });
     await this.audit.record({
       action: AuditAction.MEMBER_UPDATED,
@@ -149,10 +163,13 @@ export class OrganizationsService {
   ): Promise<void> {
     const member = await this.findMember(ctx.organizationId, memberId);
     this.demo.assertMayChangeAccount(member.user.email);
-    if (member.role === OrgRole.OWNER) {
-      await this.assertAnotherOwner(ctx.organizationId, member.id);
-    }
-    await this.prisma.organizationMember.delete({ where: { id: member.id } });
+    await this.prisma.$transaction(async (tx) => {
+      const current = await this.lockedMember(tx, ctx.organizationId, memberId);
+      if (current.role === OrgRole.OWNER) {
+        await this.assertAnotherOwner(tx, ctx.organizationId, current.id);
+      }
+      await tx.organizationMember.delete({ where: { id: current.id } });
+    });
     await this.audit.record({
       action: AuditAction.MEMBER_REMOVED,
       entityType: 'OrganizationMember',
@@ -266,11 +283,39 @@ export class OrganizationsService {
     return member;
   }
 
+  /**
+   * The member as it is now, read while the organisation's row is locked (SELECT … FOR UPDATE).
+   * "There is another owner" is a statement about several rows, so no single conditional write can
+   * guard it. The lock makes changes to one organisation's members run one after the other: two
+   * owners who demote or remove each other at the same moment are handled in turn, and the second
+   * request finds that it would leave no owner. The role is read again under the lock because the
+   * request before it may have changed it.
+   */
+  private async lockedMember(
+    tx: Prisma.TransactionClient,
+    organizationId: string,
+    memberId: string,
+  ) {
+    await tx.$queryRaw`
+      SELECT "id" FROM "organizations"
+      WHERE "id" = ${organizationId}
+      FOR UPDATE`;
+    const member = await tx.organizationMember.findFirst({
+      where: { id: memberId, organizationId },
+    });
+    if (!member) {
+      throw new NotFoundException('Member not found');
+    }
+    return member;
+  }
+
+  /** Call with the organisation's row locked (lockedMember), or the count can be out of date. */
   private async assertAnotherOwner(
+    tx: Prisma.TransactionClient,
     organizationId: string,
     excludingMemberId: string,
   ): Promise<void> {
-    const otherOwners = await this.prisma.organizationMember.count({
+    const otherOwners = await tx.organizationMember.count({
       where: {
         organizationId,
         role: OrgRole.OWNER,

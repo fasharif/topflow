@@ -45,6 +45,7 @@ import {
 } from '@topflow/shared';
 import { AuditAction } from '../audit/audit-actions';
 import { AuditService } from '../audit/audit.service';
+import { concurrentUpdate } from '../common/concurrency';
 import { DAY_MS, addDays } from '../common/dates';
 import { NumberingService } from '../common/numbering.service';
 import type {
@@ -58,7 +59,10 @@ import type { AppConfig } from '../config/env';
 import { QuotationPdfService } from '../documents/quotation-pdf.service';
 import { MailService } from '../mail/mail.service';
 import { approvalRequestEmail, quotationSentEmail } from '../mail/templates';
-import { OrderWriter } from '../orders/order-writer.service';
+import {
+  OrderWriter,
+  type QuotationForOrder,
+} from '../orders/order-writer.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   AddressBookService,
@@ -87,6 +91,7 @@ const REVISABLE: readonly QuotationStatus[] = [
   ...OPEN_FOR_SUPERSEDE,
   QuotationStatus.EXPIRED,
 ];
+const RFQ_STATUSES = Object.values(RfqStatus);
 
 type Tx = Prisma.TransactionClient;
 
@@ -95,6 +100,16 @@ type Tx = Prisma.TransactionClient;
  *   RFQ → draft quotation → sent → (revision loop) → accepted → sales order
  * with segregation of duties: a buyer above their spending limit needs an approver,
  * and nobody can approve their own purchase.
+ *
+ * Concurrent requests. Each method reads the quotation, decides, and then changes it through
+ * `updateIfStill`, which writes only if the quotation still has the status that was read. Of two
+ * requests that answer one quotation at the same moment, one therefore takes effect and the other
+ * answers 409 (CONCURRENT_UPDATE) without writing anything: the order, the RFQ change and the
+ * audit entry all follow the guarded write in the same transaction.
+ *
+ * Lock order, the same in every transaction here so that two of them cannot wait for each other:
+ * the quotation's row (and after it earlier revisions of the same number), then the
+ * organisation's row (OrderWriter), then the RFQ's row. `create` locks only the RFQ's row.
  */
 @Injectable()
 export class QuotationsService {
@@ -126,6 +141,13 @@ export class QuotationsService {
       }> | null = null;
 
       if (input.quoteRequestId) {
+        // "This RFQ has no quotation yet" is decided from a read, and there is no row to make the
+        // write conditional on. So the RFQ's row is locked first: two first drafts for one RFQ run
+        // one after the other, and the second one finds the first one's quotation.
+        await tx.$queryRaw`
+          SELECT "id" FROM "quote_requests"
+          WHERE "id" = ${input.quoteRequestId}
+          FOR UPDATE`;
         rfq = await tx.quoteRequest.findUnique({
           where: { id: input.quoteRequestId },
           include: { quotations: { select: { id: true } } },
@@ -253,14 +275,17 @@ export class QuotationsService {
       );
     }
     const quotation = await this.prisma.$transaction(async (tx) => {
-      const data: Prisma.QuotationUpdateInput = {
+      // Still a draft? This write also locks the row until the edit commits, so a `send` at the
+      // same moment either goes first (and the edit is refused) or sends the edited quotation.
+      await this.updateIfStill(tx, id, QuotationStatus.DRAFT, {
         terms: input.terms,
         notes: input.notes,
         internalNotes: input.internalNotes,
-      };
-      // While drafting, validity is measured from creation; `send` re-anchors it to the send date.
-      if (input.validityDays)
-        data.validUntil = addDays(current.createdAt, input.validityDays);
+        // While drafting, validity is measured from creation; `send` re-anchors it to the send date.
+        ...(input.validityDays && {
+          validUntil: addDays(current.createdAt, input.validityDays),
+        }),
+      });
       if (input.items || input.deliveryFee !== undefined) {
         const built = await this.buildLines(
           tx,
@@ -269,11 +294,13 @@ export class QuotationsService {
           input.deliveryFee ?? money(current.deliveryFee),
         );
         await tx.quotationItem.deleteMany({ where: { quotationId: id } });
-        Object.assign(data, built.totals, { items: { create: built.items } });
+        await tx.quotation.update({
+          where: { id },
+          data: { ...built.totals, items: { create: built.items } },
+        });
       }
-      const updated = await tx.quotation.update({
+      const updated = await tx.quotation.findUniqueOrThrow({
         where: { id },
-        data,
         include: quotationInclude,
       });
       await this.audit.record(
@@ -302,7 +329,11 @@ export class QuotationsService {
     if (current.status !== QuotationStatus.DRAFT) {
       throw new ConflictException('Only draft quotations can be discarded');
     }
-    await this.prisma.quotation.delete({ where: { id } });
+    // Deleted only while it is still a draft: a quotation sent meanwhile stays.
+    const { count } = await this.prisma.quotation.deleteMany({
+      where: { id, status: QuotationStatus.DRAFT },
+    });
+    if (count !== 1) throw concurrentUpdate('quotation');
     await this.audit.record({
       action: AuditAction.QUOTATION_UPDATED,
       entityType: 'Quotation',
@@ -340,45 +371,25 @@ export class QuotationsService {
       ) * DAY_MS;
     const now = new Date();
     const sent = await this.prisma.$transaction(async (tx) => {
-      const earlier = await tx.quotation.findMany({
+      // Validity runs from the day the customer receives the offer.
+      await this.updateIfStill(tx, id, current.status, {
+        status: QuotationStatus.SENT,
+        sentAt: now,
+        validUntil: new Date(now.getTime() + validityMs),
+      });
+      // Only revisions that are still open are superseded, and the UPDATE itself decides which
+      // those are. A revision the customer accepts at this moment is either superseded first (the
+      // acceptance then answers 409) or accepted first (and then no longer matches here): an
+      // accepted quotation is never overwritten.
+      const { count: superseded } = await tx.quotation.updateMany({
         where: {
           number: current.number,
           revision: { lt: current.revision },
           status: { in: OPEN_FOR_SUPERSEDE },
         },
-        select: { id: true },
+        data: { status: QuotationStatus.SUPERSEDED },
       });
-      if (earlier.length > 0) {
-        await tx.quotation.updateMany({
-          where: { id: { in: earlier.map((q) => q.id) } },
-          data: { status: QuotationStatus.SUPERSEDED },
-        });
-      }
-      const updated = await tx.quotation.update({
-        where: { id },
-        // Validity runs from the day the customer receives the offer.
-        data: {
-          status: QuotationStatus.SENT,
-          sentAt: now,
-          validUntil: new Date(now.getTime() + validityMs),
-        },
-        include: quotationInclude,
-      });
-      if (current.quoteRequestId) {
-        const rfq = await tx.quoteRequest.findUnique({
-          where: { id: current.quoteRequestId },
-        });
-        if (
-          rfq &&
-          rfq.status !== RfqStatus.QUOTED &&
-          canTransition(RFQ_TRANSITIONS, rfq.status, RfqStatus.QUOTED)
-        ) {
-          await tx.quoteRequest.update({
-            where: { id: rfq.id },
-            data: { status: RfqStatus.QUOTED },
-          });
-        }
-      }
+      await this.moveRfq(tx, current.quoteRequestId, RfqStatus.QUOTED);
       await this.audit.record(
         {
           action: AuditAction.QUOTATION_SENT,
@@ -387,11 +398,14 @@ export class QuotationsService {
           organizationId: current.organizationId,
           userId: actor.id,
           ipAddress: meta.ipAddress,
-          details: { superseded: earlier.length },
+          details: { superseded },
         },
         tx,
       );
-      return updated;
+      return tx.quotation.findUniqueOrThrow({
+        where: { id },
+        include: quotationInclude,
+      });
     });
 
     const dto = toQuotationDto(sent, { includeInternal: true });
@@ -574,9 +588,9 @@ export class QuotationsService {
 
       if (needsApproval) {
         await this.prisma.$transaction(async (tx) => {
-          await tx.quotation.update({
-            where: { id },
-            data: { status: QuotationStatus.PENDING_APPROVAL, ...response },
+          await this.answer(tx, quotation, {
+            status: QuotationStatus.PENDING_APPROVAL,
+            ...response,
           });
           await this.recordResponse(tx, ctx, id, actor, meta, {
             action: input.action,
@@ -586,18 +600,13 @@ export class QuotationsService {
         await this.notifyApprovers(ctx, quotation, actor, netFils);
       } else {
         await this.prisma.$transaction(async (tx) => {
-          const accepted = await tx.quotation.update({
-            where: { id },
-            data: {
-              status: QuotationStatus.ACCEPTED,
-              ...response,
-              approvedById: actor.id,
-              approvedAt: now,
-            },
-            include: forOrderInclude,
+          const accepted = await this.accept(tx, quotation, {
+            ...response,
+            approvedById: actor.id,
+            approvedAt: now,
           });
           await this.orders.createFromQuotation(tx, accepted, actor.id, meta);
-          await this.closeRfq(tx, accepted.quoteRequestId);
+          await this.moveRfq(tx, accepted.quoteRequestId, RfqStatus.CLOSED);
           await this.recordResponse(tx, ctx, id, actor, meta, {
             action: input.action,
           });
@@ -605,45 +614,26 @@ export class QuotationsService {
       }
     } else if (input.action === QuotationResponse.REJECT) {
       await this.prisma.$transaction(async (tx) => {
-        await tx.quotation.update({
-          where: { id },
-          data: {
-            status: QuotationStatus.REJECTED,
-            respondedAt: now,
-            respondedById: actor.id,
-            responseNote: input.note,
-          },
+        await this.answer(tx, quotation, {
+          status: QuotationStatus.REJECTED,
+          respondedAt: now,
+          respondedById: actor.id,
+          responseNote: input.note,
         });
-        await this.closeRfq(tx, quotation.quoteRequestId);
+        await this.moveRfq(tx, quotation.quoteRequestId, RfqStatus.CLOSED);
         await this.recordResponse(tx, ctx, id, actor, meta, {
           action: input.action,
         });
       });
     } else {
       await this.prisma.$transaction(async (tx) => {
-        await tx.quotation.update({
-          where: { id },
-          data: {
-            status: QuotationStatus.REVISION_REQUESTED,
-            respondedAt: now,
-            respondedById: actor.id,
-            responseNote: input.note,
-          },
+        await this.answer(tx, quotation, {
+          status: QuotationStatus.REVISION_REQUESTED,
+          respondedAt: now,
+          respondedById: actor.id,
+          responseNote: input.note,
         });
-        if (quotation.quoteRequestId) {
-          const rfq = await tx.quoteRequest.findUnique({
-            where: { id: quotation.quoteRequestId },
-          });
-          if (
-            rfq &&
-            canTransition(RFQ_TRANSITIONS, rfq.status, RfqStatus.IN_REVIEW)
-          ) {
-            await tx.quoteRequest.update({
-              where: { id: rfq.id },
-              data: { status: RfqStatus.IN_REVIEW },
-            });
-          }
-        }
+        await this.moveRfq(tx, quotation.quoteRequestId, RfqStatus.IN_REVIEW);
         await this.recordResponse(tx, ctx, id, actor, meta, {
           action: input.action,
         });
@@ -689,14 +679,9 @@ export class QuotationsService {
 
     await this.prisma.$transaction(async (tx) => {
       if (input.decision === ApprovalDecision.APPROVE) {
-        const accepted = await tx.quotation.update({
-          where: { id },
-          data: {
-            status: QuotationStatus.ACCEPTED,
-            approvedById: actor.id,
-            approvedAt: new Date(),
-          },
-          include: forOrderInclude,
+        const accepted = await this.accept(tx, quotation, {
+          approvedById: actor.id,
+          approvedAt: new Date(),
         });
         await this.orders.createFromQuotation(
           tx,
@@ -704,15 +689,12 @@ export class QuotationsService {
           quotation.respondedById ?? actor.id,
           meta,
         );
-        await this.closeRfq(tx, accepted.quoteRequestId);
+        await this.moveRfq(tx, accepted.quoteRequestId, RfqStatus.CLOSED);
       } else {
         // Declined internally: the offer stays open so the buyer can negotiate or reject it.
-        await tx.quotation.update({
-          where: { id },
-          data: {
-            status: QuotationStatus.SENT,
-            responseNote: input.note ?? 'Declined by approver',
-          },
+        await this.answer(tx, quotation, {
+          status: QuotationStatus.SENT,
+          responseNote: input.note ?? 'Declined by approver',
         });
       }
       await this.audit.record(
@@ -796,17 +778,12 @@ export class QuotationsService {
         await this.addressBook.get({ userId: actor.id }, input.addressId),
       );
       const order = await this.prisma.$transaction(async (tx) => {
-        const accepted = await tx.quotation.update({
-          where: { id },
-          data: {
-            status: QuotationStatus.ACCEPTED,
-            respondedAt: now,
-            respondedById: actor.id,
-            responseNote: input.note ?? null,
-            approvedById: actor.id,
-            approvedAt: now,
-          },
-          include: forOrderInclude,
+        const accepted = await this.accept(tx, quotation, {
+          respondedAt: now,
+          respondedById: actor.id,
+          responseNote: input.note ?? null,
+          approvedById: actor.id,
+          approvedAt: now,
         });
         const created = await this.orders.createFromQuotation(
           tx,
@@ -815,7 +792,7 @@ export class QuotationsService {
           meta,
           address,
         );
-        await this.closeRfq(tx, accepted.quoteRequestId);
+        await this.moveRfq(tx, accepted.quoteRequestId, RfqStatus.CLOSED);
         await this.recordPersonalResponse(tx, id, actor, meta, {
           action: input.action,
           orderNumber: created.orderNumber,
@@ -829,33 +806,19 @@ export class QuotationsService {
     } else {
       const rejecting = input.action === QuotationResponse.REJECT;
       await this.prisma.$transaction(async (tx) => {
-        await tx.quotation.update({
-          where: { id },
-          data: {
-            status: rejecting
-              ? QuotationStatus.REJECTED
-              : QuotationStatus.REVISION_REQUESTED,
-            respondedAt: now,
-            respondedById: actor.id,
-            responseNote: input.note,
-          },
+        await this.answer(tx, quotation, {
+          status: rejecting
+            ? QuotationStatus.REJECTED
+            : QuotationStatus.REVISION_REQUESTED,
+          respondedAt: now,
+          respondedById: actor.id,
+          responseNote: input.note,
         });
-        if (rejecting) {
-          await this.closeRfq(tx, quotation.quoteRequestId);
-        } else if (quotation.quoteRequestId) {
-          const rfq = await tx.quoteRequest.findUnique({
-            where: { id: quotation.quoteRequestId },
-          });
-          if (
-            rfq &&
-            canTransition(RFQ_TRANSITIONS, rfq.status, RfqStatus.IN_REVIEW)
-          ) {
-            await tx.quoteRequest.update({
-              where: { id: rfq.id },
-              data: { status: RfqStatus.IN_REVIEW },
-            });
-          }
-        }
+        await this.moveRfq(
+          tx,
+          quotation.quoteRequestId,
+          rejecting ? RfqStatus.CLOSED : RfqStatus.IN_REVIEW,
+        );
         await this.recordPersonalResponse(tx, id, actor, meta, {
           action: input.action,
         });
@@ -1027,8 +990,10 @@ export class QuotationsService {
       );
     }
     if (isQuotationExpired(quotation.validUntil)) {
-      await this.prisma.quotation.update({
-        where: { id },
+      // Recorded only if nobody changed the quotation since it was read (a revision may have
+      // superseded it); the caller is told that it has expired either way.
+      await this.prisma.quotation.updateMany({
+        where: { id, status: expected },
         data: { status: QuotationStatus.EXPIRED },
       });
       throw new ConflictException(
@@ -1038,17 +1003,81 @@ export class QuotationsService {
     return quotation;
   }
 
-  private async closeRfq(tx: Tx, quoteRequestId: string | null): Promise<void> {
-    if (!quoteRequestId) return;
-    const rfq = await tx.quoteRequest.findUnique({
-      where: { id: quoteRequestId },
+  /**
+   * Writes `data` to the quotation only if it still has the status this request read. The status
+   * is part of the UPDATE's WHERE clause, so PostgreSQL decides under the row lock: a request
+   * that waited for another one to commit checks the committed row, matches nothing and answers
+   * 409. Call it first in the transaction; what follows is then written for the winner only.
+   */
+  private async updateIfStill(
+    tx: Tx,
+    id: string,
+    status: QuotationStatus,
+    data: Prisma.QuotationUncheckedUpdateManyInput,
+    extra: Prisma.QuotationWhereInput = {},
+  ): Promise<void> {
+    const { count } = await tx.quotation.updateMany({
+      where: { ...extra, id, status },
+      // The status is always written, even when it stays the same (editing a draft). With no
+      // column to set, Prisma sends no UPDATE at all, and it is the UPDATE that takes the row
+      // lock and checks the status.
+      data: { status, ...data },
     });
-    if (rfq && canTransition(RFQ_TRANSITIONS, rfq.status, RfqStatus.CLOSED)) {
-      await tx.quoteRequest.update({
-        where: { id: rfq.id },
-        data: { status: RfqStatus.CLOSED },
-      });
-    }
+    if (count !== 1) throw concurrentUpdate('quotation');
+  }
+
+  /**
+   * A customer's answer to the quotation `openQuotation` returned: applied only if the quotation
+   * is still in the status that was read and, as that check required, still within its validity.
+   */
+  private answer(
+    tx: Tx,
+    quotation: { id: string; status: QuotationStatus },
+    data: Prisma.QuotationUncheckedUpdateManyInput,
+  ): Promise<void> {
+    return this.updateIfStill(tx, quotation.id, quotation.status, data, {
+      validUntil: { gte: new Date() },
+    });
+  }
+
+  /** Marks the quotation accepted, if it can still be answered, and returns it as the order needs it. */
+  private async accept(
+    tx: Tx,
+    quotation: { id: string; status: QuotationStatus },
+    data: Prisma.QuotationUncheckedUpdateManyInput,
+  ): Promise<QuotationForOrder> {
+    await this.answer(tx, quotation, {
+      ...data,
+      status: QuotationStatus.ACCEPTED,
+    });
+    return tx.quotation.findUniqueOrThrow({
+      where: { id: quotation.id },
+      include: forOrderInclude,
+    });
+  }
+
+  /**
+   * Moves the RFQ to `to` if its lifecycle allows that step from wherever it is now. One
+   * conditional statement rather than a read followed by a write, so a status another request
+   * set in between is not overwritten.
+   */
+  private async moveRfq(
+    tx: Tx,
+    quoteRequestId: string | null,
+    to: RfqStatus,
+  ): Promise<void> {
+    if (!quoteRequestId) return;
+    await tx.quoteRequest.updateMany({
+      where: {
+        id: quoteRequestId,
+        status: {
+          in: RFQ_STATUSES.filter((from) =>
+            canTransition(RFQ_TRANSITIONS, from, to),
+          ),
+        },
+      },
+      data: { status: to },
+    });
   }
 
   private recordResponse(

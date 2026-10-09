@@ -38,5 +38,10 @@ export const ErrorCode = {
   DEMO_RESTRICTED: 'DEMO_RESTRICTED',
   /** Checkout: the order would cost a different total from the one the customer was shown. */
   PRICE_CHANGED: 'PRICE_CHANGED',
+  /**
+   * Another request changed the record between this request reading it and writing to it, so
+   * nothing was written. The client should load the record again before deciding what to do.
+   */
+  CONCURRENT_UPDATE: 'CONCURRENT_UPDATE',
 } as const;
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
