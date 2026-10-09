@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.0.2](https://github.com/fasharif/topflow/compare/v1.0.1...v1.0.2) (2026-10-09)
+
+
+### Bug fixes
+
+* **api:** add the 409 answer for a request that lost a race ([bd66e5a](https://github.com/fasharif/topflow/commit/bd66e5ab7b88e38c6c3e5114c3350f9160c15afe))
+* **api:** apply a change to a quotation only if it is still as it was read ([1881bab](https://github.com/fasharif/topflow/commit/1881baba0e9353e561f67af6fd92bfb226c3d418))
+* **api:** apply a change to an order only if it is still as it was read ([209e81a](https://github.com/fasharif/topflow/commit/209e81a728c06cf4b1be6d3b67d8c49cf84047fa))
+* **api:** change one company's members one request at a time ([865f541](https://github.com/fasharif/topflow/commit/865f541d3016734da40876942d082d29fcc54f97))
+* **api:** do not accept an invitation that was revoked at the same moment ([59943e7](https://github.com/fasharif/topflow/commit/59943e7bb4dbf4feadd5887907e4046937c02e8d))
+* **api:** keep an RFQ's status and a company's suspension set at the same moment ([29de609](https://github.com/fasharif/topflow/commit/29de609442d3332a56c2a95fbbbb969730bfcc17))
+
+
+### Documentation
+
+* describe the releases and the report workflow as they are ([b061674](https://github.com/fasharif/topflow/commit/b06167472c38ad47f07e6d04c20ce7378476169f))
+* record the concurrency defects and how status changes are guarded ([cf8a4a3](https://github.com/fasharif/topflow/commit/cf8a4a3fb555bdf1cd2d48ca5302a09acfb8f850))
+* record the run after the merge with develop and correct status statements ([96e1a70](https://github.com/fasharif/topflow/commit/96e1a703c8e29eb9ffb10b0ecf4480566a1cb7bd))
+
 ## [1.0.1](https://github.com/fasharif/topflow/compare/v1.0.0...v1.0.1) (2026-10-02)
 
 
