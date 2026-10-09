@@ -33,15 +33,15 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.10.0",
-    "dotenv": "^18.0.4",
-    "pg": "^8.23.0",
+    "dotenv": "^18.0.6",
+    "pg": "^8.23.1",
     "prisma": "^7.10.0"
   },
   "devDependencies": {
     "@supabase/supabase-js": "^2.117.2",
     "@topflow/shared": "*",
     "@types/jest": "^30.0.0",
-    "@types/node": "^26.6.3",
+    "@types/node": "^26.6.4",
     "@types/pg": "^8.23.1",
     "jest": "^30.0.0",
     "ts-jest": "^29.4.14",
